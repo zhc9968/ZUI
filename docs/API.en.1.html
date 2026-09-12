@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -188,36 +188,36 @@ pre { line-height: 125%; }
 </head>
 <body class="">
     <div class="ai-read-hint">
-      面向 AI 智能体：本页的「阅读辅助」区块内含有与正文完全一致的原始 Markdown 源码，已去除 HTML 标签与动画特效。建议 AI 直接读取该区块，以更低的噪声快速理解内容。
+For AI agents: the "Reading aid" section on this page contains the raw Markdown source identical to the rendered content, with HTML markup and animations removed. AI is advised to read that section directly to understand the content quickly and with less noise.
     </div>
     <!-- AI-READ: the .reading-aid element contains this page's raw Markdown source, identical to the rendered content but without HTML/animations. -->
-    <button class="toc-toggle" id="tocToggle" title="显示目录">&#9776;</button>
-    <button class="theme-toggle" id="themeToggle" title="切换主题（浅色/深色）">&#9789;</button>
+    <button class="toc-toggle" id="tocToggle" title="Show contents">&#9776;</button>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme (light / dark)">&#9789;</button>
 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
-            <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class="active"><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div>
+            <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class="active"><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>- Everything lives in `namespace ZUI`.
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>- Everything lives in `namespace ZUI`.
 - Coordinates and sizes are in **DIP** (device-independent pixels); before rendering they are snapped to physical pixels by `Snap()`.
 - Controls are held via `std::shared_ptr&lt;T&gt;` and attached through a layout's `AddChild()`.
 - Events are bound with `Connect(signal, slot)`, which returns a `Connection` that is automatically disconnected when its owner is destroyed.
 - The `inline static` defaults of each class can be changed globally through the corresponding `static SetDefault*()`, affecting instances created afterward.</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>第 1 章 · Conventions</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">第 1 章</span><h1>Conventions</h1><p class="chapter-summary">Namespace, units, lifetime, and default-value conventions</p></header><ul>
+<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 1 · Conventions</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 1</span><h1>Conventions</h1><p class="chapter-summary">Namespace, units, lifetime, and default-value conventions</p></header><ul>
 <li>Everything lives in <code>namespace ZUI</code>.</li>
 <li>Coordinates and sizes are in <strong>DIP</strong> (device-independent pixels); before rendering they are snapped to physical pixels by <code>Snap()</code>.</li>
 <li>Controls are held via <code>std::shared_ptr&lt;T&gt;</code> and attached through a layout's <code>AddChild()</code>.</li>
 <li>Events are bound with <code>Connect(signal, slot)</code>, which returns a <code>Connection</code> that is automatically disconnected when its owner is destroyed.</li>
 <li>The <code>inline static</code> defaults of each class can be changed globally through the corresponding <code>static SetDefault*()</code>, affecting instances created afterward.</li>
 </ul>
-<nav class="chapter-nav"><a class="prev" href="API.en.html"><span class="nav-label">&#8592; 文档目录</span><span class="nav-title">返回章节目录</span></a><a class="next" href="API.en.2.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">Basic Types</span><span class="nav-desc">Color, Rect, Thickness, Size</span></a></nav>
+<nav class="chapter-nav"><a class="prev" href="API.en.html"><span class="nav-label">&#8592; Contents</span><span class="nav-title">Back to the chapter list</span></a><a class="next" href="API.en.2.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Basic Types</span><span class="nav-desc">Color, Rect, Thickness, Size</span></a></nav>
         </main>
     </div>
 
-    <div class="back-to-top" id="backToTop" title="返回顶部">&#8593;</div>
+    <div class="back-to-top" id="backToTop" title="Back to top">&#8593;</div>
 
     <script>
 
@@ -343,10 +343,10 @@ function copyCode(id, btn) {
     try {
         if (document.execCommand('copy')) {
             btn.classList.add('copied');
-            btn.textContent = '已复制!';
+            btn.textContent = 'Copied!';
             setTimeout(function () {
                 btn.classList.remove('copied');
-                btn.textContent = '复制';
+                btn.textContent = 'Copy';
             }, 2000);
         }
     } catch (err) { console.error('复制失败:', err); }

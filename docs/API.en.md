@@ -1,7 +1,7 @@
 # ZUI API Reference
 
 > This document covers the complete public API of the ZUI framework: core types, signals and slots, fonts, elements, layout, windows, basic controls, and data views.
-> Companion reading: [Project description and build](../README.md).
+> Companion reading: [Project description and build](../README.en.md).
 
 ###chapter: Conventions | Namespace, units, lifetime, and default-value conventions
 
@@ -87,9 +87,9 @@ inline float Snap(float dip);
 
 ```cpp
 enum class ConnectionThread {
-    CurrentThread,   // 在触发线程直接执行（默认）
-    NewThread,       // 每次触发新建分离线程
-    UIThread         // 投递到 UI 线程消息循环
+    CurrentThread,   // run directly on the emitting thread (default)
+    NewThread,       // spawn a detached thread per emission
+    UIThread         // post to the UI thread message loop
 };
 ```
 
@@ -99,7 +99,7 @@ enum class ConnectionThread {
 class Connection {
     Connection();
     Connection(std::shared_ptr<detail::ConnectionState> state);
-    ~Connection();                         // 析构自动断开
+    ~Connection();                         // disconnects automatically on destruction
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
     Connection(Connection&&) noexcept;
@@ -114,7 +114,7 @@ class Connection {
 ```cpp
 class ConnectionGroup : public std::enable_shared_from_this<ConnectionGroup> {
     ConnectionGroup();
-    ~ConnectionGroup();                    // 析构时断开全部
+    ~ConnectionGroup();                    // disconnects all on destruction
     void disconnectAll();
     size_t size() const;
     void addState(const std::shared_ptr<detail::ConnectionState>& state);
@@ -131,7 +131,7 @@ class ZSignal {
                        ConnectionThread thread = ConnectionThread::CurrentThread,
                        std::shared_ptr<ConnectionGroup> group = nullptr);
     void Fire(TArgs... targs) const;
-    void operator()(TArgs... targs) const;   // Fire 的语法糖
+    void operator()(TArgs... targs) const;   // syntactic sugar for Fire
 };
 ```
 
@@ -255,7 +255,7 @@ The base class of all visual elements. Custom controls must inherit from it and 
 ```cpp
 class Layout : public UIElement {
     virtual ~Layout() = default;
-    bool UseCache() const override;   // 布局容器默认不用缓存
+    bool UseCache() const override;   // layout containers do not use cache by default
 };
 ```
 
@@ -266,7 +266,7 @@ class ColumnBox : public Layout {
     void AddChild(std::shared_ptr<UIElement> child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
-    // 默认横向拉伸权重 1.0，纵向 0.0
+    // default horizontal stretch 1.0, vertical 0.0
 };
 ```
 
@@ -277,7 +277,7 @@ class RowBox : public Layout {
     void AddChild(std::shared_ptr<UIElement> child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
-    // 默认横向拉伸权重 0.0，纵向 1.0
+    // default horizontal stretch 0.0, vertical 1.0
 };
 ```
 
@@ -317,14 +317,14 @@ With `GridLayout` held by default on construction. `GetLayoutAs<GridLayout>()` i
 class Card : public LayoutHost {
     static float DefaultPadding;           // 12.0f
     static float DefaultCornerRadius;      // 8.0f
-    static Color DefaultBgColor;           // 白
+    static Color DefaultBgColor;           // white
     static Color DefaultBorderColor;       // 200,200,200
 
     void SetPadding(float);
     void SetCornerRadius(float);
     void SetBackgroundColor(Color);
     void SetBorderColor(Color);
-    // 另有对应的 static SetDefault*
+    // corresponding static SetDefault* methods exist too
 };
 ```
 
@@ -347,7 +347,7 @@ class PageHost : public UIElement {
     void AddPage(std::shared_ptr<Page> page);
     void NavigateTo(int index);
     void SetTransitionDirection(TransitionDirection dir);
-    void SetAnimationDuration(float seconds);   // 下限 0.01s，默认 0.3s
+    void SetAnimationDuration(float seconds);   // min 0.01s, default 0.3s
     int GetCurrentIndex() const;
     std::shared_ptr<Page> GetCurrentPage() const;
 };
@@ -399,7 +399,7 @@ class MenuWindow {
 class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
-    static Color DefaultBackgroundColor;          // 透明
+    static Color DefaultBackgroundColor;          // transparent
 
     bool Create(int width, int height, const std::wstring& title);
     void Run();
@@ -501,7 +501,7 @@ class TextBox : public UIElement {
     void SetText(const std::wstring& text);
     void SetPlaceholder(const std::wstring& placeholder);
     void SetPasswordMode(bool mode);
-    void SetMaxLength(int maxLength);        // -1 不限
+    void SetMaxLength(int maxLength);        // -1 = unlimited
     int  GetMaxLength() const;
     bool IsFocused() const;
     void Focus();
@@ -585,7 +585,7 @@ Scroll bar width `8`, minimum length `20`, wheel step `30`. The internal `Scroll
 ```cpp
 class ProgressBar : public UIElement {
     ProgressBar();
-    void SetValue(float value);        // [0,1]，会关闭不确定模式
+    void SetValue(float value);        // [0,1]; disables indeterminate mode
     float GetValue() const;
     void SetIndeterminate(bool indeterminate);
     bool IsIndeterminate() const;
@@ -645,7 +645,7 @@ class ListView : public UIElement {
     int GetSelectedIndex() const;
     std::wstring GetSelectedText() const;
 
-    void SetButtonMode(bool enable);        // 按钮模式：圆角行 + 间距
+    void SetButtonMode(bool enable);        // button mode: rounded rows + spacing
     bool IsButtonMode() const;
     void SetButtonSpacing(float spacing);
 
@@ -692,7 +692,7 @@ class TableView : public UIElement {
     int GetCurrentRow() const;
     int GetCurrentColumn() const;
 
-    // 颜色：SetBackgroundColor / SetHeaderBackgroundColor / SetTextColor /
+    // colors: SetBackgroundColor / SetHeaderBackgroundColor / SetTextColor /
     //       SetHeaderTextColor / SetSelectedColor / SetHoverColor /
     //       SetGridLineColor / SetBorderColor / SetScrollBarColors
 };
@@ -704,8 +704,8 @@ Default size `400×300`, header height `26`, row height `24`, minimum column wid
 
 ```cpp
 struct TreeNode {
-    std::vector<std::wstring> columns;                 // 第 0 列为节点文本
-    TreeNode* parent = nullptr;                        // 非拥有
+    std::vector<std::wstring> columns;                 // column 0 is the node text
+    TreeNode* parent = nullptr;                        // non-owning
     std::vector<std::shared_ptr<TreeNode>> children;
     bool expanded = false;
     int depth = 0;
@@ -804,7 +804,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     auto root = win.GetRootColumnBox();
     root->SetSpacing(10);
 
-    // 顶部：开关 + 滑块 + 进度条
+    // top: toggle + slider + progress bar
     auto row = std::make_shared<RowBox>();
     row->SetSpacing(10);
 
@@ -825,7 +825,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     row->AddChild(bar);
     root->AddChild(row);
 
-    // 中间：列表
+    // middle: list
     auto list = std::make_shared<ListView>();
     list->SetFillHeight(true);
     for (int i = 1; i <= 20; ++i)

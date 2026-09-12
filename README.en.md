@@ -2,11 +2,13 @@
 
 > A C++ native Win32 custom-drawn UI framework based on Direct2D, with layout, controls, signals/slots, and high-DPI adaptation.
 
+> Language: **English** · [简体中文](README.md)
+
 ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D / DirectWrite / DWM. It does not depend on Qt, MFC, or any third-party library; it packs controls, layout, animation, fonts, data views, and signals/slots into a handful of `.h` files, making it suitable for native C++ applications that want a lightweight, controllable, modern look.
 
-- Repository: <https://gitee.com/zhc9968/zui>
+- Repository: GitHub <https://github.com/zhc9968/ZUI> · Gitee <https://gitee.com/zhc9968/zui>
 - License: MIT
-- Full API documentation: [docs/API.md](docs/API.md)
+- Full API documentation: [docs/API.en.md](docs/API.en.md)
 
 ## Features
 
@@ -76,14 +78,14 @@ msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
 
 ```text
 ZUI/
-├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
-├── ZUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
-├── ZDataViewer.h      # 数据视图：ListView / TableView / TreeView
-├── ZUI.cpp            # 综合演示程序入口（WinMain）
-├── ZUI.slnx           # 解决方案
-├── ZUI.vcxproj        # 工程文件
+├── ZUI.h              # Core: types / signals & slots / fonts / elements / layout / menus / window
+├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
+├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
+├── ZUI.cpp            # Demo program entry point (WinMain)
+├── ZUI.slnx           # Solution
+├── ZUI.vcxproj        # Project file
 └── docs/
-    └── API.md         # 完整 API 文档
+    └── API.en.md      # Full API documentation
 ```
 
 ## Quick start
@@ -103,15 +105,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     auto row = std::make_shared<RowBox>();
     row->SetSpacing(10);
 
-    auto btn = std::make_shared<Button>(L"点我");
+    auto btn = std::make_shared<Button>(L"Click me");
     btn->Connect(btn->Clicked, []() {
-        MessageBoxW(nullptr, L"Hello ZUI!", L"提示", MB_OK);
+        MessageBoxW(nullptr, L"Hello ZUI!", L"Info", MB_OK);
     });
 
     auto toggle = std::make_shared<ToggleSwitch>(false);
-    auto state = std::make_shared<Label>(L"开关：关");
+    auto state = std::make_shared<Label>(L"Switch: off");
     toggle->Connect(toggle->Toggled, [state](bool on) {
-        state->SetText(on ? L"开关：开" : L"开关：关");
+        state->SetText(on ? L"Switch: on" : L"Switch: off");
     });
 
     row->AddChild(btn);
@@ -133,7 +135,7 @@ Key points:
 
 ## Documentation
 
-- Detailed API (every class, method, signal, and default value): [docs/API.md](docs/API.md)
+- Detailed API (every class, method, signal, and default value): [docs/API.en.md](docs/API.en.md)
 
 ## License
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -188,27 +188,29 @@ pre { line-height: 125%; }
 </head>
 <body class="">
     <div class="ai-read-hint">
-      面向 AI 智能体：本页的「阅读辅助」区块内含有与正文完全一致的原始 Markdown 源码，已去除 HTML 标签与动画特效。建议 AI 直接读取该区块，以更低的噪声快速理解内容。
+For AI agents: the "Reading aid" section on this page contains the raw Markdown source identical to the rendered content, with HTML markup and animations removed. AI is advised to read that section directly to understand the content quickly and with less noise.
     </div>
     <!-- AI-READ: the .reading-aid element contains this page's raw Markdown source, identical to the rendered content but without HTML/animations. -->
-    <button class="toc-toggle" id="tocToggle" title="显示目录">&#9776;</button>
-    <button class="theme-toggle" id="themeToggle" title="切换主题（浅色/深色）">&#9789;</button>
+    <button class="toc-toggle" id="tocToggle" title="Show contents">&#9776;</button>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme (light / dark)">&#9789;</button>
 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
-            <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item has-children" data-toc="zui"><div class="toc-row"><a href="#zui" data-target="zui">ZUI</a><button class="toc-caret" data-toc="zui" title="折叠/展开"><span class="arrow">&#9662;</span></button></div><ul class="toc-sublist"><li class="toc-item" data-toc="features"><div class="toc-row"><a href="#features" data-target="features">Features</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="requirements"><div class="toc-row"><a href="#requirements" data-target="requirements">Requirements</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="build"><div class="toc-row"><a href="#build" data-target="build">Build</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="project-structure"><div class="toc-row"><a href="#project-structure" data-target="project-structure">Project structure</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="quick-start"><div class="toc-row"><a href="#quick-start" data-target="quick-start">Quick start</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="documentation"><div class="toc-row"><a href="#documentation" data-target="documentation">Documentation</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="license"><div class="toc-row"><a href="#license" data-target="license">License</a><span class="toc-caret-space"></span></div></li></ul></li></ul></div>
+            <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
+<div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item has-children" data-toc="zui"><div class="toc-row"><a href="#zui" data-target="zui">ZUI</a><button class="toc-caret" data-toc="zui" title="Expand / collapse"><span class="arrow">&#9662;</span></button></div><ul class="toc-sublist"><li class="toc-item" data-toc="features"><div class="toc-row"><a href="#features" data-target="features">Features</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="requirements"><div class="toc-row"><a href="#requirements" data-target="requirements">Requirements</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="build"><div class="toc-row"><a href="#build" data-target="build">Build</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="project-structure"><div class="toc-row"><a href="#project-structure" data-target="project-structure">Project structure</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="quick-start"><div class="toc-row"><a href="#quick-start" data-target="quick-start">Quick start</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="documentation"><div class="toc-row"><a href="#documentation" data-target="documentation">Documentation</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="license"><div class="toc-row"><a href="#license" data-target="license">License</a><span class="toc-caret-space"></span></div></li></ul></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre># ZUI
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre># ZUI
 
 &gt; A C++ native Win32 custom-drawn UI framework based on Direct2D, with layout, controls, signals/slots, and high-DPI adaptation.
 
+&gt; Language: **English** · [简体中文](README.md)
+
 ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D / DirectWrite / DWM. It does not depend on Qt, MFC, or any third-party library; it packs controls, layout, animation, fonts, data views, and signals/slots into a handful of `.h` files, making it suitable for native C++ applications that want a lightweight, controllable, modern look.
 
-- Repository: &lt;https://gitee.com/zhc9968/zui&gt;
+- Repository: GitHub &lt;https://github.com/zhc9968/ZUI&gt; · Gitee &lt;https://gitee.com/zhc9968/zui&gt;
 - License: MIT
-- Full API documentation: [docs/API.md](docs/API.md)
+- Full API documentation: [docs/API.en.md](docs/API.en.md)
 
 ## Features
 
@@ -278,14 +280,14 @@ msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
 
 ```text
 ZUI/
-├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
-├── ZUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
-├── ZDataViewer.h      # 数据视图：ListView / TableView / TreeView
-├── ZUI.cpp            # 综合演示程序入口（WinMain）
-├── ZUI.slnx           # 解决方案
-├── ZUI.vcxproj        # 工程文件
+├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
+├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
+├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
+├── ZUI.cpp            # Demo program entry point (WinMain)
+├── ZUI.slnx           # Solution
+├── ZUI.vcxproj        # Project file
 └── docs/
-    └── API.md         # 完整 API 文档
+    └── API.en.md      # Full API documentation
 ```
 
 ## Quick start
@@ -305,15 +307,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     auto row = std::make_shared&lt;RowBox&gt;();
     row-&gt;SetSpacing(10);
 
-    auto btn = std::make_shared&lt;Button&gt;(L"点我");
+    auto btn = std::make_shared&lt;Button&gt;(L"Click me");
     btn-&gt;Connect(btn-&gt;Clicked, []() {
-        MessageBoxW(nullptr, L"Hello ZUI!", L"提示", MB_OK);
+        MessageBoxW(nullptr, L"Hello ZUI!", L"Info", MB_OK);
     });
 
     auto toggle = std::make_shared&lt;ToggleSwitch&gt;(false);
-    auto state = std::make_shared&lt;Label&gt;(L"开关：关");
+    auto state = std::make_shared&lt;Label&gt;(L"Switch: off");
     toggle-&gt;Connect(toggle-&gt;Toggled, [state](bool on) {
-        state-&gt;SetText(on ? L"开关：开" : L"开关：关");
+        state-&gt;SetText(on ? L"Switch: on" : L"Switch: off");
     });
 
     row-&gt;AddChild(btn);
@@ -335,7 +337,7 @@ Key points:
 
 ## Documentation
 
-- Detailed API (every class, method, signal, and default value): [docs/API.md](docs/API.md)
+- Detailed API (every class, method, signal, and default value): [docs/API.en.md](docs/API.en.md)
 
 ## License
 
@@ -345,12 +347,13 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <h1 id="zui">ZUI</h1>
 <blockquote>
 <p>A C++ native Win32 custom-drawn UI framework based on Direct2D, with layout, controls, signals/slots, and high-DPI adaptation.</p>
+<p>Language: <strong>English</strong> · <a href="README.html">简体中文</a></p>
 </blockquote>
 <p>ZUI is a <strong>header-only</strong> Windows desktop UI framework built directly on Direct2D / DirectWrite / DWM. It does not depend on Qt, MFC, or any third-party library; it packs controls, layout, animation, fonts, data views, and signals/slots into a handful of <code>.h</code> files, making it suitable for native C++ applications that want a lightweight, controllable, modern look.</p>
 <ul>
-<li>Repository: <a href="https://gitee.com/zhc9968/zui">https://gitee.com/zhc9968/zui</a></li>
+<li>Repository: GitHub <a href="https://github.com/zhc9968/ZUI">https://github.com/zhc9968/ZUI</a> · Gitee <a href="https://gitee.com/zhc9968/zui">https://gitee.com/zhc9968/zui</a></li>
 <li>License: MIT</li>
-<li>Full API documentation: <a href="docs/API.html">docs/API.md</a></li>
+<li>Full API documentation: <a href="docs/API.en.html">docs/API.en.md</a></li>
 </ul>
 <h2 id="features">Features</h2>
 <div class="feature-list">
@@ -429,11 +432,11 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">bash</span>
-<button class="copy-btn" onclick="copyCode('code-a95d22fa', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-3e322fce', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>msbuild<span class="w"> </span>ZUI.slnx<span class="w"> </span>/p:Configuration<span class="o">=</span>Release<span class="w"> </span>/p:Platform<span class="o">=</span>x64
 </pre></div>
-<pre id="code-a95d22fa" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
+<pre id="code-3e322fce" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
 </div>
 <div class="orange">
 <p><code>ZUI.cpp</code> is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own <code>WinMain</code>.</p>
@@ -442,33 +445,33 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">text</span>
-<button class="copy-btn" onclick="copyCode('code-632c5148', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-0f67edfb', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>ZUI/
-├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
-├── ZUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
-├── ZDataViewer.h      # 数据视图：ListView / TableView / TreeView
-├── ZUI.cpp            # 综合演示程序入口（WinMain）
-├── ZUI.slnx           # 解决方案
-├── ZUI.vcxproj        # 工程文件
+├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
+├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
+├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
+├── ZUI.cpp            # Demo program entry point (WinMain)
+├── ZUI.slnx           # Solution
+├── ZUI.vcxproj        # Project file
 └── docs/
-    └── API.md         # 完整 API 文档
+    └── API.en.md      # Full API documentation
 </pre></div>
-<pre id="code-632c5148" style="display: none;">ZUI/
-├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
-├── ZUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
-├── ZDataViewer.h      # 数据视图：ListView / TableView / TreeView
-├── ZUI.cpp            # 综合演示程序入口（WinMain）
-├── ZUI.slnx           # 解决方案
-├── ZUI.vcxproj        # 工程文件
+<pre id="code-0f67edfb" style="display: none;">ZUI/
+├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
+├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
+├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
+├── ZUI.cpp            # Demo program entry point (WinMain)
+├── ZUI.slnx           # Solution
+├── ZUI.vcxproj        # Project file
 └── docs/
-    └── API.md         # 完整 API 文档</pre>
+    └── API.en.md      # Full API documentation</pre>
 </div>
 <h2 id="quick-start">Quick start</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-918d479f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-b9897181', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZUIWidgets.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -484,15 +487,15 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 <span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">row</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">RowBox</span><span class="o">&gt;</span><span class="p">();</span>
 <span class="w">    </span><span class="n">row</span><span class="o">-&gt;</span><span class="n">SetSpacing</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
 
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">btn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Button</span><span class="o">&gt;</span><span class="p">(</span><span class="sa">L</span><span class="s">"点我"</span><span class="p">);</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">btn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Button</span><span class="o">&gt;</span><span class="p">(</span><span class="sa">L</span><span class="s">"Click me"</span><span class="p">);</span>
 <span class="w">    </span><span class="n">btn</span><span class="o">-&gt;</span><span class="n">Connect</span><span class="p">(</span><span class="n">btn</span><span class="o">-&gt;</span><span class="n">Clicked</span><span class="p">,</span><span class="w"> </span><span class="p">[]()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">MessageBoxW</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Hello ZUI!"</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"提示"</span><span class="p">,</span><span class="w"> </span><span class="n">MB_OK</span><span class="p">);</span>
+<span class="w">        </span><span class="n">MessageBoxW</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Hello ZUI!"</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Info"</span><span class="p">,</span><span class="w"> </span><span class="n">MB_OK</span><span class="p">);</span>
 <span class="w">    </span><span class="p">});</span>
 
 <span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">toggle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">ToggleSwitch</span><span class="o">&gt;</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="p">(</span><span class="sa">L</span><span class="s">"开关：关"</span><span class="p">);</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="p">(</span><span class="sa">L</span><span class="s">"Switch: off"</span><span class="p">);</span>
 <span class="w">    </span><span class="n">toggle</span><span class="o">-&gt;</span><span class="n">Connect</span><span class="p">(</span><span class="n">toggle</span><span class="o">-&gt;</span><span class="n">Toggled</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">state</span><span class="p">](</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">state</span><span class="o">-&gt;</span><span class="n">SetText</span><span class="p">(</span><span class="n">on</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="sa">L</span><span class="s">"开关：开"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="sa">L</span><span class="s">"开关：关"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">state</span><span class="o">-&gt;</span><span class="n">SetText</span><span class="p">(</span><span class="n">on</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="sa">L</span><span class="s">"Switch: on"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="sa">L</span><span class="s">"Switch: off"</span><span class="p">);</span>
 <span class="w">    </span><span class="p">});</span>
 
 <span class="w">    </span><span class="n">row</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">btn</span><span class="p">);</span>
@@ -504,7 +507,7 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-918d479f" style="display: none;">#include "ZUIWidgets.h"
+<pre id="code-b9897181" style="display: none;">#include "ZUIWidgets.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -518,15 +521,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     auto row = std::make_shared&lt;RowBox&gt;();
     row-&gt;SetSpacing(10);
 
-    auto btn = std::make_shared&lt;Button&gt;(L"点我");
+    auto btn = std::make_shared&lt;Button&gt;(L"Click me");
     btn-&gt;Connect(btn-&gt;Clicked, []() {
-        MessageBoxW(nullptr, L"Hello ZUI!", L"提示", MB_OK);
+        MessageBoxW(nullptr, L"Hello ZUI!", L"Info", MB_OK);
     });
 
     auto toggle = std::make_shared&lt;ToggleSwitch&gt;(false);
-    auto state = std::make_shared&lt;Label&gt;(L"开关：关");
+    auto state = std::make_shared&lt;Label&gt;(L"Switch: off");
     toggle-&gt;Connect(toggle-&gt;Toggled, [state](bool on) {
-        state-&gt;SetText(on ? L"开关：开" : L"开关：关");
+        state-&gt;SetText(on ? L"Switch: on" : L"Switch: off");
     });
 
     row-&gt;AddChild(btn);
@@ -547,7 +550,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 </ul>
 <h2 id="documentation">Documentation</h2>
 <ul>
-<li>Detailed API (every class, method, signal, and default value): <a href="docs/API.html">docs/API.md</a></li>
+<li>Detailed API (every class, method, signal, and default value): <a href="docs/API.en.html">docs/API.en.md</a></li>
 </ul>
 <h2 id="license">License</h2>
 <p>This project is licensed under the <strong>MIT</strong> License; see <a href="LICENSE">LICENSE</a> for details.</p>
@@ -555,7 +558,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         </main>
     </div>
 
-    <div class="back-to-top" id="backToTop" title="返回顶部">&#8593;</div>
+    <div class="back-to-top" id="backToTop" title="Back to top">&#8593;</div>
 
     <script>
 
@@ -681,10 +684,10 @@ function copyCode(id, btn) {
     try {
         if (document.execCommand('copy')) {
             btn.classList.add('copied');
-            btn.textContent = '已复制!';
+            btn.textContent = 'Copied!';
             setTimeout(function () {
                 btn.classList.remove('copied');
-                btn.textContent = '复制';
+                btn.textContent = 'Copy';
             }, 2000);
         }
     } catch (err) { console.error('复制失败:', err); }

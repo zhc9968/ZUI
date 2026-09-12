@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -188,19 +188,19 @@ pre { line-height: 125%; }
 </head>
 <body class="">
     <div class="ai-read-hint">
-      面向 AI 智能体：本页的「阅读辅助」区块内含有与正文完全一致的原始 Markdown 源码，已去除 HTML 标签与动画特效。建议 AI 直接读取该区块，以更低的噪声快速理解内容。
+For AI agents: the "Reading aid" section on this page contains the raw Markdown source identical to the rendered content, with HTML markup and animations removed. AI is advised to read that section directly to understand the content quickly and with less noise.
     </div>
     <!-- AI-READ: the .reading-aid element contains this page's raw Markdown source, identical to the rendered content but without HTML/animations. -->
-    <button class="toc-toggle" id="tocToggle" title="显示目录">&#9776;</button>
-    <button class="theme-toggle" id="themeToggle" title="切换主题（浅色/深色）">&#9789;</button>
+    <button class="toc-toggle" id="tocToggle" title="Show contents">&#9776;</button>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme (light / dark)">&#9789;</button>
 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
-            <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class="active"><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="fontspec"><div class="toc-row"><a href="#fontspec" data-target="fontspec">FontSpec</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="fontmanager-singleton"><div class="toc-row"><a href="#fontmanager-singleton" data-target="fontmanager-singleton">FontManager (singleton)</a><span class="toc-caret-space"></span></div></li></ul></div>
+            <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class="active"><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="fontspec"><div class="toc-row"><a href="#fontspec" data-target="fontspec">FontSpec</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="fontmanager-singleton"><div class="toc-row"><a href="#fontmanager-singleton" data-target="fontmanager-singleton">FontManager (singleton)</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>## FontSpec
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>## FontSpec
 
 ```cpp
 struct FontSpec {
@@ -225,12 +225,12 @@ struct FontSpec {
 | `void SetGlobalFont(const FontSpec&amp; spec)` | Sets the global font and fires `GlobalFontChanged` |
 | `const FontSpec&amp; GetGlobalFont() const` | Reads the global font |
 | `ZSignal&lt;&gt; GlobalFontChanged` | Global font-changed signal |</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>第 5 章 · Fonts</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">第 5 章</span><h1>Fonts</h1><p class="chapter-summary">FontSpec and FontManager</p></header><h2 id="fontspec">FontSpec</h2>
+<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 5 · Fonts</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 5</span><h1>Fonts</h1><p class="chapter-summary">FontSpec and FontManager</p></header><h2 id="fontspec">FontSpec</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-0dddfec1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-efe5a907', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">FontSpec</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="n">familyName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sa">L</span><span class="s">"Segoe UI"</span><span class="p">;</span>
@@ -243,7 +243,7 @@ struct FontSpec {
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">FontSpec</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-0dddfec1" style="display: none;">struct FontSpec {
+<pre id="code-efe5a907" style="display: none;">struct FontSpec {
     std::wstring familyName = L"Segoe UI";
     float size = 14.0f;
     DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL;
@@ -289,11 +289,11 @@ struct FontSpec {
 </tr>
 </tbody>
 </table>
-<nav class="chapter-nav"><a class="prev" href="API.en.4.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">Signals and Connections</span><span class="nav-desc">ZSignal, Connection, ConnectionGroup, and global signals</span></a><a class="next" href="API.en.6.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">Core Element UIElement</span><span class="nav-desc">Sizing, layout, drawing, events, and font interfaces</span></a></nav>
+<nav class="chapter-nav"><a class="prev" href="API.en.4.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Signals and Connections</span><span class="nav-desc">ZSignal, Connection, ConnectionGroup, and global signals</span></a><a class="next" href="API.en.6.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Core Element UIElement</span><span class="nav-desc">Sizing, layout, drawing, events, and font interfaces</span></a></nav>
         </main>
     </div>
 
-    <div class="back-to-top" id="backToTop" title="返回顶部">&#8593;</div>
+    <div class="back-to-top" id="backToTop" title="Back to top">&#8593;</div>
 
     <script>
 
@@ -419,10 +419,10 @@ function copyCode(id, btn) {
     try {
         if (document.execCommand('copy')) {
             btn.classList.add('copied');
-            btn.textContent = '已复制!';
+            btn.textContent = 'Copied!';
             setTimeout(function () {
                 btn.classList.remove('copied');
-                btn.textContent = '复制';
+                btn.textContent = 'Copy';
             }, 2000);
         }
     } catch (err) { console.error('复制失败:', err); }

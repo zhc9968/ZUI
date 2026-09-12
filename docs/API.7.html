@@ -188,7 +188,7 @@ pre { line-height: 125%; }
 </head>
 <body class="">
     <div class="ai-read-hint">
-      面向 AI 智能体：本页的「阅读辅助」区块内含有与正文完全一致的原始 Markdown 源码，已去除 HTML 标签与动画特效。建议 AI 直接读取该区块，以更低的噪声快速理解内容。
+面向 AI 智能体：本页的「阅读辅助」区块内含有与正文完全一致的原始 Markdown 源码，已去除 HTML 标签与动画特效。建议 AI 直接读取该区块，以更低的噪声快速理解内容。
     </div>
     <!-- AI-READ: the .reading-aid element contains this page's raw Markdown source, identical to the rendered content but without HTML/animations. -->
     <button class="toc-toggle" id="tocToggle" title="显示目录">&#9776;</button>
@@ -307,14 +307,14 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-abecb327', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-8f4d3701', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Layout</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="o">~</span><span class="n">Layout</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">UseCache</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span><span class="w">   </span><span class="c1">// 布局容器默认不用缓存</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-abecb327" style="display: none;">class Layout : public UIElement {
+<pre id="code-8f4d3701" style="display: none;">class Layout : public UIElement {
     virtual ~Layout() = default;
     bool UseCache() const override;   // 布局容器默认不用缓存
 };</pre>
@@ -323,7 +323,7 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-13408bf2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-0a7ed3f8', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ColumnBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Layout</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">child</span><span class="p">);</span>
@@ -332,7 +332,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="c1">// 默认横向拉伸权重 1.0，纵向 0.0</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-13408bf2" style="display: none;">class ColumnBox : public Layout {
+<pre id="code-0a7ed3f8" style="display: none;">class ColumnBox : public Layout {
     void AddChild(std::shared_ptr&lt;UIElement&gt; child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
@@ -343,7 +343,7 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-55baa2c1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-1b937bdd', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">RowBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Layout</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">child</span><span class="p">);</span>
@@ -352,7 +352,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="c1">// 默认横向拉伸权重 0.0，纵向 1.0</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-55baa2c1" style="display: none;">class RowBox : public Layout {
+<pre id="code-1b937bdd" style="display: none;">class RowBox : public Layout {
     void AddChild(std::shared_ptr&lt;UIElement&gt; child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
@@ -363,7 +363,7 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-1315617f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-5a2743d9', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">GridLayout</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Layout</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Alignment</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Start</span><span class="p">,</span><span class="w"> </span><span class="n">Center</span><span class="p">,</span><span class="w"> </span><span class="n">End</span><span class="w"> </span><span class="p">};</span>
@@ -377,7 +377,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetVerticalAlignment</span><span class="p">(</span><span class="n">Alignment</span><span class="w"> </span><span class="n">align</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-1315617f" style="display: none;">class GridLayout : public Layout {
+<pre id="code-5a2743d9" style="display: none;">class GridLayout : public Layout {
     enum class Alignment { Start, Center, End };
     struct GridItem { std::shared_ptr&lt;UIElement&gt; element; int row, col, rowSpan, colSpan; };
 
@@ -394,7 +394,7 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-28abca5b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-3907a225', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">LayoutHost</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetLayout</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
@@ -402,7 +402,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetLayoutAs</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-28abca5b" style="display: none;">class LayoutHost : public UIElement {
+<pre id="code-3907a225" style="display: none;">class LayoutHost : public UIElement {
     std::shared_ptr&lt;UIElement&gt; GetLayout() const;
     void SetLayout(std::shared_ptr&lt;UIElement&gt; layout);
     template&lt;typename T&gt; std::shared_ptr&lt;T&gt; GetLayoutAs() const;
@@ -413,7 +413,7 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-942506cf', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-538baa2d', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Card</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">LayoutHost</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">DefaultPadding</span><span class="p">;</span><span class="w">           </span><span class="c1">// 12.0f</span>
@@ -428,7 +428,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="c1">// 另有对应的 static SetDefault*</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-942506cf" style="display: none;">class Card : public LayoutHost {
+<pre id="code-538baa2d" style="display: none;">class Card : public LayoutHost {
     static float DefaultPadding;           // 12.0f
     static float DefaultCornerRadius;      // 8.0f
     static Color DefaultBgColor;           // 白
@@ -445,7 +445,7 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-0c02ffdb', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-776565a0', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Page</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">LayoutHost</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">DefaultPadding</span><span class="p">;</span><span class="w">     </span><span class="c1">// 10.0f</span>
@@ -453,7 +453,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-0c02ffdb" style="display: none;">class Page : public LayoutHost {
+<pre id="code-776565a0" style="display: none;">class Page : public LayoutHost {
     static float DefaultPadding;     // 10.0f
     void SetPadding(float);
     void SetBackgroundColor(Color);
@@ -463,7 +463,7 @@ class PageHost : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-e27a8088', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-bfeec3a3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">PageHost</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">TransitionDirection</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Left</span><span class="p">,</span><span class="w"> </span><span class="n">Right</span><span class="p">,</span><span class="w"> </span><span class="n">Up</span><span class="p">,</span><span class="w"> </span><span class="n">Down</span><span class="w"> </span><span class="p">};</span>
@@ -476,7 +476,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Page</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCurrentPage</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-e27a8088" style="display: none;">class PageHost : public UIElement {
+<pre id="code-bfeec3a3" style="display: none;">class PageHost : public UIElement {
     enum class TransitionDirection { Left, Right, Up, Down };
 
     void AddPage(std::shared_ptr&lt;Page&gt; page);

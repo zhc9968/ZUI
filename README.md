@@ -2,9 +2,11 @@
 
 > 基于 Direct2D 的 C++ 原生 Win32 自绘 UI 框架，含布局、控件、信号槽与高 DPI 适配。
 
+> 语言：**简体中文** · [English](README.en.md)
+
 ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Direct2D / DirectWrite / DWM 之上。它不依赖 Qt、MFC 或任何第三方库，把控件、布局、动画、字体、数据视图和信号槽都装进几个 `.h` 里，适合想要轻量、可控、现代观感的原生 C++ 应用。
 
-- 仓库地址：<https://gitee.com/zhc9968/zui>
+- 仓库：GitHub <https://github.com/zhc9968/ZUI> · Gitee <https://gitee.com/zhc9968/zui>
 - 许可证：MIT
 - 完整 API 文档：[docs/API.md](docs/API.md)
 
