@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZUI · Direct2D C++ Win32 UI Framework</title>
+<style>
+  :root{
+    --primary:#3498db; --text:#2c3e50; --muted:#6b7785;
+    --bg:#f5f7fa; --panel:#ffffff; --border:#e2e8f0;
+    --shadow:0 10px 30px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --primary:#5dade2; --text:#e6e6e6; --muted:#9aa7b4; --bg:#141c24; --panel:#1e2a35; --border:#33414d; --shadow:0 10px 30px rgba(0,0,0,.4); }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Noto Sans SC','Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;
+       min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:8vh 20px}
+  .wrap{max-width:820px;width:100%}
+  h1{font-size:3rem;margin:0;letter-spacing:.02em;background:linear-gradient(90deg,#3498db,#8e44ad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);margin:.4em 0 2.2em;font-size:1.05rem}
+  .sub .en{display:block;font-size:.9rem;margin-top:.4em;opacity:.85}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px 22px;box-shadow:var(--shadow);transition:transform .22s ease,border-color .22s ease}
+  .card:hover{transform:translateY(-4px);border-color:var(--primary)}
+  .card h2{margin:0 0 12px;font-size:1.15rem;color:var(--primary)}
+  .card ul{list-style:none;margin:0;padding:0}
+  .card li{margin:8px 0}
+  .card a{color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;transition:background .2s ease,color .2s ease}
+  .card a:hover{background:rgba(52,152,219,.12);color:var(--primary)}
+  .badge{font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:1px 8px;margin-left:auto}
+  footer{margin-top:34px;color:var(--muted);font-size:.82rem;text-align:center}
+  footer a{color:var(--primary);text-decoration:none}
+  @media (max-width:640px){ .grid{grid-template-columns:1fr} h1{font-size:2.2rem} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ZUI</h1>
+    <p class="sub">
+      基于 Direct2D 的 C++ 原生 Win32 自绘 UI 框架，含布局、控件、信号槽与高 DPI 适配。
+      <span class="en">A native Win32 UI framework for C++, rendered with Direct2D — layouts, widgets, signals/slots, high-DPI, animations, IME and a flat design.</span>
+    </p>
+
+    <div class="grid">
+      <section class="card">
+        <h2>中文文档</h2>
+        <ul>
+          <li><a href="README.html">项目说明与构建 <span class="badge">README</span></a></li>
+          <li><a href="docs/API.html">API 参考（12 章） <span class="badge">API</span></a></li>
+        </ul>
+      </section>
+      <section class="card">
+        <h2>English Docs</h2>
+        <ul>
+          <li><a href="README.en.html">README &amp; Build <span class="badge">README</span></a></li>
+          <li><a href="docs/API.en.html">API Reference (12 chapters) <span class="badge">API</span></a></li>
+        </ul>
+      </section>
+    </div>
+
+    <footer>
+      © zhc9968 · MIT License ·
+      <a href="https://github.com/zhc9968/ZUI">GitHub</a> ·
+      <a href="https://gitee.com/zhc9968/zui">Gitee</a>
+    </footer>
+  </div>
+</body>
+</html>
