@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -188,34 +188,34 @@ pre { line-height: 125%; }
 </head>
 <body class="">
     <div class="ai-read-hint">
-      面向 AI 智能体：本页的「阅读辅助」区块内含有与正文完全一致的原始 Markdown 源码，已去除 HTML 标签与动画特效。建议 AI 直接读取该区块，以更低的噪声快速理解内容。
+For AI agents: the "Reading aid" section on this page contains the raw Markdown source identical to the rendered content, with HTML markup and animations removed. AI is advised to read that section directly to understand the content quickly and with less noise.
     </div>
     <!-- AI-READ: the .reading-aid element contains this page's raw Markdown source, identical to the rendered content but without HTML/animations. -->
-    <button class="toc-toggle" id="tocToggle" title="显示目录">&#9776;</button>
-    <button class="theme-toggle" id="themeToggle" title="切换主题（浅色/深色）">&#9789;</button>
+    <button class="toc-toggle" id="tocToggle" title="Show contents">&#9776;</button>
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme (light / dark)">&#9789;</button>
 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
-            <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class="active"><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="zui-api-reference"><div class="toc-row"><a href="#zui-api-reference" data-target="zui-api-reference">ZUI API Reference</a><span class="toc-caret-space"></span></div></li></ul></div>
+            <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class="active"><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="zui-api-reference"><div class="toc-row"><a href="#zui-api-reference" data-target="zui-api-reference">ZUI API Reference</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre># ZUI API Reference
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre># ZUI API Reference
 
 &gt; This document covers the complete public API of the ZUI framework: core types, signals and slots, fonts, elements, layout, windows, basic controls, and data views.
-&gt; Companion reading: [Project description and build](../README.md).
+&gt; Companion reading: [Project description and build](../README.en.md).
 </pre></div></div>
 
 <h1 id="zui-api-reference">ZUI API Reference</h1>
 <blockquote>
 <p>This document covers the complete public API of the ZUI framework: core types, signals and slots, fonts, elements, layout, windows, basic controls, and data views.
-Companion reading: <a href="../README.html">Project description and build</a>.</p>
+Companion reading: <a href="../README.en.html">Project description and build</a>.</p>
 </blockquote><div class="chapter-grid"><a class="chapter-card" href="API.en.1.html"><span class="card-no">第 1 章</span><h3>Conventions</h3><p>Namespace, units, lifetime, and default-value conventions</p></a><a class="chapter-card" href="API.en.2.html"><span class="card-no">第 2 章</span><h3>Basic Types</h3><p>Color, Rect, Thickness, Size</p></a><a class="chapter-card" href="API.en.3.html"><span class="card-no">第 3 章</span><h3>Global Functions and DPI</h3><p>clamp, DPI scaling, and pixel snapping</p></a><a class="chapter-card" href="API.en.4.html"><span class="card-no">第 4 章</span><h3>Signals and Connections</h3><p>ZSignal, Connection, ConnectionGroup, and global signals</p></a><a class="chapter-card" href="API.en.5.html"><span class="card-no">第 5 章</span><h3>Fonts</h3><p>FontSpec and FontManager</p></a><a class="chapter-card" href="API.en.6.html"><span class="card-no">第 6 章</span><h3>Core Element UIElement</h3><p>Sizing, layout, drawing, events, and font interfaces</p></a><a class="chapter-card" href="API.en.7.html"><span class="card-no">第 7 章</span><h3>Layout</h3><p>Layout, ColumnBox, RowBox, GridLayout, LayoutHost, Card, Page, PageHost</p></a><a class="chapter-card" href="API.en.8.html"><span class="card-no">第 8 章</span><h3>Menus</h3><p>MenuItem, Menu, and MenuWindow</p></a><a class="chapter-card" href="API.en.9.html"><span class="card-no">第 9 章</span><h3>Window</h3><p>Creation, background, title bar, and root layout</p></a><a class="chapter-card" href="API.en.10.html"><span class="card-no">第 10 章</span><h3>Basic Controls</h3><p>Label, Button, TextBox, ComboBox, ToggleSwitch, ScrollViewer, ProgressBar, Slider</p></a><a class="chapter-card" href="API.en.11.html"><span class="card-no">第 11 章</span><h3>Data Views</h3><p>ListView, TableView, TreeNode, TreeView</p></a><a class="chapter-card" href="API.en.12.html"><span class="card-no">第 12 章</span><h3>Appendix</h3><p>Signal reference, default-value quick reference, and complete example</p></a></div>
 
         </main>
     </div>
 
-    <div class="back-to-top" id="backToTop" title="返回顶部">&#8593;</div>
+    <div class="back-to-top" id="backToTop" title="Back to top">&#8593;</div>
 
     <script>
 
@@ -341,10 +341,10 @@ function copyCode(id, btn) {
     try {
         if (document.execCommand('copy')) {
             btn.classList.add('copied');
-            btn.textContent = '已复制!';
+            btn.textContent = 'Copied!';
             setTimeout(function () {
                 btn.classList.remove('copied');
-                btn.textContent = '复制';
+                btn.textContent = 'Copy';
             }, 2000);
         }
     } catch (err) { console.error('复制失败:', err); }
