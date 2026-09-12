@@ -1,0 +1,28 @@
+# ---- 构建输出 ----
+x64/
+Debug/
+Release/
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.obj
+*.idb
+*.tlog
+*.log
+*.exp
+
+# ---- Visual Studio ----
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+
+# ---- 旧版快照目录（已由 git 历史取代，仅保留在磁盘）----
+ZUI_release1.2/
+ZUI_1.3dirtyupdate/
+ZUI_beforePixelSnap/
+ZUI_Release_1.4_beforeFontUpdate/
+ZUI_Release_1.5_fontUpdate1/
