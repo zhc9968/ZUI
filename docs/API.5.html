@@ -197,7 +197,7 @@ pre { line-height: 125%; }
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class="active"><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class=""><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>基础控件</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>数据视图</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>附录</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="fontspec"><div class="toc-row"><a href="#fontspec" data-target="fontspec">FontSpec</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="fontmanager单例"><div class="toc-row"><a href="#fontmanager单例" data-target="fontmanager单例">FontManager（单例）</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class="active"><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class=""><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>基础控件</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>数据视图</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>附录</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="fontspec"><div class="toc-row"><a href="#fontspec" data-target="fontspec">FontSpec</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="fontmanager单例"><div class="toc-row"><a href="#fontmanager单例" data-target="fontmanager单例">FontManager（单例）</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="字体解析链很重要"><div class="toc-row"><a href="#字体解析链很重要" data-target="字体解析链很重要">字体解析链（很重要）</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>## FontSpec
@@ -215,22 +215,39 @@ struct FontSpec {
 };
 ```
 
+- 是“字体规格值对象”，可比较、可作哈希键（`FontSpecHash`），因此可放入 `unordered_map`。
+- `size` 单位是 DIP 下的点数。
+- `familyName` 用系统字体名（如 `Microsoft YaHei`、`Segoe UI`）。
+
 ## FontManager（单例）
 
-| 方法 | 说明 |
+| 方法 | 实现要点与注意 |
 | --- | --- |
-| `static FontManager&amp; Instance()` | 获取单例 |
-| `IDWriteFactory* GetFactory()` | 懒加载的共享 DWrite 工厂 |
-| `IDWriteTextFormat* GetFormat(const FontSpec&amp; spec)` | 按字体规格取共享格式（带缓存） |
-| `void SetGlobalFont(const FontSpec&amp; spec)` | 设置全局字体并触发 `GlobalFontChanged` |
-| `const FontSpec&amp; GetGlobalFont() const` | 读取全局字体 |
-| `ZSignal&lt;&gt; GlobalFontChanged` | 全局字体变更信号 |</pre></div></div>
+| `static FontManager&amp; Instance()` | Meyers 单例，首次访问才构造。 |
+| `IDWriteFactory* GetFactory()` | 懒加载共享 `IDWriteFactory`；首次调用创建。 |
+| `IDWriteTextFormat* GetFormat(const FontSpec&amp; spec)` | 按 spec 缓存共享 `IDWriteTextFormat`。相同的 spec 只创建一次；返回的是**共享对象**，不要 `Release`、也不要修改其属性。 |
+| `void SetGlobalFont(const FontSpec&amp; spec)` | 设置全局字体并触发 `GlobalFontChanged`。 |
+| `const FontSpec&amp; GetGlobalFont() const` | 读取全局字体。 |
+| `ZSignal&lt;&gt; GlobalFontChanged` | 每个未做实例字体覆盖的元素都订阅了它；触发时它们会重建文本布局。 |
+
+## 字体解析链（很重要）
+
+元素的最终字体的解析顺序是：
+
+1. 实例级覆盖 `SetFont(...)` / `SetFontFamily(...)` / `SetFontSize(...)` / `SetFontWeight(...)`；
+2. 类型默认（控件重写 `GetTypeDefaultFont()`，例如 `Label` 默认 16 号、`TextBox` 默认 14 号）；
+3. 全局默认（`FontManager::GetGlobalFont()`）。
+
+`GetEffectiveFontSpec()` 返回上述解析结果；`GetFontFormat()` 再把它换成共享的 `IDWriteTextFormat`（带每个实例的快速缓存）。
+
+- 实例调用了 `SetFont*` 后 `HasFontOverride()` 为 true，此时**不再**响应全局字体变更（符合“我显式指定了”的直觉）。
+- `ClearFont()` 清除实例覆盖，回到解析链的后两级。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 5 章 · 字体</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 5 章</span><h1>字体</h1><p class="chapter-summary">FontSpec 与 FontManager</p></header><h2 id="fontspec">FontSpec</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-9c60aba6', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-03254197', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">FontSpec</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="n">familyName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sa">L</span><span class="s">"Segoe UI"</span><span class="p">;</span>
@@ -243,7 +260,7 @@ struct FontSpec {
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="k">operator</span><span class="o">!=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">FontSpec</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-9c60aba6" style="display: none;">struct FontSpec {
+<pre id="code-03254197" style="display: none;">struct FontSpec {
     std::wstring familyName = L"Segoe UI";
     float size = 14.0f;
     DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL;
@@ -254,41 +271,58 @@ struct FontSpec {
     bool operator!=(const FontSpec&amp; other) const;
 };</pre>
 </div>
+<ul>
+<li>是“字体规格值对象”，可比较、可作哈希键（<code>FontSpecHash</code>），因此可放入 <code>unordered_map</code>。</li>
+<li><code>size</code> 单位是 DIP 下的点数。</li>
+<li><code>familyName</code> 用系统字体名（如 <code>Microsoft YaHei</code>、<code>Segoe UI</code>）。</li>
+</ul>
 <h2 id="fontmanager单例">FontManager（单例）</h2>
 <table>
 <thead>
 <tr>
 <th>方法</th>
-<th>说明</th>
+<th>实现要点与注意</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>static FontManager&amp; Instance()</code></td>
-<td>获取单例</td>
+<td>Meyers 单例，首次访问才构造。</td>
 </tr>
 <tr>
 <td><code>IDWriteFactory* GetFactory()</code></td>
-<td>懒加载的共享 DWrite 工厂</td>
+<td>懒加载共享 <code>IDWriteFactory</code>；首次调用创建。</td>
 </tr>
 <tr>
 <td><code>IDWriteTextFormat* GetFormat(const FontSpec&amp; spec)</code></td>
-<td>按字体规格取共享格式（带缓存）</td>
+<td>按 spec 缓存共享 <code>IDWriteTextFormat</code>。相同的 spec 只创建一次；返回的是<strong>共享对象</strong>，不要 <code>Release</code>、也不要修改其属性。</td>
 </tr>
 <tr>
 <td><code>void SetGlobalFont(const FontSpec&amp; spec)</code></td>
-<td>设置全局字体并触发 <code>GlobalFontChanged</code></td>
+<td>设置全局字体并触发 <code>GlobalFontChanged</code>。</td>
 </tr>
 <tr>
 <td><code>const FontSpec&amp; GetGlobalFont() const</code></td>
-<td>读取全局字体</td>
+<td>读取全局字体。</td>
 </tr>
 <tr>
 <td><code>ZSignal&lt;&gt; GlobalFontChanged</code></td>
-<td>全局字体变更信号</td>
+<td>每个未做实例字体覆盖的元素都订阅了它；触发时它们会重建文本布局。</td>
 </tr>
 </tbody>
 </table>
+<h2 id="字体解析链很重要">字体解析链（很重要）</h2>
+<p>元素的最终字体的解析顺序是：</p>
+<ol>
+<li>实例级覆盖 <code>SetFont(...)</code> / <code>SetFontFamily(...)</code> / <code>SetFontSize(...)</code> / <code>SetFontWeight(...)</code>；</li>
+<li>类型默认（控件重写 <code>GetTypeDefaultFont()</code>，例如 <code>Label</code> 默认 16 号、<code>TextBox</code> 默认 14 号）；</li>
+<li>全局默认（<code>FontManager::GetGlobalFont()</code>）。</li>
+</ol>
+<p><code>GetEffectiveFontSpec()</code> 返回上述解析结果；<code>GetFontFormat()</code> 再把它换成共享的 <code>IDWriteTextFormat</code>（带每个实例的快速缓存）。</p>
+<ul>
+<li>实例调用了 <code>SetFont*</code> 后 <code>HasFontOverride()</code> 为 true，此时<strong>不再</strong>响应全局字体变更（符合“我显式指定了”的直觉）。</li>
+<li><code>ClearFont()</code> 清除实例覆盖，回到解析链的后两级。</li>
+</ul>
 <nav class="chapter-nav"><a class="prev" href="API.4.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">信号与连接</span><span class="nav-desc">ZSignal、Connection、ConnectionGroup 与全局信号</span></a><a class="next" href="API.6.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">核心元素 UIElement</span><span class="nav-desc">尺寸、布局、绘制、事件与字体接口</span></a></nav>
         </main>
     </div>

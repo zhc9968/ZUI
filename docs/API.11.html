@@ -200,46 +200,84 @@ pre { line-height: 125%; }
 <div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class=""><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>基础控件</a></li><li class="active"><a href="API.11.html"><span class="chapter-index">11</span>数据视图</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>附录</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="listview"><div class="toc-row"><a href="#listview" data-target="listview">ListView</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="tableview"><div class="toc-row"><a href="#tableview" data-target="tableview">TableView</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="treenode"><div class="toc-row"><a href="#treenode" data-target="treenode">TreeNode</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="treeview"><div class="toc-row"><a href="#treeview" data-target="treeview">TreeView</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>## ListView
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>&gt; 数据视图的**选择、勾选、排序、禁用**有大量细节，且框架内部对“每项/每行的附加信息”做了特殊处理，请仔细阅读每节的“要点”。
+
+## ListView
 
 ```cpp
+enum class SelectionMode { Single, Extended, Multi, None };
+
 class ListView : public UIElement {
     ZSignal&lt;int&gt; SelectionChanged;
     ZSignal&lt;int&gt; ItemClicked;
+    ZSignal&lt;int&gt; ItemDoubleClicked;
+    ZSignal&lt;std::vector&lt;int&gt;&gt; SelectionChangedMulti;
+    ZSignal&lt;int, bool&gt; ItemCheckStateChanged;
 
     ListView();
-    void AddItem(std::shared_ptr&lt;Label&gt; label);
-    void AddItem(const std::wstring&amp; text);
-    void InsertItem(int index, const std::wstring&amp; text);
+    // 数据
+    void AddItem(std::shared_ptr&lt;Label&gt;);
+    void AddItem(const std::wstring&amp;);
+    void InsertItem(int index, const std::wstring&amp;);
     void RemoveItem(int index);
     void Clear();
-    void SetItem(int index, const std::wstring&amp; text);
+    void SetItem(int index, std::shared_ptr&lt;Label&gt;);
+    void SetItem(int index, const std::wstring&amp;);
     std::shared_ptr&lt;Label&gt; GetItemLabel(int index) const;
     std::wstring GetItemText(int index) const;
     int GetItemCount() const;
+    void InsertItems(int index, const std::vector&lt;std::wstring&gt;&amp;);
+    void MoveItem(int from, int to);
+    void SwapItems(int a, int b);
+    void Sort(bool ascending = true);                 // 使用 SetSortComparator
+    void SortItems(std::function&lt;bool(const std::wstring&amp;, const std::wstring&amp;)&gt;);
+    void ScrollToItem(int index);
+    void SetEmptyText(const std::wstring&amp;);
 
-    void SetSelectedIndex(int index);
-    int GetSelectedIndex() const;
+    // 选择
+    void SetSelectionMode(SelectionMode);
+    SelectionMode GetSelectionMode() const;
+    void SetSelectedIndex(int); int GetSelectedIndex() const;
     std::wstring GetSelectedText() const;
+    std::vector&lt;int&gt; GetSelectedIndices() const;
+    std::vector&lt;std::wstring&gt; GetSelectedTexts() const;
+    void SelectAll();
 
-    void SetButtonMode(bool enable);        // 按钮模式：圆角行 + 间距
-    bool IsButtonMode() const;
-    void SetButtonSpacing(float spacing);
+    // 勾选
+    void SetCheckable(bool);
+    void SetItemChecked(int, bool);
+    bool IsItemChecked(int) const;
+    std::vector&lt;bool&gt; GetSelectionStates() const;
+    std::vector&lt;bool&gt; GetCheckStates() const;
+    std::vector&lt;int&gt; GetCheckedIndices() const;
 
-    void SetItemHeight(float height);
-    float GetItemHeight() const;
-    void SetIndicatorWidth(float width);
-    void SetIndicatorHeightRatio(float ratio);
-    void SetIndicatorColor(Color);
-    void SetBackgroundColor(Color);
-    void SetTextColor(Color);
-    void SetSelectedColor(Color);
-    void SetHoverColor(Color);
-    void SetBorderColor(Color);
+    // 每项附加信息（重点）
+    void SetItemDisabled(int index, bool disabled = true);
+    bool IsItemDisabled(int index) const;
+    void SetItemTextColor(int index, Color);
+    void ClearItemTextColor(int index);
+    void SetItemToolTip(int index, const std::wstring&amp;);
+    std::wstring GetItemToolTip(int index) const;
+
+    // 排序指示
+    void SetSortComparator(std::function&lt;bool(const std::wstring&amp;, const std::wstring&amp;)&gt;);
+    bool IsSortAscending() const;
+    void SetShowSortIndicator(bool);
+    void SetSortIndicatorColor(Color);
+
+    // 样式：SetItemHeight / SetSelectedColor / SetHoverColor / SetAlternatingRowColors /
+    //       SetAlternatingRowColor / SetMarqueeEnabled / SetButtonMode / SetButtonSpacing 等
 };
 ```
 
-默认尺寸 `200×200`，行高 `28`，`buttonMode_=false`、`buttonSpacing_=4.0f`。
+**要点**：
+
+- **每项附加信息按“项目本身”绑定**：`SetItemDisabled/SetItemTextColor/SetItemToolTip` 在内部与 `Label` 项目对象绑定，因此 `Sort()` / `MoveItem()` / `SwapItems()` 之后，这些信息仍然跟随各自的项目，不会错位。
+- 选择模式：`Single`（单选）、`Extended`（Ctrl 点选 / Shift 连选）、`Multi`（点击即切换）、`None`（不可选择，仍可触发 `ItemClicked`）。
+- **键盘**：`↑/↓/Home/End/PageUp/PageDown` 会**跳过禁用项**；获得焦点的列表还支持**首字母定位**（连续键入字母快速定位到以该前缀开头的项）。
+- `SetCheckable(true)` 后每行出现复选框，`ItemCheckStateChanged(index, checked)` 通知变化。
+- 排序：设置比较器后调用 `Sort(asc)`（或 `SortItems`）；`SetShowSortIndicator(true)` 时右上角显示排序箭头。
+- 悬停带 `SetItemToolTip` 的项时使用框架统一 ToolTip。
 
 ## TableView
 
@@ -247,35 +285,94 @@ class ListView : public UIElement {
 enum class SelectionMode { Cell, Row, Column, None };
 
 class TableView : public UIElement {
-    ZSignal&lt;int, int&gt; CellClicked;        // (row, col)
-    ZSignal&lt;int, int&gt; SelectionChanged;
+    ZSignal&lt;int,int&gt; CellClicked;
+    ZSignal&lt;int,int&gt; CellDoubleClicked;
+    ZSignal&lt;int&gt; HeaderClicked;
+    ZSignal&lt;int,int&gt; CurrentCellChanged;
+    ZSignal&lt;std::vector&lt;std::pair&lt;int,int&gt;&gt;&gt; SelectionChangedCells;
+    ZSignal&lt;int,bool&gt; ItemCheckStateChanged;
 
     TableView();
-    void SetRowCount(int rows);
-    void SetColumnCount(int cols);
+    // 行列
+    void SetRowCount(int rows); int GetRowCount() const;
+    void SetColumnCount(int cols); int GetColumnCount() const;
+    void AppendRow(); void InsertRow(int index); void RemoveRow(int index);
+    void AppendColumn(); void InsertColumn(int index); void RemoveColumn(int index);
+
+    // 单元格
     void SetItem(int row, int col, const std::wstring&amp; text);
     void SetItem(int row, int col, std::shared_ptr&lt;Label&gt; label);
     std::wstring GetItemText(int row, int col) const;
     std::shared_ptr&lt;Label&gt; GetItemLabel(int row, int col) const;
-    void SetHorizontalHeaderLabels(const std::vector&lt;std::wstring&gt;&amp; labels);
-    void SetColumnWidth(int col, float width);
-    float GetColumnWidth(int col) const;
-    void SetRowHeight(float height);
-    void SetHeaderHeight(float height);
 
-    void SetSelectionMode(SelectionMode mode);
+    // 表头 / 尺寸
+    void SetHeaderLabel(int col, const std::wstring&amp;);
+    std::wstring GetHeaderLabel(int col) const;
+    void SetHorizontalHeaderLabels(const std::vector&lt;std::wstring&gt;&amp;);
+    void SetColumnWidth(int col, float); float GetColumnWidth(int col) const;
+    void SetRowHeight(float);            // 默认行高
+    void SetRowHeightAt(int row, float); // 单行高度
+    float GetRowHeightAt(int row) const;
+    void ClearRowHeightAt(int row);
+    void SetHeaderHeight(float);
+
+    // 显示
+    void SetHeaderVisible(bool);
+    void SetGridVisible(bool);
+    void SetAlternatingRowColors(bool);
+    void SetAlternatingRowColor(Color);
+    void SetColumnVisible(int col, bool visible);   // 列隐藏
+    bool IsColumnVisible(int col) const;
+    void SetColumnAlignment(int col, TextHAlign);   // 列对齐（Left/Center/Right）
+    TextHAlign GetColumnAlignment(int col) const;
+
+    // 选择
+    void SetSelectionMode(SelectionMode);
     SelectionMode GetSelectionMode() const;
     void SetCurrentCell(int row, int col);
-    int GetCurrentRow() const;
-    int GetCurrentColumn() const;
+    int GetCurrentRow() const; int GetCurrentColumn() const;
+    void SelectRow(int row); void SelectColumn(int col); void ClearSelection();
+    void ScrollToCell(int row, int col);
+    std::vector&lt;std::pair&lt;int,int&gt;&gt; GetSelectedCells() const;
+    std::vector&lt;int&gt; GetSelectedRows() const;
+    std::vector&lt;int&gt; GetSelectedColumns() const;
+    std::vector&lt;bool&gt; GetSelectionStates() const;
 
-    // 颜色：SetBackgroundColor / SetHeaderBackgroundColor / SetTextColor /
-    //       SetHeaderTextColor / SetSelectedColor / SetHoverColor /
-    //       SetGridLineColor / SetBorderColor / SetScrollBarColors
+    // 勾选 / 每行禁用
+    void SetCheckable(bool);
+    void SetRowChecked(int row, bool); bool IsRowChecked(int row) const;
+    std::vector&lt;bool&gt; GetRowCheckStates() const;
+    std::vector&lt;int&gt; GetCheckedRows() const;
+    void SetRowDisabled(int row, bool disabled = true);
+    bool IsRowDisabled(int row) const;
+
+    // 单元格颜色 / ToolTip
+    void SetCellTextColor(int row, int col, Color);
+    void ClearCellTextColor(int row, int col);
+    void SetCellToolTip(int row, int col, const std::wstring&amp;);
+
+    // 排序
+    void SetColumnComparator(int col, std::function&lt;bool(const std::wstring&amp;, const std::wstring&amp;)&gt;);
+    void SortByColumn(int col, bool ascending = true);
+    int GetSortColumn() const; bool IsSortAscending() const;
+    void SetShowSortIndicator(bool);
+    void SetSortIndicatorColor(Color);
+
+    // 框选 / 样式：SetMarqueeEnabled / SetMarqueeCheckSync / SetBackgroundColor /
+    //   SetHeaderBackgroundColor / SetTextColor / SetGridLineColor / SetScrollBarColors 等
 };
 ```
 
-默认尺寸 `400×300`，表头高 `26`、行高 `24`、最小列宽 `40`，选择模式默认 `Cell`。注意：**没有**公开的 `GetRowCount()` / `GetColumnCount()`。
+**要点**：
+
+- 默认尺寸 `400×300`，表头高 `26`、默认行高 `24`、最小列宽 `40`，选择模式默认 `Cell`。
+- **单元格颜色 / ToolTip / 每行禁用 / 每行高度**等行级元数据在 `SortByColumn` 以及插入/删除行、插入/删除列时会**随行列一起重映射**，排序后仍然跟随原来的行/列（不会错位）。
+- `SetColumnVisible(false)` 隐藏列：该列不参与布局、绘制与命中测试。
+- `SetColumnAlignment` 用 `TextHAlign::{Left,Center,Right}`。
+- `SetRowHeightAt(row, h)` 只改某一行；`SetRowHeight` 改默认行高。行高变化会影响滚动与命中测试。
+- 键盘：`↑/↓` 跳过禁用行；`←/→`、`Home/End` 移动当前单元格。
+- `SelectionMode::None` 下不产生选择，但仍触发 `CellClicked`。
+- **注意**：不同版本曾缺少 `GetRowCount/GetColumnCount`，当前已提供。
 
 ## TreeNode
 
@@ -288,198 +385,435 @@ struct TreeNode {
     int depth = 0;
     void* userData = nullptr;
 
+    std::wstring icon;                                 // 第一列前置图标（一个字符/emoji，可空）
+    bool checkable = false;
+    CheckState checkState = CheckState::Unchecked;     // 三态
+    bool selected = false;
+    bool enabled = true;
+    std::wstring tooltip;                              // 悬停提示（接入框架统一 ToolTip）
+
     TreeNode(const std::wstring&amp; text);
     TreeNode(const std::vector&lt;std::wstring&gt;&amp; cols);
 };
 ```
 
+- `parent` 是**非拥有**裸指针（由 `children` 的所有权决定生命周期）；`depth` 由框架维护。
+- `icon` 是绘制在第一列文本前的单个字符/emoji；`tooltip` 交给基础类统一显示。
+
 ## TreeView
 
 ```cpp
+enum class SelectionMode { Single, Extended, Multi };
+enum class CheckMode { Linked, Independent };          // 勾选父子联动/独立
+
 class TreeView : public UIElement {
     ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; SelectionChanged;
     ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; NodeClicked;
+    ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; ItemDoubleClicked;
+    ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; ItemRightClicked;
+    ZSignal&lt;int&gt; HeaderClicked;
+    ZSignal&lt;std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt;&gt; SelectionChangedMulti;
     ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;, bool&gt; ExpandChanged;
+    ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;, TreeNode::CheckState&gt; ItemCheckStateChanged;
 
     TreeView();
+    // 列 / 表头
     void SetColumnCount(int count);
-    void SetHeaderLabels(const std::vector&lt;std::wstring&gt;&amp; labels);
-    void SetColumnWidth(int col, float width);
-    float GetColumnWidth(int col) const;
+    void SetHeaderLabels(const std::vector&lt;std::wstring&gt;&amp;);
+    void SetColumnWidth(int col, float); float GetColumnWidth(int col) const;
+    void SetHeaderVisible(bool);
 
-    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::wstring&amp; text);
-    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::vector&lt;std::wstring&gt;&amp; columns);
-    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt; parent, const std::wstring&amp; text);
-    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt; parent, const std::vector&lt;std::wstring&gt;&amp; columns);
-    void RemoveNode(std::shared_ptr&lt;TreeNode&gt; node);
+    // 结构
+    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::wstring&amp;);
+    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::vector&lt;std::wstring&gt;&amp;);
+    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt;, const std::wstring&amp;);
+    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt;, const std::vector&lt;std::wstring&gt;&amp;);
+    std::shared_ptr&lt;TreeNode&gt; InsertRoot(int index, const std::vector&lt;std::wstring&gt;&amp;);
+    std::shared_ptr&lt;TreeNode&gt; InsertChild(std::shared_ptr&lt;TreeNode&gt;, int index, const std::vector&lt;std::wstring&gt;&amp;);
+    void RemoveNode(std::shared_ptr&lt;TreeNode&gt;);
+    void RemoveChildren(std::shared_ptr&lt;TreeNode&gt;);
+    void MoveNode(std::shared_ptr&lt;TreeNode&gt;, std::shared_ptr&lt;TreeNode&gt; newParent);
+    void SortChildren(std::shared_ptr&lt;TreeNode&gt; parent, bool recursive,
+                      std::function&lt;bool(const std::shared_ptr&lt;TreeNode&gt;&amp;, const std::shared_ptr&lt;TreeNode&gt;&amp;)&gt;);
     void Clear();
 
-    void ExpandNode(std::shared_ptr&lt;TreeNode&gt; node, bool expand);
-    void ToggleNode(std::shared_ptr&lt;TreeNode&gt; node);
-    void ExpandNodeRecursive(std::shared_ptr&lt;TreeNode&gt; node, bool expand);
-    bool IsExpanded(std::shared_ptr&lt;TreeNode&gt; node) const;
+    // 展开
+    void ExpandNode(std::shared_ptr&lt;TreeNode&gt;, bool);
+    void ToggleNode(std::shared_ptr&lt;TreeNode&gt;);
+    void ExpandNodeRecursive(std::shared_ptr&lt;TreeNode&gt;, bool);
+    bool IsExpanded(std::shared_ptr&lt;TreeNode&gt;) const;
+    void ExpandAll(); void CollapseAll();
+    void ExpandToDepth(int depth);
+    void SetDefaultExpandDepth(int depth);   // 之后插入的节点自动展开到该深度
+    int GetDefaultExpandDepth() const;
 
-    void SetSelectedNode(std::shared_ptr&lt;TreeNode&gt; node);
+    // 过滤 / 搜索
+    void SetFilter(std::function&lt;bool(const std::shared_ptr&lt;TreeNode&gt;&amp;)&gt;);
+    void ClearFilter();
+    bool HasFilter() const;
+    void Search(const std::wstring&amp; keyword);
+    std::wstring GetNodePath(const std::shared_ptr&lt;TreeNode&gt;&amp;, const std::wstring&amp; separator = L" / ") const;
+
+    // 选择 / 勾选
+    void SetSelectionMode(SelectionMode);
+    void SetSelectedNode(std::shared_ptr&lt;TreeNode&gt;);
     std::shared_ptr&lt;TreeNode&gt; GetSelectedNode() const;
-    void ScrollToNode(std::shared_ptr&lt;TreeNode&gt; node);
+    std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; GetSelectedNodes() const;
+    void SelectAll();
+    void SetCheckable(bool enable, bool recursive = true);
+    void SetCheckMode(CheckMode);
+    CheckMode GetCheckMode() const;
+    std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; GetCheckedNodes() const;
+    std::vector&lt;bool&gt; GetSelectionStates() const;
+    std::vector&lt;TreeNode::CheckState&gt; GetCheckStates() const;
 
-    void SetHeaderVisible(bool visible);
-    void SetRowHeight(float height);
-    void SetIndent(float indent);
+    // 尺寸 / 外观
+    void SetRowHeight(float);
+    void SetIndent(float);
+    void SetAlternatingRowColors(bool);
+    void SetGridVisible(bool);
+    // 框选：SetMarqueeEnabled / SetMarqueeCheckSync
 };
 ```
 
-默认尺寸 `400×300`，行高 `24`、缩进 `16`、表头高 `24`；默认一列、列宽 `40`、表头 `名称`。</pre></div></div>
+**要点**：
+
+- 默认尺寸 `400×300`，行高 `24`、缩进 `16`、表头高 `24`；默认一列、列宽 `40`、表头 `名称`。
+- 三态勾选：`CheckMode::Linked` 时父子勾选联动并自动计算 `PartiallyChecked`；`Independent` 时各自独立。
+- `Search(keyword)` 是 `SetFilter` 的便捷封装：保留“命中节点 + 其祖先链”，其余隐藏。
+- `GetNodePath(node)` 返回从根到该节点、以第一列文本拼接的路径（可自定义分隔符）。
+- `SetDefaultExpandDepth` 只影响**之后插入**的节点；对已存在节点用 `ExpandToDepth`。
+- `SortChildren` 只对子节点排序，`recursive=true` 时递归排序整棵子树。
+- 节点的 `tooltip` 通过基础类统一 ToolTip 显示；`enabled=false` 的节点置灰且不可选。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 11 章 · 数据视图</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">第 11 章</span><h1>数据视图</h1><p class="chapter-summary">ListView、TableView、TreeNode、TreeView</p></header><h2 id="listview">ListView</h2>
+<header class="chapter-header"><span class="chapter-eyebrow">第 11 章</span><h1>数据视图</h1><p class="chapter-summary">ListView、TableView、TreeNode、TreeView</p></header><blockquote>
+<p>数据视图的<strong>选择、勾选、排序、禁用</strong>有大量细节，且框架内部对“每项/每行的附加信息”做了特殊处理，请仔细阅读每节的“要点”。</p>
+</blockquote>
+<h2 id="listview">ListView</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-4259e4b7', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-e32701c9', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ListView</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Single</span><span class="p">,</span><span class="w"> </span><span class="n">Extended</span><span class="p">,</span><span class="w"> </span><span class="n">Multi</span><span class="p">,</span><span class="w"> </span><span class="n">None</span><span class="w"> </span><span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ListView</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">SelectionChanged</span><span class="p">;</span>
 <span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ItemClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ItemDoubleClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">SelectionChangedMulti</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ItemCheckStateChanged</span><span class="p">;</span>
 
 <span class="w">    </span><span class="n">ListView</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddItem</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="w"> </span><span class="n">label</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddItem</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">InsertItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 数据</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddItem</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddItem</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">InsertItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Clear</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetItemLabel</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetItemText</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetItemCount</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">InsertItems</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">MoveItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">from</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">to</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SwapItems</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Sort</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">ascending</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span><span class="w">                 </span><span class="c1">// 使用 SetSortComparator</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SortItems</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ScrollToItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetEmptyText</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectedIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetSelectedIndex</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 选择</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectionMode</span><span class="p">(</span><span class="n">SelectionMode</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SelectionMode</span><span class="w"> </span><span class="nf">GetSelectionMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectedIndex</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetSelectedIndex</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetSelectedText</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectedIndices</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectedTexts</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SelectAll</span><span class="p">();</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonMode</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">enable</span><span class="p">);</span><span class="w">        </span><span class="c1">// 按钮模式：圆角行 + 间距</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsButtonMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonSpacing</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">spacing</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 勾选</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCheckable</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItemChecked</span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsItemChecked</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectionStates</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCheckStates</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCheckedIndices</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItemHeight</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">height</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetItemHeight</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndicatorWidth</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">width</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndicatorHeightRatio</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">ratio</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndicatorColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTextColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectedColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBorderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 每项附加信息（重点）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItemDisabled</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsItemDisabled</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItemTextColor</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearItemTextColor</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItemToolTip</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetItemToolTip</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 排序指示</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSortComparator</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsSortAscending</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetShowSortIndicator</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSortIndicatorColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 样式：SetItemHeight / SetSelectedColor / SetHoverColor / SetAlternatingRowColors /</span>
+<span class="w">    </span><span class="c1">//       SetAlternatingRowColor / SetMarqueeEnabled / SetButtonMode / SetButtonSpacing 等</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-4259e4b7" style="display: none;">class ListView : public UIElement {
+<pre id="code-e32701c9" style="display: none;">enum class SelectionMode { Single, Extended, Multi, None };
+
+class ListView : public UIElement {
     ZSignal&lt;int&gt; SelectionChanged;
     ZSignal&lt;int&gt; ItemClicked;
+    ZSignal&lt;int&gt; ItemDoubleClicked;
+    ZSignal&lt;std::vector&lt;int&gt;&gt; SelectionChangedMulti;
+    ZSignal&lt;int, bool&gt; ItemCheckStateChanged;
 
     ListView();
-    void AddItem(std::shared_ptr&lt;Label&gt; label);
-    void AddItem(const std::wstring&amp; text);
-    void InsertItem(int index, const std::wstring&amp; text);
+    // 数据
+    void AddItem(std::shared_ptr&lt;Label&gt;);
+    void AddItem(const std::wstring&amp;);
+    void InsertItem(int index, const std::wstring&amp;);
     void RemoveItem(int index);
     void Clear();
-    void SetItem(int index, const std::wstring&amp; text);
+    void SetItem(int index, std::shared_ptr&lt;Label&gt;);
+    void SetItem(int index, const std::wstring&amp;);
     std::shared_ptr&lt;Label&gt; GetItemLabel(int index) const;
     std::wstring GetItemText(int index) const;
     int GetItemCount() const;
+    void InsertItems(int index, const std::vector&lt;std::wstring&gt;&amp;);
+    void MoveItem(int from, int to);
+    void SwapItems(int a, int b);
+    void Sort(bool ascending = true);                 // 使用 SetSortComparator
+    void SortItems(std::function&lt;bool(const std::wstring&amp;, const std::wstring&amp;)&gt;);
+    void ScrollToItem(int index);
+    void SetEmptyText(const std::wstring&amp;);
 
-    void SetSelectedIndex(int index);
-    int GetSelectedIndex() const;
+    // 选择
+    void SetSelectionMode(SelectionMode);
+    SelectionMode GetSelectionMode() const;
+    void SetSelectedIndex(int); int GetSelectedIndex() const;
     std::wstring GetSelectedText() const;
+    std::vector&lt;int&gt; GetSelectedIndices() const;
+    std::vector&lt;std::wstring&gt; GetSelectedTexts() const;
+    void SelectAll();
 
-    void SetButtonMode(bool enable);        // 按钮模式：圆角行 + 间距
-    bool IsButtonMode() const;
-    void SetButtonSpacing(float spacing);
+    // 勾选
+    void SetCheckable(bool);
+    void SetItemChecked(int, bool);
+    bool IsItemChecked(int) const;
+    std::vector&lt;bool&gt; GetSelectionStates() const;
+    std::vector&lt;bool&gt; GetCheckStates() const;
+    std::vector&lt;int&gt; GetCheckedIndices() const;
 
-    void SetItemHeight(float height);
-    float GetItemHeight() const;
-    void SetIndicatorWidth(float width);
-    void SetIndicatorHeightRatio(float ratio);
-    void SetIndicatorColor(Color);
-    void SetBackgroundColor(Color);
-    void SetTextColor(Color);
-    void SetSelectedColor(Color);
-    void SetHoverColor(Color);
-    void SetBorderColor(Color);
+    // 每项附加信息（重点）
+    void SetItemDisabled(int index, bool disabled = true);
+    bool IsItemDisabled(int index) const;
+    void SetItemTextColor(int index, Color);
+    void ClearItemTextColor(int index);
+    void SetItemToolTip(int index, const std::wstring&amp;);
+    std::wstring GetItemToolTip(int index) const;
+
+    // 排序指示
+    void SetSortComparator(std::function&lt;bool(const std::wstring&amp;, const std::wstring&amp;)&gt;);
+    bool IsSortAscending() const;
+    void SetShowSortIndicator(bool);
+    void SetSortIndicatorColor(Color);
+
+    // 样式：SetItemHeight / SetSelectedColor / SetHoverColor / SetAlternatingRowColors /
+    //       SetAlternatingRowColor / SetMarqueeEnabled / SetButtonMode / SetButtonSpacing 等
 };</pre>
 </div>
-<p>默认尺寸 <code>200×200</code>，行高 <code>28</code>，<code>buttonMode_=false</code>、<code>buttonSpacing_=4.0f</code>。</p>
+<p><strong>要点</strong>：</p>
+<ul>
+<li><strong>每项附加信息按“项目本身”绑定</strong>：<code>SetItemDisabled/SetItemTextColor/SetItemToolTip</code> 在内部与 <code>Label</code> 项目对象绑定，因此 <code>Sort()</code> / <code>MoveItem()</code> / <code>SwapItems()</code> 之后，这些信息仍然跟随各自的项目，不会错位。</li>
+<li>选择模式：<code>Single</code>（单选）、<code>Extended</code>（Ctrl 点选 / Shift 连选）、<code>Multi</code>（点击即切换）、<code>None</code>（不可选择，仍可触发 <code>ItemClicked</code>）。</li>
+<li><strong>键盘</strong>：<code>↑/↓/Home/End/PageUp/PageDown</code> 会<strong>跳过禁用项</strong>；获得焦点的列表还支持<strong>首字母定位</strong>（连续键入字母快速定位到以该前缀开头的项）。</li>
+<li><code>SetCheckable(true)</code> 后每行出现复选框，<code>ItemCheckStateChanged(index, checked)</code> 通知变化。</li>
+<li>排序：设置比较器后调用 <code>Sort(asc)</code>（或 <code>SortItems</code>）；<code>SetShowSortIndicator(true)</code> 时右上角显示排序箭头。</li>
+<li>悬停带 <code>SetItemToolTip</code> 的项时使用框架统一 ToolTip。</li>
+</ul>
 <h2 id="tableview">TableView</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-c6ecf4e3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-ceeef7ad', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Cell</span><span class="p">,</span><span class="w"> </span><span class="n">Row</span><span class="p">,</span><span class="w"> </span><span class="n">Column</span><span class="p">,</span><span class="w"> </span><span class="n">None</span><span class="w"> </span><span class="p">};</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">TableView</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CellClicked</span><span class="p">;</span><span class="w">        </span><span class="c1">// (row, col)</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">SelectionChanged</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CellClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CellDoubleClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">HeaderClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CurrentCellChanged</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">pair</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="kt">int</span><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">SelectionChangedCells</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ItemCheckStateChanged</span><span class="p">;</span>
 
 <span class="w">    </span><span class="n">TableView</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowCount</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">rows</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnCount</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">cols</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 行列</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowCount</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">rows</span><span class="p">);</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetRowCount</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnCount</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">cols</span><span class="p">);</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetColumnCount</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AppendRow</span><span class="p">();</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">InsertRow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveRow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AppendColumn</span><span class="p">();</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">InsertColumn</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveColumn</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 单元格</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="w"> </span><span class="n">label</span><span class="p">);</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetItemText</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetItemLabel</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHorizontalHeaderLabels</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">labels</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">width</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowHeight</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">height</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderHeight</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">height</span><span class="p">);</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectionMode</span><span class="p">(</span><span class="n">SelectionMode</span><span class="w"> </span><span class="n">mode</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 表头 / 尺寸</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderLabel</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetHeaderLabel</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHorizontalHeaderLabels</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="p">);</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowHeight</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span><span class="w">            </span><span class="c1">// 默认行高</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowHeightAt</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="p">);</span><span class="w"> </span><span class="c1">// 单行高度</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetRowHeightAt</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearRowHeightAt</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderHeight</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 显示</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetGridVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAlternatingRowColors</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAlternatingRowColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnVisible</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">visible</span><span class="p">);</span><span class="w">   </span><span class="c1">// 列隐藏</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsColumnVisible</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnAlignment</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">TextHAlign</span><span class="p">);</span><span class="w">   </span><span class="c1">// 列对齐（Left/Center/Right）</span>
+<span class="w">    </span><span class="n">TextHAlign</span><span class="w"> </span><span class="nf">GetColumnAlignment</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 选择</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectionMode</span><span class="p">(</span><span class="n">SelectionMode</span><span class="p">);</span>
 <span class="w">    </span><span class="n">SelectionMode</span><span class="w"> </span><span class="nf">GetSelectionMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCurrentCell</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetCurrentRow</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetCurrentColumn</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetCurrentRow</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetCurrentColumn</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SelectRow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SelectColumn</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearSelection</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ScrollToCell</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">pair</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="kt">int</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">GetSelectedCells</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectedRows</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectedColumns</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectionStates</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="c1">// 颜色：SetBackgroundColor / SetHeaderBackgroundColor / SetTextColor /</span>
-<span class="w">    </span><span class="c1">//       SetHeaderTextColor / SetSelectedColor / SetHoverColor /</span>
-<span class="w">    </span><span class="c1">//       SetGridLineColor / SetBorderColor / SetScrollBarColors</span>
+<span class="w">    </span><span class="c1">// 勾选 / 每行禁用</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCheckable</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowChecked</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsRowChecked</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetRowCheckStates</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCheckedRows</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowDisabled</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsRowDisabled</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 单元格颜色 / ToolTip</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCellTextColor</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearCellTextColor</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCellToolTip</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 排序</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnComparator</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SortByColumn</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">ascending</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetSortColumn</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsSortAscending</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetShowSortIndicator</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSortIndicatorColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 框选 / 样式：SetMarqueeEnabled / SetMarqueeCheckSync / SetBackgroundColor /</span>
+<span class="w">    </span><span class="c1">//   SetHeaderBackgroundColor / SetTextColor / SetGridLineColor / SetScrollBarColors 等</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-c6ecf4e3" style="display: none;">enum class SelectionMode { Cell, Row, Column, None };
+<pre id="code-ceeef7ad" style="display: none;">enum class SelectionMode { Cell, Row, Column, None };
 
 class TableView : public UIElement {
-    ZSignal&lt;int, int&gt; CellClicked;        // (row, col)
-    ZSignal&lt;int, int&gt; SelectionChanged;
+    ZSignal&lt;int,int&gt; CellClicked;
+    ZSignal&lt;int,int&gt; CellDoubleClicked;
+    ZSignal&lt;int&gt; HeaderClicked;
+    ZSignal&lt;int,int&gt; CurrentCellChanged;
+    ZSignal&lt;std::vector&lt;std::pair&lt;int,int&gt;&gt;&gt; SelectionChangedCells;
+    ZSignal&lt;int,bool&gt; ItemCheckStateChanged;
 
     TableView();
-    void SetRowCount(int rows);
-    void SetColumnCount(int cols);
+    // 行列
+    void SetRowCount(int rows); int GetRowCount() const;
+    void SetColumnCount(int cols); int GetColumnCount() const;
+    void AppendRow(); void InsertRow(int index); void RemoveRow(int index);
+    void AppendColumn(); void InsertColumn(int index); void RemoveColumn(int index);
+
+    // 单元格
     void SetItem(int row, int col, const std::wstring&amp; text);
     void SetItem(int row, int col, std::shared_ptr&lt;Label&gt; label);
     std::wstring GetItemText(int row, int col) const;
     std::shared_ptr&lt;Label&gt; GetItemLabel(int row, int col) const;
-    void SetHorizontalHeaderLabels(const std::vector&lt;std::wstring&gt;&amp; labels);
-    void SetColumnWidth(int col, float width);
-    float GetColumnWidth(int col) const;
-    void SetRowHeight(float height);
-    void SetHeaderHeight(float height);
 
-    void SetSelectionMode(SelectionMode mode);
+    // 表头 / 尺寸
+    void SetHeaderLabel(int col, const std::wstring&amp;);
+    std::wstring GetHeaderLabel(int col) const;
+    void SetHorizontalHeaderLabels(const std::vector&lt;std::wstring&gt;&amp;);
+    void SetColumnWidth(int col, float); float GetColumnWidth(int col) const;
+    void SetRowHeight(float);            // 默认行高
+    void SetRowHeightAt(int row, float); // 单行高度
+    float GetRowHeightAt(int row) const;
+    void ClearRowHeightAt(int row);
+    void SetHeaderHeight(float);
+
+    // 显示
+    void SetHeaderVisible(bool);
+    void SetGridVisible(bool);
+    void SetAlternatingRowColors(bool);
+    void SetAlternatingRowColor(Color);
+    void SetColumnVisible(int col, bool visible);   // 列隐藏
+    bool IsColumnVisible(int col) const;
+    void SetColumnAlignment(int col, TextHAlign);   // 列对齐（Left/Center/Right）
+    TextHAlign GetColumnAlignment(int col) const;
+
+    // 选择
+    void SetSelectionMode(SelectionMode);
     SelectionMode GetSelectionMode() const;
     void SetCurrentCell(int row, int col);
-    int GetCurrentRow() const;
-    int GetCurrentColumn() const;
+    int GetCurrentRow() const; int GetCurrentColumn() const;
+    void SelectRow(int row); void SelectColumn(int col); void ClearSelection();
+    void ScrollToCell(int row, int col);
+    std::vector&lt;std::pair&lt;int,int&gt;&gt; GetSelectedCells() const;
+    std::vector&lt;int&gt; GetSelectedRows() const;
+    std::vector&lt;int&gt; GetSelectedColumns() const;
+    std::vector&lt;bool&gt; GetSelectionStates() const;
 
-    // 颜色：SetBackgroundColor / SetHeaderBackgroundColor / SetTextColor /
-    //       SetHeaderTextColor / SetSelectedColor / SetHoverColor /
-    //       SetGridLineColor / SetBorderColor / SetScrollBarColors
+    // 勾选 / 每行禁用
+    void SetCheckable(bool);
+    void SetRowChecked(int row, bool); bool IsRowChecked(int row) const;
+    std::vector&lt;bool&gt; GetRowCheckStates() const;
+    std::vector&lt;int&gt; GetCheckedRows() const;
+    void SetRowDisabled(int row, bool disabled = true);
+    bool IsRowDisabled(int row) const;
+
+    // 单元格颜色 / ToolTip
+    void SetCellTextColor(int row, int col, Color);
+    void ClearCellTextColor(int row, int col);
+    void SetCellToolTip(int row, int col, const std::wstring&amp;);
+
+    // 排序
+    void SetColumnComparator(int col, std::function&lt;bool(const std::wstring&amp;, const std::wstring&amp;)&gt;);
+    void SortByColumn(int col, bool ascending = true);
+    int GetSortColumn() const; bool IsSortAscending() const;
+    void SetShowSortIndicator(bool);
+    void SetSortIndicatorColor(Color);
+
+    // 框选 / 样式：SetMarqueeEnabled / SetMarqueeCheckSync / SetBackgroundColor /
+    //   SetHeaderBackgroundColor / SetTextColor / SetGridLineColor / SetScrollBarColors 等
 };</pre>
 </div>
-<p>默认尺寸 <code>400×300</code>，表头高 <code>26</code>、行高 <code>24</code>、最小列宽 <code>40</code>，选择模式默认 <code>Cell</code>。注意：<strong>没有</strong>公开的 <code>GetRowCount()</code> / <code>GetColumnCount()</code>。</p>
+<p><strong>要点</strong>：</p>
+<ul>
+<li>默认尺寸 <code>400×300</code>，表头高 <code>26</code>、默认行高 <code>24</code>、最小列宽 <code>40</code>，选择模式默认 <code>Cell</code>。</li>
+<li><strong>单元格颜色 / ToolTip / 每行禁用 / 每行高度</strong>等行级元数据在 <code>SortByColumn</code> 以及插入/删除行、插入/删除列时会<strong>随行列一起重映射</strong>，排序后仍然跟随原来的行/列（不会错位）。</li>
+<li><code>SetColumnVisible(false)</code> 隐藏列：该列不参与布局、绘制与命中测试。</li>
+<li><code>SetColumnAlignment</code> 用 <code>TextHAlign::{Left,Center,Right}</code>。</li>
+<li><code>SetRowHeightAt(row, h)</code> 只改某一行；<code>SetRowHeight</code> 改默认行高。行高变化会影响滚动与命中测试。</li>
+<li>键盘：<code>↑/↓</code> 跳过禁用行；<code>←/→</code>、<code>Home/End</code> 移动当前单元格。</li>
+<li><code>SelectionMode::None</code> 下不产生选择，但仍触发 <code>CellClicked</code>。</li>
+<li><strong>注意</strong>：不同版本曾缺少 <code>GetRowCount/GetColumnCount</code>，当前已提供。</li>
+</ul>
 <h2 id="treenode">TreeNode</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-64a26ccf', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-45e378d1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">TreeNode</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;</span><span class="w"> </span><span class="n">columns</span><span class="p">;</span><span class="w">                 </span><span class="c1">// 第 0 列为节点文本</span>
@@ -489,11 +823,18 @@ class TableView : public UIElement {
 <span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">userData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">;</span>
 
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="n">icon</span><span class="p">;</span><span class="w">                                 </span><span class="c1">// 第一列前置图标（一个字符/emoji，可空）</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">checkable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="n">CheckState</span><span class="w"> </span><span class="n">checkState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CheckState</span><span class="o">::</span><span class="n">Unchecked</span><span class="p">;</span><span class="w">     </span><span class="c1">// 三态</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">selected</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="n">tooltip</span><span class="p">;</span><span class="w">                              </span><span class="c1">// 悬停提示（接入框架统一 ToolTip）</span>
+
 <span class="w">    </span><span class="n">TreeNode</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
 <span class="w">    </span><span class="n">TreeNode</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">cols</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-64a26ccf" style="display: none;">struct TreeNode {
+<pre id="code-45e378d1" style="display: none;">struct TreeNode {
     std::vector&lt;std::wstring&gt; columns;                 // 第 0 列为节点文本
     TreeNode* parent = nullptr;                        // 非拥有
     std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; children;
@@ -501,82 +842,182 @@ class TableView : public UIElement {
     int depth = 0;
     void* userData = nullptr;
 
+    std::wstring icon;                                 // 第一列前置图标（一个字符/emoji，可空）
+    bool checkable = false;
+    CheckState checkState = CheckState::Unchecked;     // 三态
+    bool selected = false;
+    bool enabled = true;
+    std::wstring tooltip;                              // 悬停提示（接入框架统一 ToolTip）
+
     TreeNode(const std::wstring&amp; text);
     TreeNode(const std::vector&lt;std::wstring&gt;&amp; cols);
 };</pre>
 </div>
+<ul>
+<li><code>parent</code> 是<strong>非拥有</strong>裸指针（由 <code>children</code> 的所有权决定生命周期）；<code>depth</code> 由框架维护。</li>
+<li><code>icon</code> 是绘制在第一列文本前的单个字符/emoji；<code>tooltip</code> 交给基础类统一显示。</li>
+</ul>
 <h2 id="treeview">TreeView</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-e49f8c38', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-7e60ec52', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TreeView</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Single</span><span class="p">,</span><span class="w"> </span><span class="n">Extended</span><span class="p">,</span><span class="w"> </span><span class="n">Multi</span><span class="w"> </span><span class="p">};</span>
+<span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CheckMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Linked</span><span class="p">,</span><span class="w"> </span><span class="n">Independent</span><span class="w"> </span><span class="p">};</span><span class="w">          </span><span class="c1">// 勾选父子联动/独立</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeView</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">SelectionChanged</span><span class="p">;</span>
 <span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">NodeClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">ItemDoubleClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">ItemRightClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">HeaderClicked</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">SelectionChangedMulti</span><span class="p">;</span>
 <span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ExpandChanged</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">TreeNode</span><span class="o">::</span><span class="n">CheckState</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ItemCheckStateChanged</span><span class="p">;</span>
 
 <span class="w">    </span><span class="n">TreeView</span><span class="p">();</span>
+<span class="w">    </span><span class="c1">// 列 / 表头</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnCount</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderLabels</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">labels</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">width</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderLabels</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="p">);</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetColumnWidth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddRoot</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddRoot</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">columns</span><span class="p">);</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">columns</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">node</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 结构</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddRoot</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddRoot</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">InsertRoot</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">InsertChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveChildren</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">MoveNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">newParent</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SortChildren</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">recursive</span><span class="p">,</span>
+<span class="w">                      </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&amp;</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&amp;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Clear</span><span class="p">();</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ExpandNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">node</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">expand</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ToggleNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">node</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ExpandNodeRecursive</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">node</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">expand</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsExpanded</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">node</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 展开</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ExpandNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ToggleNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ExpandNodeRecursive</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsExpanded</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ExpandAll</span><span class="p">();</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">CollapseAll</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ExpandToDepth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">depth</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDefaultExpandDepth</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">depth</span><span class="p">);</span><span class="w">   </span><span class="c1">// 之后插入的节点自动展开到该深度</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetDefaultExpandDepth</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectedNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">node</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 过滤 / 搜索</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetFilter</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&amp;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearFilter</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">HasFilter</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Search</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">keyword</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="n">GetNodePath</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&amp;</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">separator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sa">L</span><span class="s">" / "</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 选择 / 勾选</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectionMode</span><span class="p">(</span><span class="n">SelectionMode</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectedNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="p">);</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectedNode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ScrollToNode</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;</span><span class="w"> </span><span class="n">node</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">GetSelectedNodes</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SelectAll</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCheckable</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">enable</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">recursive</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCheckMode</span><span class="p">(</span><span class="n">CheckMode</span><span class="p">);</span>
+<span class="w">    </span><span class="n">CheckMode</span><span class="w"> </span><span class="nf">GetCheckMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">GetCheckedNodes</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSelectionStates</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">::</span><span class="n">CheckState</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCheckStates</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHeaderVisible</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">visible</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowHeight</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">height</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndent</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">indent</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 尺寸 / 外观</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRowHeight</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndent</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAlternatingRowColors</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetGridVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 框选：SetMarqueeEnabled / SetMarqueeCheckSync</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-e49f8c38" style="display: none;">class TreeView : public UIElement {
+<pre id="code-7e60ec52" style="display: none;">enum class SelectionMode { Single, Extended, Multi };
+enum class CheckMode { Linked, Independent };          // 勾选父子联动/独立
+
+class TreeView : public UIElement {
     ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; SelectionChanged;
     ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; NodeClicked;
+    ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; ItemDoubleClicked;
+    ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;&gt; ItemRightClicked;
+    ZSignal&lt;int&gt; HeaderClicked;
+    ZSignal&lt;std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt;&gt; SelectionChangedMulti;
     ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;, bool&gt; ExpandChanged;
+    ZSignal&lt;std::shared_ptr&lt;TreeNode&gt;, TreeNode::CheckState&gt; ItemCheckStateChanged;
 
     TreeView();
+    // 列 / 表头
     void SetColumnCount(int count);
-    void SetHeaderLabels(const std::vector&lt;std::wstring&gt;&amp; labels);
-    void SetColumnWidth(int col, float width);
-    float GetColumnWidth(int col) const;
+    void SetHeaderLabels(const std::vector&lt;std::wstring&gt;&amp;);
+    void SetColumnWidth(int col, float); float GetColumnWidth(int col) const;
+    void SetHeaderVisible(bool);
 
-    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::wstring&amp; text);
-    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::vector&lt;std::wstring&gt;&amp; columns);
-    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt; parent, const std::wstring&amp; text);
-    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt; parent, const std::vector&lt;std::wstring&gt;&amp; columns);
-    void RemoveNode(std::shared_ptr&lt;TreeNode&gt; node);
+    // 结构
+    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::wstring&amp;);
+    std::shared_ptr&lt;TreeNode&gt; AddRoot(const std::vector&lt;std::wstring&gt;&amp;);
+    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt;, const std::wstring&amp;);
+    std::shared_ptr&lt;TreeNode&gt; AddChild(std::shared_ptr&lt;TreeNode&gt;, const std::vector&lt;std::wstring&gt;&amp;);
+    std::shared_ptr&lt;TreeNode&gt; InsertRoot(int index, const std::vector&lt;std::wstring&gt;&amp;);
+    std::shared_ptr&lt;TreeNode&gt; InsertChild(std::shared_ptr&lt;TreeNode&gt;, int index, const std::vector&lt;std::wstring&gt;&amp;);
+    void RemoveNode(std::shared_ptr&lt;TreeNode&gt;);
+    void RemoveChildren(std::shared_ptr&lt;TreeNode&gt;);
+    void MoveNode(std::shared_ptr&lt;TreeNode&gt;, std::shared_ptr&lt;TreeNode&gt; newParent);
+    void SortChildren(std::shared_ptr&lt;TreeNode&gt; parent, bool recursive,
+                      std::function&lt;bool(const std::shared_ptr&lt;TreeNode&gt;&amp;, const std::shared_ptr&lt;TreeNode&gt;&amp;)&gt;);
     void Clear();
 
-    void ExpandNode(std::shared_ptr&lt;TreeNode&gt; node, bool expand);
-    void ToggleNode(std::shared_ptr&lt;TreeNode&gt; node);
-    void ExpandNodeRecursive(std::shared_ptr&lt;TreeNode&gt; node, bool expand);
-    bool IsExpanded(std::shared_ptr&lt;TreeNode&gt; node) const;
+    // 展开
+    void ExpandNode(std::shared_ptr&lt;TreeNode&gt;, bool);
+    void ToggleNode(std::shared_ptr&lt;TreeNode&gt;);
+    void ExpandNodeRecursive(std::shared_ptr&lt;TreeNode&gt;, bool);
+    bool IsExpanded(std::shared_ptr&lt;TreeNode&gt;) const;
+    void ExpandAll(); void CollapseAll();
+    void ExpandToDepth(int depth);
+    void SetDefaultExpandDepth(int depth);   // 之后插入的节点自动展开到该深度
+    int GetDefaultExpandDepth() const;
 
-    void SetSelectedNode(std::shared_ptr&lt;TreeNode&gt; node);
+    // 过滤 / 搜索
+    void SetFilter(std::function&lt;bool(const std::shared_ptr&lt;TreeNode&gt;&amp;)&gt;);
+    void ClearFilter();
+    bool HasFilter() const;
+    void Search(const std::wstring&amp; keyword);
+    std::wstring GetNodePath(const std::shared_ptr&lt;TreeNode&gt;&amp;, const std::wstring&amp; separator = L" / ") const;
+
+    // 选择 / 勾选
+    void SetSelectionMode(SelectionMode);
+    void SetSelectedNode(std::shared_ptr&lt;TreeNode&gt;);
     std::shared_ptr&lt;TreeNode&gt; GetSelectedNode() const;
-    void ScrollToNode(std::shared_ptr&lt;TreeNode&gt; node);
+    std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; GetSelectedNodes() const;
+    void SelectAll();
+    void SetCheckable(bool enable, bool recursive = true);
+    void SetCheckMode(CheckMode);
+    CheckMode GetCheckMode() const;
+    std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; GetCheckedNodes() const;
+    std::vector&lt;bool&gt; GetSelectionStates() const;
+    std::vector&lt;TreeNode::CheckState&gt; GetCheckStates() const;
 
-    void SetHeaderVisible(bool visible);
-    void SetRowHeight(float height);
-    void SetIndent(float indent);
+    // 尺寸 / 外观
+    void SetRowHeight(float);
+    void SetIndent(float);
+    void SetAlternatingRowColors(bool);
+    void SetGridVisible(bool);
+    // 框选：SetMarqueeEnabled / SetMarqueeCheckSync
 };</pre>
 </div>
-<p>默认尺寸 <code>400×300</code>，行高 <code>24</code>、缩进 <code>16</code>、表头高 <code>24</code>；默认一列、列宽 <code>40</code>、表头 <code>名称</code>。</p>
-<nav class="chapter-nav"><a class="prev" href="API.10.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">基础控件</span><span class="nav-desc">Label、Button、TextBox、ComboBox、ToggleSwitch、ScrollViewer、ProgressBar、Slider</span></a><a class="next" href="API.12.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">附录</span><span class="nav-desc">信号一览、默认值速查与完整示例</span></a></nav>
+<p><strong>要点</strong>：</p>
+<ul>
+<li>默认尺寸 <code>400×300</code>，行高 <code>24</code>、缩进 <code>16</code>、表头高 <code>24</code>；默认一列、列宽 <code>40</code>、表头 <code>名称</code>。</li>
+<li>三态勾选：<code>CheckMode::Linked</code> 时父子勾选联动并自动计算 <code>PartiallyChecked</code>；<code>Independent</code> 时各自独立。</li>
+<li><code>Search(keyword)</code> 是 <code>SetFilter</code> 的便捷封装：保留“命中节点 + 其祖先链”，其余隐藏。</li>
+<li><code>GetNodePath(node)</code> 返回从根到该节点、以第一列文本拼接的路径（可自定义分隔符）。</li>
+<li><code>SetDefaultExpandDepth</code> 只影响<strong>之后插入</strong>的节点；对已存在节点用 <code>ExpandToDepth</code>。</li>
+<li><code>SortChildren</code> 只对子节点排序，<code>recursive=true</code> 时递归排序整棵子树。</li>
+<li>节点的 <code>tooltip</code> 通过基础类统一 ToolTip 显示；<code>enabled=false</code> 的节点置灰且不可选。</li>
+</ul>
+<nav class="chapter-nav"><a class="prev" href="API.10.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">基础控件</span><span class="nav-desc">Label、Button、TextBox、ComboBox、ToggleSwitch、CheckBox、ScrollViewer、ProgressBar、Slider</span></a><a class="next" href="API.12.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">附录</span><span class="nav-desc">信号一览、默认值速查与常见坑</span></a></nav>
         </main>
     </div>
 

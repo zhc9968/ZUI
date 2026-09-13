@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Core Element UIElement · ZUI API Reference</title>
+    <title>Core element UIElement · ZUI API Reference</title>
     <style>
 
 :root {
@@ -197,74 +197,167 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class="active"><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="layout-properties"><div class="toc-row"><a href="#layout-properties" data-target="layout-properties">Layout properties</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="measure-arrange-and-draw"><div class="toc-row"><a href="#measure-arrange-and-draw" data-target="measure-arrange-and-draw">Measure, arrange, and draw</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="event-virtual-functions-overridable"><div class="toc-row"><a href="#event-virtual-functions-overridable" data-target="event-virtual-functions-overridable">Event virtual functions (overridable)</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="callback-members-stdfunction"><div class="toc-row"><a href="#callback-members-stdfunction" data-target="callback-members-stdfunction">Callback members (std::function)</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="parentchild-visibility-and-menus"><div class="toc-row"><a href="#parentchild-visibility-and-menus" data-target="parentchild-visibility-and-menus">Parent/child, visibility, and menus</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="font-interfaces"><div class="toc-row"><a href="#font-interfaces" data-target="font-interfaces">Font interfaces</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class="active"><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="layout-properties"><div class="toc-row"><a href="#layout-properties" data-target="layout-properties">Layout properties</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="measure-arrange-draw-must-read-for-custom-controls"><div class="toc-row"><a href="#measure-arrange-draw-must-read-for-custom-controls" data-target="measure-arrange-draw-must-read-for-custom-controls">Measure, arrange, draw (must-read for custom controls)</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="cache-mechanism-affects-performance-and-visuals"><div class="toc-row"><a href="#cache-mechanism-affects-performance-and-visuals" data-target="cache-mechanism-affects-performance-and-visuals">Cache mechanism (affects performance and visuals)</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="enabled-disabled"><div class="toc-row"><a href="#enabled-disabled" data-target="enabled-disabled">Enabled / disabled</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="tooltip"><div class="toc-row"><a href="#tooltip" data-target="tooltip">ToolTip</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="shadows"><div class="toc-row"><a href="#shadows" data-target="shadows">Shadows</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="focus-and-keyboard"><div class="toc-row"><a href="#focus-and-keyboard" data-target="focus-and-keyboard">Focus and keyboard</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="event-virtuals-overridable"><div class="toc-row"><a href="#event-virtuals-overridable" data-target="event-virtuals-overridable">Event virtuals (overridable)</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="callback-members-stdfunction"><div class="toc-row"><a href="#callback-members-stdfunction" data-target="callback-members-stdfunction">Callback members (std::function)</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="parent-visibility-context-menu-connections"><div class="toc-row"><a href="#parent-visibility-context-menu-connections" data-target="parent-visibility-context-menu-connections">Parent, visibility, context menu, connections</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="font-interface"><div class="toc-row"><a href="#font-interface" data-target="font-interface">Font interface</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="minimal-custom-control"><div class="toc-row"><a href="#minimal-custom-control" data-target="minimal-custom-control">Minimal custom control</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>The base class of all visual elements. Custom controls must inherit from it and implement the pure virtual `Measure` and `Draw`.
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>The base class of all visual elements. A custom control derives from it and implements the pure virtual `Measure` and `Draw`.
 
 ## Layout properties
 
 | Method | Description |
 | --- | --- |
-| `void SetMinWidth(float)` / `SetMinHeight(float)` | Minimum size |
-| `void SetMaxWidth(float)` / `SetMaxHeight(float)` | Maximum size |
-| `void SetMinSize(float w, float h)` / `SetMaxSize(float w, float h)` | Sets both at once |
-| `float GetMinWidth()/GetMinHeight()/GetMaxWidth()/GetMaxHeight() const` | Reads them |
-| `void SetFillWidth(bool)` / `SetFillHeight(bool)` | Whether to fill the parent container |
-| `bool GetFillWidth()/GetFillHeight() const` | Reads them |
-| `void SetWidth(float)` / `SetHeight(float)` | Fixed size |
-| `float GetWidth()/GetHeight() const` | Reads them |
-| `void SetMargin(const Thickness&amp;)` / `Thickness GetMargin() const` | Outer margin |
-| `void SetStretchWeights(float h, float v)` | Sets both horizontal/vertical stretch weights at once |
-| `void SetHorizontalStretchWeight(float)` / `SetVerticalStretchWeight(float)` | Sets them individually |
-| `float GetHorizontalStretchWeight()/GetVerticalStretchWeight() const` | Reads them |
-| `void InvalidateLayout()` / `bool IsLayoutDirty() const` / `ClearLayoutDirty()` | Layout invalidation |
+| `SetMinWidth/SetMinHeight(float)` | Minimum size; measured size is never smaller |
+| `SetMaxWidth/SetMaxHeight(float)` | Maximum size; default `FLT_MAX` |
+| `SetMinSize(float w, float h)` / `SetMaxSize(...)` | Set both |
+| `GetMinWidth/GetMinHeight/GetMaxWidth/GetMaxHeight()` | Read |
+| `SetFillWidth(bool)` / `SetFillHeight(bool)` | Whether the element stretches to fill the parent axis |
+| `SetWidth(float)` / `SetHeight(float)` | Fixed size (`0` means "use measured size") |
+| `SetMargin(const Thickness&amp;)` / `GetMargin()` | Outer margin |
+| `SetStretchWeights(float h, float v)` / `SetHorizontalStretchWeight` / `SetVerticalStretchWeight` | Stretch weights |
+| `InvalidateLayout()` / `IsLayoutDirty()` / `ClearLayoutDirty()` | Mark dirty; the layout pass re-measures/re-arranges |
 
-## Measure, arrange, and draw
+**Pitfalls:** `SetWidth/SetHeight` is a *fixed* size, while `SetFillWidth/SetFillHeight` *fills* the parent axis; both interact with the parent's stretch weights. Every property setter above already calls `InvalidateLayout()`.
+
+## Measure, arrange, draw (must-read for custom controls)
 
 | Method | Description |
 | --- | --- |
-| `virtual Size Measure(const Size&amp; availableSize) = 0` | Measures (**must be implemented**) |
-| `virtual void Arrange(const Rect&amp; finalRect)` | Arranges |
-| `Rect GetArrangedRect() const` | The arrange result |
-| `virtual void Draw(ID2D1RenderTarget* rt) = 0` | Draws (**must be implemented**) |
-| `virtual std::vector&lt;UIElement*&gt; GetChildren() const` | Child element list |
-| `virtual bool UseCache() const` / `SetUseCache(bool)` | Whether to use an off-screen cache |
-| `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | Child clipping region |
-| `void RequestRepaint()` | Requests a repaint |
+| `virtual Size Measure(const Size&amp; availableSize) = 0` | **Must implement.** Return the desired size; `availableSize` may be `FLT_MAX` (unconstrained). |
+| `virtual void Arrange(const Rect&amp; finalRect)` | Arrange; the default records `arrangedRect_`; containers must arrange their children here. |
+| `Rect GetArrangedRect() const` | Result of the last arrange; used by drawing and hit-testing. |
+| `virtual void Draw(ID2D1RenderTarget* rt) = 0` | **Must implement.** Draw using absolute coordinates from `GetArrangedRect()`. |
+| `virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const` | Child list (by reference; containers maintain their own view buffer). |
+| `virtual bool UseCache() const` / `SetUseCache(bool)` | Offscreen cache (default true). |
+| `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | Child clip rect (absolute); `nullopt` means no clip. |
+| `void RequestRepaint()` | Request a repaint (fires the global `RepaintRequest`). |
 
-## Event virtual functions (overridable)
+&gt; **Measure/Arrange contract**: `Measure(available)` only says how big you *want* to be; do not mutate parent state there. `Arrange(finalRect)` says where you *were placed*; drawing is always based on `arrangedRect_`.
 
-`HitTest(x,y)`, `OnMouseEnter/Leave/Move/Down/Up`, `OnMouseWheel(dx,dy)`, `OnKeyDown/Up(key,lParam)`, `OnChar(ch)`, `OnFocus`, `OnBlur`, `UpdateAnimation(dt)`, `HasActiveAnimation()`, `IsFocusable()`, `IsTextInput()`, `ReleaseDeviceResources()`, `GetImeCandidateRect()`, `SetCompositionText(text, hasComposition, cursorPos)`, `GetChildRenderTransform(child)`, `OnFontChanged()`.
+## Cache mechanism (affects performance and visuals)
+
+- `UseCache()` is true by default: the framework draws the element into an offscreen bitmap of `(w + 2·bleed) × (h + 2·bleed)` and just blits it on following frames. `bleed` defaults to `4.0f` (room for antialiasing/shadow).
+- For most controls the cache greatly reduces redundant drawing; but many small elements each holding a bitmap can cost noticeable VRAM — call `SetUseCache(false)` when needed.
+- The cache is rebuilt only when the element is marked for repaint or its size changes. After changing colors/text call `RequestRepaint()`.
+- Shadows are drawn into the cache (shadowed elements get an extra `GetShadowExtent()` on each side).
+- During composition, subtrees **entirely outside the clip** are skipped (scrolled-out content allocates no cache).
+- `SetVisible(false)` releases the cache immediately.
+
+## Enabled / disabled
+
+| Method | Description |
+| --- | --- |
+| `SetEnabled(bool)` | Set this element's own enabled state (default enabled) |
+| `IsEnabled() const` | Own state |
+| `IsEffectivelyEnabled() const` | Combines self and all ancestors: false if any ancestor is disabled |
+
+- When disabled, the window does not dispatch mouse/keyboard to it; controls should grey themselves based on `IsEffectivelyEnabled()`. Disabling does **not** change layout.
+- Typical use: `btn-&gt;SetEnabled(false);`. Most basic controls already grey themselves.
+
+## ToolTip
+
+| Method | Description |
+| --- | --- |
+| `SetToolTip(const std::wstring&amp;)` / `const std::wstring&amp; GetToolTip() const` | Set/read the hover text |
+
+- The tooltip is a **framework-level overlay** drawn by `Window`; you write no drawing code.
+- Behavior: after the mouse rests on an element for **0.5s**, a white, black-text, softly shadowed tooltip fades in at a fixed offset above the mouse position captured when it was shown; **any mouse movement dismisses it** and restarts the timer.
+- Disabled elements do not show tooltips.
+- The position is based on the mouse position at show time and does not follow the mouse.
+- Data views use the same mechanism for per-item/cell/node tooltips (see Chapter 11).
+
+## Shadows
+
+| Method | Description |
+| --- | --- |
+| `SetShadow(bool)` / `HasShadow() const` | Toggle (default off) |
+| `SetShadowColor(Color)` | Shadow color; **`a` is the visible edge opacity** (interior ≈ 2×) |
+| `SetShadowBlur(float)` | Blur radius ≈ Gaussian `2σ`; spread ≈ `1.5×blur` (default 10) |
+| `SetShadowOffset(float x, float y)` | Offset (default `0,3`) |
+| `SetShadowCornerRadius(float)` | Corner radius; `&lt;0` means 8 |
+| `GetShadowExtent() const` | Max outward extent, used to enlarge the cache bleed |
+
+- Shadows apply only to cached elements (base `UIElement` caches by default; `Card` auto-enables caching when a shadow is set).
+- Implemented as **layered Gaussian CDF**: per-layer alpha follows the Gaussian, approximating a real Gaussian blur (close to DWM) without D2D effects, so per-pixel-alpha windows stay compatible.
+
+## Focus and keyboard
+
+| Method | Description |
+| --- | --- |
+| `virtual bool IsFocusable() const` | Can it take keyboard focus (default false) |
+| `bool IsFocused() const` | Whether it currently holds focus |
+| `void Focus()` / `Blur()` | Request/clear focus |
+
+- Tab cycles focusable elements. The focus ring is drawn **only** when focus was obtained via Tab; mouse-click focus does not draw it.
+- Only the focused element receives `OnKeyDown/OnKeyUp/OnChar`.
+
+## Event virtuals (overridable)
+
+| Virtual | When called / default |
+| --- | --- |
+| `HitTest(x,y)` | Hit-testing; returns the innermost hit element or `nullptr` |
+| `OnMouseEnter/Leave/Move/Down/Up` | Mouse events; call `RequestRepaint()` yourself |
+| `OnMouseWheel(dx,dy)` | Return true to consume (do not bubble to parent) |
+| `OnKeyDown/Up(key,lParam)` | Only while focused |
+| `OnChar(ch)` | Character input (including after IME) |
+| `OnFocus` / `OnBlur` | Focus gained/lost |
+| `UpdateAnimation(dt)` | Per-frame animation update; `dt` in seconds, clamped to `0.033s` |
+| `HasActiveAnimation()` | Returning true keeps the 16ms timer redrawing |
+| `IsTextInput()` | Show an I-beam cursor on hover |
+| `ReleaseDeviceResources()` | Release brushes on device loss |
+| `GetImeCandidateRect()` | IME candidate window positioning |
+| `SetCompositionText(...)` | IME composition callback |
+| `GetChildRenderTransform(child)` | Render transform for a child (page transitions) |
+| `OnFontChanged()` | Font changed; default rebuilds layout |
 
 ## Callback members (`std::function`)
 
 `MouseEnterHandler`, `MouseLeaveHandler`, `MouseMoveHandler`, `MouseDownHandler`, `MouseUpHandler`, `KeyDownHandler`, `KeyUpHandler`, `CharHandler`, `FocusHandler`, `BlurHandler`.
 
-## Parent/child, visibility, and menus
+&gt; These allow attaching callbacks without subclassing; they are invoked alongside the `OnXxx` virtuals.
+
+## Parent, visibility, context menu, connections
 
 | Method | Description |
 | --- | --- |
-| `void SetParent(UIElement*)` / `UIElement* GetParent() const` | Parent element |
-| `void SetVisible(bool)` / `bool IsVisible() const` | Visibility |
-| `void SetContextMenu(std::shared_ptr&lt;Menu&gt;)` / `GetContextMenu()` | Context menu |
-| `void SetBleed(float)` / `float GetBleed() const` | Bleed size (default `4.0f`) |
-| `template&lt;typename Signal, typename Slot&gt; auto Connect(Signal&amp;, Slot&amp;&amp;)` | Connects a signal (manages lifetime automatically) |
+| `SetParent(UIElement*)` / `GetParent()` | Parent (usually set by the container) |
+| `SetVisible(bool)` / `IsVisible() const` | Visibility; false releases the cache |
+| `SetContextMenu(std::shared_ptr&lt;Menu&gt;)` / `GetContextMenu()` | Right-click menu |
+| `virtual bool OnContextMenu(float,float)` | Right-click hook; return true to suppress the default menu |
+| `SetBleed(float)` / `GetBleed() const` | Cache bleed (default `4.0f`) |
+| `template&lt;...&gt; Connect(Signal&amp;, Slot&amp;&amp;)` | Connect a signal, registered in this element's `ConnectionGroup` |
 
-## Font interfaces
+## Font interface
 
 | Method | Description |
 | --- | --- |
-| `static void SetGlobalFont(const FontSpec&amp;)` | Global font |
-| `static void SetGlobalFontFamily(const std::wstring&amp;)` | Global font family |
-| `static void SetGlobalFontSize(float)` | Global font size |
-| `static FontSpec GetGlobalFont()` | Reads the global font |
-| `void SetFont(const FontSpec&amp;)` / `SetFontFamily(const std::wstring&amp;)` / `SetFontSize(float)` / `SetFontWeight(DWRITE_FONT_WEIGHT)` | Instance-level override |
-| `void ClearFont()` / `bool HasFontOverride() const` | Clears/queries the override |
-| `FontSpec GetEffectiveFontSpec() const` | Resolution: instance override → type default → global default |
-| `IDWriteTextFormat* GetFontFormat() const` | Shared text format |</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 6 · Core Element UIElement</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">Chapter 6</span><h1>Core Element UIElement</h1><p class="chapter-summary">Sizing, layout, drawing, events, and font interfaces</p></header><p>The base class of all visual elements. Custom controls must inherit from it and implement the pure virtual <code>Measure</code> and <code>Draw</code>.</p>
+| `static SetGlobalFont(const FontSpec&amp;)` | Global font |
+| `static SetGlobalFontFamily(const std::wstring&amp;)` | Change only the global family |
+| `static SetGlobalFontSize(float)` | Change only the global size |
+| `static GetGlobalFont()` | Read the global font |
+| `SetFont/SetFontFamily/SetFontSize/SetFontWeight` | Instance override (stops following the global font) |
+| `ClearFont()` / `HasFontOverride()` | Clear/query the override |
+| `GetEffectiveFontSpec()` | Resolved spec (override → type default → global) |
+| `GetFontFormat()` | Shared text format (per-instance fast cache) |
+
+## Minimal custom control
+
+```cpp
+class Dot : public UIElement {
+public:
+    Dot(float r) : r_(r) {}
+    Size Measure(const Size&amp;) override { return Size(r_ * 2, r_ * 2); }
+    void Draw(ID2D1RenderTarget* rt) override {
+        ComPtr&lt;ID2D1SolidColorBrush&gt; b;
+        rt-&gt;CreateSolidColorBrush(D2D1::ColorF(0, 0.47f, 0.84f), &amp;b);
+        D2D1_ELLIPSE e{ (arrangedRect_.x + r_), (arrangedRect_.y + r_), r_, r_ };
+        rt-&gt;FillEllipse(e, b.Get());
+    }
+private:
+    float r_;
+};
+```</pre></div></div>
+<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 6 · Core element UIElement</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 6</span><h1>Core element UIElement</h1><p class="chapter-summary">Size, layout, drawing, events, and fonts</p></header><p>The base class of all visual elements. A custom control derives from it and implements the pure virtual <code>Measure</code> and <code>Draw</code>.</p>
 <h2 id="layout-properties">Layout properties</h2>
 <table>
 <thead>
@@ -275,60 +368,45 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 </thead>
 <tbody>
 <tr>
-<td><code>void SetMinWidth(float)</code> / <code>SetMinHeight(float)</code></td>
-<td>Minimum size</td>
+<td><code>SetMinWidth/SetMinHeight(float)</code></td>
+<td>Minimum size; measured size is never smaller</td>
 </tr>
 <tr>
-<td><code>void SetMaxWidth(float)</code> / <code>SetMaxHeight(float)</code></td>
-<td>Maximum size</td>
+<td><code>SetMaxWidth/SetMaxHeight(float)</code></td>
+<td>Maximum size; default <code>FLT_MAX</code></td>
 </tr>
 <tr>
-<td><code>void SetMinSize(float w, float h)</code> / <code>SetMaxSize(float w, float h)</code></td>
-<td>Sets both at once</td>
+<td><code>SetMinSize(float w, float h)</code> / <code>SetMaxSize(...)</code></td>
+<td>Set both</td>
 </tr>
 <tr>
-<td><code>float GetMinWidth()/GetMinHeight()/GetMaxWidth()/GetMaxHeight() const</code></td>
-<td>Reads them</td>
+<td><code>GetMinWidth/GetMinHeight/GetMaxWidth/GetMaxHeight()</code></td>
+<td>Read</td>
 </tr>
 <tr>
-<td><code>void SetFillWidth(bool)</code> / <code>SetFillHeight(bool)</code></td>
-<td>Whether to fill the parent container</td>
+<td><code>SetFillWidth(bool)</code> / <code>SetFillHeight(bool)</code></td>
+<td>Whether the element stretches to fill the parent axis</td>
 </tr>
 <tr>
-<td><code>bool GetFillWidth()/GetFillHeight() const</code></td>
-<td>Reads them</td>
+<td><code>SetWidth(float)</code> / <code>SetHeight(float)</code></td>
+<td>Fixed size (<code>0</code> means "use measured size")</td>
 </tr>
 <tr>
-<td><code>void SetWidth(float)</code> / <code>SetHeight(float)</code></td>
-<td>Fixed size</td>
-</tr>
-<tr>
-<td><code>float GetWidth()/GetHeight() const</code></td>
-<td>Reads them</td>
-</tr>
-<tr>
-<td><code>void SetMargin(const Thickness&amp;)</code> / <code>Thickness GetMargin() const</code></td>
+<td><code>SetMargin(const Thickness&amp;)</code> / <code>GetMargin()</code></td>
 <td>Outer margin</td>
 </tr>
 <tr>
-<td><code>void SetStretchWeights(float h, float v)</code></td>
-<td>Sets both horizontal/vertical stretch weights at once</td>
+<td><code>SetStretchWeights(float h, float v)</code> / <code>SetHorizontalStretchWeight</code> / <code>SetVerticalStretchWeight</code></td>
+<td>Stretch weights</td>
 </tr>
 <tr>
-<td><code>void SetHorizontalStretchWeight(float)</code> / <code>SetVerticalStretchWeight(float)</code></td>
-<td>Sets them individually</td>
-</tr>
-<tr>
-<td><code>float GetHorizontalStretchWeight()/GetVerticalStretchWeight() const</code></td>
-<td>Reads them</td>
-</tr>
-<tr>
-<td><code>void InvalidateLayout()</code> / <code>bool IsLayoutDirty() const</code> / <code>ClearLayoutDirty()</code></td>
-<td>Layout invalidation</td>
+<td><code>InvalidateLayout()</code> / <code>IsLayoutDirty()</code> / <code>ClearLayoutDirty()</code></td>
+<td>Mark dirty; the layout pass re-measures/re-arranges</td>
 </tr>
 </tbody>
 </table>
-<h2 id="measure-arrange-and-draw">Measure, arrange, and draw</h2>
+<p><strong>Pitfalls:</strong> <code>SetWidth/SetHeight</code> is a <em>fixed</em> size, while <code>SetFillWidth/SetFillHeight</code> <em>fills</em> the parent axis; both interact with the parent's stretch weights. Every property setter above already calls <code>InvalidateLayout()</code>.</p>
+<h2 id="measure-arrange-draw-must-read-for-custom-controls">Measure, arrange, draw (must-read for custom controls)</h2>
 <table>
 <thead>
 <tr>
@@ -339,43 +417,238 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 <tbody>
 <tr>
 <td><code>virtual Size Measure(const Size&amp; availableSize) = 0</code></td>
-<td>Measures (<strong>must be implemented</strong>)</td>
+<td><strong>Must implement.</strong> Return the desired size; <code>availableSize</code> may be <code>FLT_MAX</code> (unconstrained).</td>
 </tr>
 <tr>
 <td><code>virtual void Arrange(const Rect&amp; finalRect)</code></td>
-<td>Arranges</td>
+<td>Arrange; the default records <code>arrangedRect_</code>; containers must arrange their children here.</td>
 </tr>
 <tr>
 <td><code>Rect GetArrangedRect() const</code></td>
-<td>The arrange result</td>
+<td>Result of the last arrange; used by drawing and hit-testing.</td>
 </tr>
 <tr>
 <td><code>virtual void Draw(ID2D1RenderTarget* rt) = 0</code></td>
-<td>Draws (<strong>must be implemented</strong>)</td>
+<td><strong>Must implement.</strong> Draw using absolute coordinates from <code>GetArrangedRect()</code>.</td>
 </tr>
 <tr>
-<td><code>virtual std::vector&lt;UIElement*&gt; GetChildren() const</code></td>
-<td>Child element list</td>
+<td><code>virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const</code></td>
+<td>Child list (by reference; containers maintain their own view buffer).</td>
 </tr>
 <tr>
 <td><code>virtual bool UseCache() const</code> / <code>SetUseCache(bool)</code></td>
-<td>Whether to use an off-screen cache</td>
+<td>Offscreen cache (default true).</td>
 </tr>
 <tr>
 <td><code>virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const</code></td>
-<td>Child clipping region</td>
+<td>Child clip rect (absolute); <code>nullopt</code> means no clip.</td>
 </tr>
 <tr>
 <td><code>void RequestRepaint()</code></td>
-<td>Requests a repaint</td>
+<td>Request a repaint (fires the global <code>RepaintRequest</code>).</td>
 </tr>
 </tbody>
 </table>
-<h2 id="event-virtual-functions-overridable">Event virtual functions (overridable)</h2>
-<p><code>HitTest(x,y)</code>, <code>OnMouseEnter/Leave/Move/Down/Up</code>, <code>OnMouseWheel(dx,dy)</code>, <code>OnKeyDown/Up(key,lParam)</code>, <code>OnChar(ch)</code>, <code>OnFocus</code>, <code>OnBlur</code>, <code>UpdateAnimation(dt)</code>, <code>HasActiveAnimation()</code>, <code>IsFocusable()</code>, <code>IsTextInput()</code>, <code>ReleaseDeviceResources()</code>, <code>GetImeCandidateRect()</code>, <code>SetCompositionText(text, hasComposition, cursorPos)</code>, <code>GetChildRenderTransform(child)</code>, <code>OnFontChanged()</code>.</p>
+<blockquote>
+<p><strong>Measure/Arrange contract</strong>: <code>Measure(available)</code> only says how big you <em>want</em> to be; do not mutate parent state there. <code>Arrange(finalRect)</code> says where you <em>were placed</em>; drawing is always based on <code>arrangedRect_</code>.</p>
+</blockquote>
+<h2 id="cache-mechanism-affects-performance-and-visuals">Cache mechanism (affects performance and visuals)</h2>
+<ul>
+<li><code>UseCache()</code> is true by default: the framework draws the element into an offscreen bitmap of <code>(w + 2·bleed) × (h + 2·bleed)</code> and just blits it on following frames. <code>bleed</code> defaults to <code>4.0f</code> (room for antialiasing/shadow).</li>
+<li>For most controls the cache greatly reduces redundant drawing; but many small elements each holding a bitmap can cost noticeable VRAM — call <code>SetUseCache(false)</code> when needed.</li>
+<li>The cache is rebuilt only when the element is marked for repaint or its size changes. After changing colors/text call <code>RequestRepaint()</code>.</li>
+<li>Shadows are drawn into the cache (shadowed elements get an extra <code>GetShadowExtent()</code> on each side).</li>
+<li>During composition, subtrees <strong>entirely outside the clip</strong> are skipped (scrolled-out content allocates no cache).</li>
+<li><code>SetVisible(false)</code> releases the cache immediately.</li>
+</ul>
+<h2 id="enabled-disabled">Enabled / disabled</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetEnabled(bool)</code></td>
+<td>Set this element's own enabled state (default enabled)</td>
+</tr>
+<tr>
+<td><code>IsEnabled() const</code></td>
+<td>Own state</td>
+</tr>
+<tr>
+<td><code>IsEffectivelyEnabled() const</code></td>
+<td>Combines self and all ancestors: false if any ancestor is disabled</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>When disabled, the window does not dispatch mouse/keyboard to it; controls should grey themselves based on <code>IsEffectivelyEnabled()</code>. Disabling does <strong>not</strong> change layout.</li>
+<li>Typical use: <code>btn-&gt;SetEnabled(false);</code>. Most basic controls already grey themselves.</li>
+</ul>
+<h2 id="tooltip">ToolTip</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetToolTip(const std::wstring&amp;)</code> / <code>const std::wstring&amp; GetToolTip() const</code></td>
+<td>Set/read the hover text</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The tooltip is a <strong>framework-level overlay</strong> drawn by <code>Window</code>; you write no drawing code.</li>
+<li>Behavior: after the mouse rests on an element for <strong>0.5s</strong>, a white, black-text, softly shadowed tooltip fades in at a fixed offset above the mouse position captured when it was shown; <strong>any mouse movement dismisses it</strong> and restarts the timer.</li>
+<li>Disabled elements do not show tooltips.</li>
+<li>The position is based on the mouse position at show time and does not follow the mouse.</li>
+<li>Data views use the same mechanism for per-item/cell/node tooltips (see Chapter 11).</li>
+</ul>
+<h2 id="shadows">Shadows</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetShadow(bool)</code> / <code>HasShadow() const</code></td>
+<td>Toggle (default off)</td>
+</tr>
+<tr>
+<td><code>SetShadowColor(Color)</code></td>
+<td>Shadow color; <strong><code>a</code> is the visible edge opacity</strong> (interior ≈ 2×)</td>
+</tr>
+<tr>
+<td><code>SetShadowBlur(float)</code></td>
+<td>Blur radius ≈ Gaussian <code>2σ</code>; spread ≈ <code>1.5×blur</code> (default 10)</td>
+</tr>
+<tr>
+<td><code>SetShadowOffset(float x, float y)</code></td>
+<td>Offset (default <code>0,3</code>)</td>
+</tr>
+<tr>
+<td><code>SetShadowCornerRadius(float)</code></td>
+<td>Corner radius; <code>&lt;0</code> means 8</td>
+</tr>
+<tr>
+<td><code>GetShadowExtent() const</code></td>
+<td>Max outward extent, used to enlarge the cache bleed</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Shadows apply only to cached elements (base <code>UIElement</code> caches by default; <code>Card</code> auto-enables caching when a shadow is set).</li>
+<li>Implemented as <strong>layered Gaussian CDF</strong>: per-layer alpha follows the Gaussian, approximating a real Gaussian blur (close to DWM) without D2D effects, so per-pixel-alpha windows stay compatible.</li>
+</ul>
+<h2 id="focus-and-keyboard">Focus and keyboard</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>virtual bool IsFocusable() const</code></td>
+<td>Can it take keyboard focus (default false)</td>
+</tr>
+<tr>
+<td><code>bool IsFocused() const</code></td>
+<td>Whether it currently holds focus</td>
+</tr>
+<tr>
+<td><code>void Focus()</code> / <code>Blur()</code></td>
+<td>Request/clear focus</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Tab cycles focusable elements. The focus ring is drawn <strong>only</strong> when focus was obtained via Tab; mouse-click focus does not draw it.</li>
+<li>Only the focused element receives <code>OnKeyDown/OnKeyUp/OnChar</code>.</li>
+</ul>
+<h2 id="event-virtuals-overridable">Event virtuals (overridable)</h2>
+<table>
+<thead>
+<tr>
+<th>Virtual</th>
+<th>When called / default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HitTest(x,y)</code></td>
+<td>Hit-testing; returns the innermost hit element or <code>nullptr</code></td>
+</tr>
+<tr>
+<td><code>OnMouseEnter/Leave/Move/Down/Up</code></td>
+<td>Mouse events; call <code>RequestRepaint()</code> yourself</td>
+</tr>
+<tr>
+<td><code>OnMouseWheel(dx,dy)</code></td>
+<td>Return true to consume (do not bubble to parent)</td>
+</tr>
+<tr>
+<td><code>OnKeyDown/Up(key,lParam)</code></td>
+<td>Only while focused</td>
+</tr>
+<tr>
+<td><code>OnChar(ch)</code></td>
+<td>Character input (including after IME)</td>
+</tr>
+<tr>
+<td><code>OnFocus</code> / <code>OnBlur</code></td>
+<td>Focus gained/lost</td>
+</tr>
+<tr>
+<td><code>UpdateAnimation(dt)</code></td>
+<td>Per-frame animation update; <code>dt</code> in seconds, clamped to <code>0.033s</code></td>
+</tr>
+<tr>
+<td><code>HasActiveAnimation()</code></td>
+<td>Returning true keeps the 16ms timer redrawing</td>
+</tr>
+<tr>
+<td><code>IsTextInput()</code></td>
+<td>Show an I-beam cursor on hover</td>
+</tr>
+<tr>
+<td><code>ReleaseDeviceResources()</code></td>
+<td>Release brushes on device loss</td>
+</tr>
+<tr>
+<td><code>GetImeCandidateRect()</code></td>
+<td>IME candidate window positioning</td>
+</tr>
+<tr>
+<td><code>SetCompositionText(...)</code></td>
+<td>IME composition callback</td>
+</tr>
+<tr>
+<td><code>GetChildRenderTransform(child)</code></td>
+<td>Render transform for a child (page transitions)</td>
+</tr>
+<tr>
+<td><code>OnFontChanged()</code></td>
+<td>Font changed; default rebuilds layout</td>
+</tr>
+</tbody>
+</table>
 <h2 id="callback-members-stdfunction">Callback members (<code>std::function</code>)</h2>
 <p><code>MouseEnterHandler</code>, <code>MouseLeaveHandler</code>, <code>MouseMoveHandler</code>, <code>MouseDownHandler</code>, <code>MouseUpHandler</code>, <code>KeyDownHandler</code>, <code>KeyUpHandler</code>, <code>CharHandler</code>, <code>FocusHandler</code>, <code>BlurHandler</code>.</p>
-<h2 id="parentchild-visibility-and-menus">Parent/child, visibility, and menus</h2>
+<blockquote>
+<p>These allow attaching callbacks without subclassing; they are invoked alongside the <code>OnXxx</code> virtuals.</p>
+</blockquote>
+<h2 id="parent-visibility-context-menu-connections">Parent, visibility, context menu, connections</h2>
 <table>
 <thead>
 <tr>
@@ -385,28 +658,32 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 </thead>
 <tbody>
 <tr>
-<td><code>void SetParent(UIElement*)</code> / <code>UIElement* GetParent() const</code></td>
-<td>Parent element</td>
+<td><code>SetParent(UIElement*)</code> / <code>GetParent()</code></td>
+<td>Parent (usually set by the container)</td>
 </tr>
 <tr>
-<td><code>void SetVisible(bool)</code> / <code>bool IsVisible() const</code></td>
-<td>Visibility</td>
+<td><code>SetVisible(bool)</code> / <code>IsVisible() const</code></td>
+<td>Visibility; false releases the cache</td>
 </tr>
 <tr>
-<td><code>void SetContextMenu(std::shared_ptr&lt;Menu&gt;)</code> / <code>GetContextMenu()</code></td>
-<td>Context menu</td>
+<td><code>SetContextMenu(std::shared_ptr&lt;Menu&gt;)</code> / <code>GetContextMenu()</code></td>
+<td>Right-click menu</td>
 </tr>
 <tr>
-<td><code>void SetBleed(float)</code> / <code>float GetBleed() const</code></td>
-<td>Bleed size (default <code>4.0f</code>)</td>
+<td><code>virtual bool OnContextMenu(float,float)</code></td>
+<td>Right-click hook; return true to suppress the default menu</td>
 </tr>
 <tr>
-<td><code>template&lt;typename Signal, typename Slot&gt; auto Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
-<td>Connects a signal (manages lifetime automatically)</td>
+<td><code>SetBleed(float)</code> / <code>GetBleed() const</code></td>
+<td>Cache bleed (default <code>4.0f</code>)</td>
+</tr>
+<tr>
+<td><code>template&lt;...&gt; Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
+<td>Connect a signal, registered in this element's <code>ConnectionGroup</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="font-interfaces">Font interfaces</h2>
+<h2 id="font-interface">Font interface</h2>
 <table>
 <thead>
 <tr>
@@ -416,39 +693,73 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 </thead>
 <tbody>
 <tr>
-<td><code>static void SetGlobalFont(const FontSpec&amp;)</code></td>
+<td><code>static SetGlobalFont(const FontSpec&amp;)</code></td>
 <td>Global font</td>
 </tr>
 <tr>
-<td><code>static void SetGlobalFontFamily(const std::wstring&amp;)</code></td>
-<td>Global font family</td>
+<td><code>static SetGlobalFontFamily(const std::wstring&amp;)</code></td>
+<td>Change only the global family</td>
 </tr>
 <tr>
-<td><code>static void SetGlobalFontSize(float)</code></td>
-<td>Global font size</td>
+<td><code>static SetGlobalFontSize(float)</code></td>
+<td>Change only the global size</td>
 </tr>
 <tr>
-<td><code>static FontSpec GetGlobalFont()</code></td>
-<td>Reads the global font</td>
+<td><code>static GetGlobalFont()</code></td>
+<td>Read the global font</td>
 </tr>
 <tr>
-<td><code>void SetFont(const FontSpec&amp;)</code> / <code>SetFontFamily(const std::wstring&amp;)</code> / <code>SetFontSize(float)</code> / <code>SetFontWeight(DWRITE_FONT_WEIGHT)</code></td>
-<td>Instance-level override</td>
+<td><code>SetFont/SetFontFamily/SetFontSize/SetFontWeight</code></td>
+<td>Instance override (stops following the global font)</td>
 </tr>
 <tr>
-<td><code>void ClearFont()</code> / <code>bool HasFontOverride() const</code></td>
-<td>Clears/queries the override</td>
+<td><code>ClearFont()</code> / <code>HasFontOverride()</code></td>
+<td>Clear/query the override</td>
 </tr>
 <tr>
-<td><code>FontSpec GetEffectiveFontSpec() const</code></td>
-<td>Resolution: instance override → type default → global default</td>
+<td><code>GetEffectiveFontSpec()</code></td>
+<td>Resolved spec (override → type default → global)</td>
 </tr>
 <tr>
-<td><code>IDWriteTextFormat* GetFontFormat() const</code></td>
-<td>Shared text format</td>
+<td><code>GetFontFormat()</code></td>
+<td>Shared text format (per-instance fast cache)</td>
 </tr>
 </tbody>
 </table>
+<h2 id="minimal-custom-control">Minimal custom control</h2>
+<div class="code-container">
+<div class="code-header">
+<span class="code-language">cpp</span>
+<button class="copy-btn" onclick="copyCode('code-70416dfb', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+</div>
+<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Dot</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">Dot</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">r</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">r_</span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">    </span><span class="n">Size</span><span class="w"> </span><span class="n">Measure</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Size</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Size</span><span class="p">(</span><span class="n">r_</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">r_</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Draw</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="w"> </span><span class="n">rt</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">ComPtr</span><span class="o">&lt;</span><span class="n">ID2D1SolidColorBrush</span><span class="o">&gt;</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="w">        </span><span class="n">rt</span><span class="o">-&gt;</span><span class="n">CreateSolidColorBrush</span><span class="p">(</span><span class="n">D2D1</span><span class="o">::</span><span class="n">ColorF</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.47f</span><span class="p">,</span><span class="w"> </span><span class="mf">0.84f</span><span class="p">),</span><span class="w"> </span><span class="o">&amp;</span><span class="n">b</span><span class="p">);</span>
+<span class="w">        </span><span class="n">D2D1_ELLIPSE</span><span class="w"> </span><span class="n">e</span><span class="p">{</span><span class="w"> </span><span class="p">(</span><span class="n">arrangedRect_</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r_</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="n">arrangedRect_</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">r_</span><span class="p">),</span><span class="w"> </span><span class="n">r_</span><span class="p">,</span><span class="w"> </span><span class="n">r_</span><span class="w"> </span><span class="p">};</span>
+<span class="w">        </span><span class="n">rt</span><span class="o">-&gt;</span><span class="n">FillEllipse</span><span class="p">(</span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">Get</span><span class="p">());</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">r_</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+<pre id="code-70416dfb" style="display: none;">class Dot : public UIElement {
+public:
+    Dot(float r) : r_(r) {}
+    Size Measure(const Size&amp;) override { return Size(r_ * 2, r_ * 2); }
+    void Draw(ID2D1RenderTarget* rt) override {
+        ComPtr&lt;ID2D1SolidColorBrush&gt; b;
+        rt-&gt;CreateSolidColorBrush(D2D1::ColorF(0, 0.47f, 0.84f), &amp;b);
+        D2D1_ELLIPSE e{ (arrangedRect_.x + r_), (arrangedRect_.y + r_), r_, r_ };
+        rt-&gt;FillEllipse(e, b.Get());
+    }
+private:
+    float r_;
+};</pre>
+</div>
 <nav class="chapter-nav"><a class="prev" href="API.en.5.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Fonts</span><span class="nav-desc">FontSpec and FontManager</span></a><a class="next" href="API.en.7.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Layout</span><span class="nav-desc">Layout, ColumnBox, RowBox, GridLayout, LayoutHost, Card, Page, PageHost</span></a></nav>
         </main>
     </div>

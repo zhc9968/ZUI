@@ -197,7 +197,7 @@ pre { line-height: 125%; }
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class="active"><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class=""><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>基础控件</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>数据视图</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>附录</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="menuitem"><div class="toc-row"><a href="#menuitem" data-target="menuitem">MenuItem</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="menu"><div class="toc-row"><a href="#menu" data-target="menu">Menu</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="menuwindow弹出菜单窗口一般由框架内部使用"><div class="toc-row"><a href="#menuwindow弹出菜单窗口一般由框架内部使用" data-target="menuwindow弹出菜单窗口一般由框架内部使用">MenuWindow（弹出菜单窗口，一般由框架内部使用）</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class="active"><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class=""><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>基础控件</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>数据视图</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>附录</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="menuitem"><div class="toc-row"><a href="#menuitem" data-target="menuitem">MenuItem</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="menu"><div class="toc-row"><a href="#menu" data-target="menu">Menu</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="menuwindow弹出菜单窗口框架内部使用"><div class="toc-row"><a href="#menuwindow弹出菜单窗口框架内部使用" data-target="menuwindow弹出菜单窗口框架内部使用">MenuWindow（弹出菜单窗口，框架内部使用）</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>## MenuItem
@@ -225,7 +225,10 @@ class Menu : public std::enable_shared_from_this&lt;Menu&gt; {
 };
 ```
 
-## MenuWindow（弹出菜单窗口，一般由框架内部使用）
+- 用 `AddItem` 添加可点击项，`AddSeparator` 添加分隔线，`AddSubmenu` 添加子菜单。
+- 把菜单设置到元素：`element-&gt;SetContextMenu(menu);`，或设置到窗口：`window.SetContextMenu(menu);`。
+
+## MenuWindow（弹出菜单窗口，框架内部使用）
 
 ```cpp
 class MenuWindow {
@@ -234,13 +237,15 @@ class MenuWindow {
     void Hide();
     void CloseAll();
 };
-```</pre></div></div>
+```
+
+- 一般不需要直接使用；右键时由框架自动创建。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 8 章 · 菜单</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 8 章</span><h1>菜单</h1><p class="chapter-summary">MenuItem、Menu 与 MenuWindow</p></header><h2 id="menuitem">MenuItem</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-42ceab5a', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-b78fa77e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MenuItem</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Normal</span><span class="p">,</span><span class="w"> </span><span class="n">Separator</span><span class="p">,</span><span class="w"> </span><span class="n">Submenu</span><span class="w"> </span><span class="p">};</span>
@@ -252,7 +257,7 @@ class MenuWindow {
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="w"> </span><span class="n">icon</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-42ceab5a" style="display: none;">class MenuItem {
+<pre id="code-b78fa77e" style="display: none;">class MenuItem {
     enum class Type { Normal, Separator, Submenu };
     std::wstring text;
     std::function&lt;void()&gt; callback;
@@ -266,7 +271,7 @@ class MenuWindow {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-7690bba1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-7068ec9d', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Menu</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">enable_shared_from_this</span><span class="o">&lt;</span><span class="n">Menu</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddItem</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">callback</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
@@ -275,18 +280,22 @@ class MenuWindow {
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">MenuItem</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">items</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-7690bba1" style="display: none;">class Menu : public std::enable_shared_from_this&lt;Menu&gt; {
+<pre id="code-7068ec9d" style="display: none;">class Menu : public std::enable_shared_from_this&lt;Menu&gt; {
     void AddItem(const std::wstring&amp; text, std::function&lt;void()&gt; callback = nullptr);
     void AddSeparator();
     void AddSubmenu(const std::wstring&amp; text, std::shared_ptr&lt;Menu&gt; submenu);
     std::vector&lt;std::shared_ptr&lt;MenuItem&gt;&gt; items;
 };</pre>
 </div>
-<h2 id="menuwindow弹出菜单窗口一般由框架内部使用">MenuWindow（弹出菜单窗口，一般由框架内部使用）</h2>
+<ul>
+<li>用 <code>AddItem</code> 添加可点击项，<code>AddSeparator</code> 添加分隔线，<code>AddSubmenu</code> 添加子菜单。</li>
+<li>把菜单设置到元素：<code>element-&gt;SetContextMenu(menu);</code>，或设置到窗口：<code>window.SetContextMenu(menu);</code>。</li>
+</ul>
+<h2 id="menuwindow弹出菜单窗口框架内部使用">MenuWindow（弹出菜单窗口，框架内部使用）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-14031ca1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-3d94baf6', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MenuWindow</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">MenuWindow</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Menu</span><span class="o">&gt;</span><span class="w"> </span><span class="n">menu</span><span class="p">,</span><span class="w"> </span><span class="n">HWND</span><span class="w"> </span><span class="n">owner</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">);</span>
@@ -295,13 +304,16 @@ class MenuWindow {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">CloseAll</span><span class="p">();</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-14031ca1" style="display: none;">class MenuWindow {
+<pre id="code-3d94baf6" style="display: none;">class MenuWindow {
     MenuWindow(std::shared_ptr&lt;Menu&gt; menu, HWND owner, int x, int y);
     void Show(int x, int y);
     void Hide();
     void CloseAll();
 };</pre>
 </div>
+<ul>
+<li>一般不需要直接使用；右键时由框架自动创建。</li>
+</ul>
 <nav class="chapter-nav"><a class="prev" href="API.7.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">布局</span><span class="nav-desc">Layout、ColumnBox、RowBox、GridLayout、LayoutHost、Card、Page、PageHost</span></a><a class="next" href="API.9.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">窗口 Window</span><span class="nav-desc">创建、背景、标题栏与根布局</span></a></nav>
         </main>
     </div>

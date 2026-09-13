@@ -208,17 +208,19 @@ inline float GetGlobalDpiScale();
 inline float Snap(float dip);
 ```
 
-| 函数 | 说明 |
+| 函数 | 实现要点与注意 |
 | --- | --- |
-| `clamp(v, low, high)` | 截断到区间（注意参数顺序与 `std::clamp` 相反） |
-| `SetGlobalDpiScale(s)` | 设置全局 DPI 缩放，`s&lt;=0` 回退 `1.0f` |
-| `GetGlobalDpiScale()` | 读取当前缩放，默认 `1.0f` |
-| `Snap(dip)` | 把 DIP 吸附到最近物理像素 |</pre></div></div>
+| `clamp(v, low, high)` | 参数顺序是 **`(值, 下界, 上界)`**，和 `std::clamp` 一致，但**不是** `(值, 上界, 下界)`。越界时返回边界值。 |
+| `SetGlobalDpiScale(s)` | 渲染前由 `Window` 自动设置为 `dpi/96`。传 `s&lt;=0` 会回退到 `1.0f`。一般不需要手动调用。 |
+| `GetGlobalDpiScale()` | 读取当前缩放，默认 `1.0f`。 |
+| `Snap(dip)` | 把 DIP 坐标吸附到当前物理像素网格（`round(dip*scale)/scale`）。框架在绘制前自动用，用户通常无需调用。 |
+
+&gt; **为什么需要 `Snap`**：Direct2D 在非整数像素上绘制会做抗锯齿，文本和 1px 线条会发虚。把坐标吸附到物理像素即可保持锐利。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 3 章 · 全局函数与 DPI</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 3 章</span><h1>全局函数与 DPI</h1><p class="chapter-summary">clamp、DPI 缩放与像素吸附</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-067718bd', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-d47ff373', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">clamp</span><span class="p">(</span><span class="n">T</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">low</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">high</span><span class="p">);</span>
 <span class="kr">inline</span><span class="w"> </span><span class="kt">float</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">GlobalDpiScaleRef</span><span class="p">();</span>
@@ -226,7 +228,7 @@ inline float Snap(float dip);
 <span class="kr">inline</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGlobalDpiScale</span><span class="p">();</span>
 <span class="kr">inline</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">Snap</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">dip</span><span class="p">);</span>
 </pre></div>
-<pre id="code-067718bd" style="display: none;">template&lt;typename T&gt; T clamp(T value, T low, T high);
+<pre id="code-d47ff373" style="display: none;">template&lt;typename T&gt; T clamp(T value, T low, T high);
 inline float&amp; GlobalDpiScaleRef();
 inline void SetGlobalDpiScale(float scale);
 inline float GetGlobalDpiScale();
@@ -236,28 +238,31 @@ inline float Snap(float dip);</pre>
 <thead>
 <tr>
 <th>函数</th>
-<th>说明</th>
+<th>实现要点与注意</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>clamp(v, low, high)</code></td>
-<td>截断到区间（注意参数顺序与 <code>std::clamp</code> 相反）</td>
+<td>参数顺序是 <strong><code>(值, 下界, 上界)</code></strong>，和 <code>std::clamp</code> 一致，但<strong>不是</strong> <code>(值, 上界, 下界)</code>。越界时返回边界值。</td>
 </tr>
 <tr>
 <td><code>SetGlobalDpiScale(s)</code></td>
-<td>设置全局 DPI 缩放，<code>s&lt;=0</code> 回退 <code>1.0f</code></td>
+<td>渲染前由 <code>Window</code> 自动设置为 <code>dpi/96</code>。传 <code>s&lt;=0</code> 会回退到 <code>1.0f</code>。一般不需要手动调用。</td>
 </tr>
 <tr>
 <td><code>GetGlobalDpiScale()</code></td>
-<td>读取当前缩放，默认 <code>1.0f</code></td>
+<td>读取当前缩放，默认 <code>1.0f</code>。</td>
 </tr>
 <tr>
 <td><code>Snap(dip)</code></td>
-<td>把 DIP 吸附到最近物理像素</td>
+<td>把 DIP 坐标吸附到当前物理像素网格（<code>round(dip*scale)/scale</code>）。框架在绘制前自动用，用户通常无需调用。</td>
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p><strong>为什么需要 <code>Snap</code></strong>：Direct2D 在非整数像素上绘制会做抗锯齿，文本和 1px 线条会发虚。把坐标吸附到物理像素即可保持锐利。</p>
+</blockquote>
 <nav class="chapter-nav"><a class="prev" href="API.2.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">基础类型</span><span class="nav-desc">Color、Rect、Thickness、Size</span></a><a class="next" href="API.4.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">信号与连接</span><span class="nav-desc">ZSignal、Connection、ConnectionGroup 与全局信号</span></a></nav>
         </main>
     </div>

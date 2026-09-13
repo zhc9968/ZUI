@@ -209,6 +209,8 @@ class Layout : public UIElement {
 };
 ```
 
+- 布局容器**默认关闭缓存**（`UseCache()==false`），因为它们通常直接绘制/组织子元素，缓存收益低而显存占用高。
+
 ## ColumnBox（垂直布局）
 
 ```cpp
@@ -216,9 +218,11 @@ class ColumnBox : public Layout {
     void AddChild(std::shared_ptr&lt;UIElement&gt; child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
-    // 默认横向拉伸权重 1.0，纵向 0.0
 };
 ```
+
+- 子元素自上而下排列；`spacing` 是相邻元素间距。
+- 默认横向拉伸权重 `1.0`（子元素默认横向填满），纵向 `0.0`。
 
 ## RowBox（水平布局）
 
@@ -227,17 +231,16 @@ class RowBox : public Layout {
     void AddChild(std::shared_ptr&lt;UIElement&gt; child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
-    // 默认横向拉伸权重 0.0，纵向 1.0
 };
 ```
+
+- 子元素自左向右排列；默认横向 `0.0`、纵向 `1.0`。
 
 ## GridLayout（网格布局）
 
 ```cpp
 class GridLayout : public Layout {
     enum class Alignment { Start, Center, End };
-    struct GridItem { std::shared_ptr&lt;UIElement&gt; element; int row, col, rowSpan, colSpan; };
-
     void AddChild(std::shared_ptr&lt;UIElement&gt; child, int row, int col, int rowSpan = 1, int colSpan = 1);
     void SetSpacing(float horizontal, float vertical);
     void SetColumnStretch(int col, float weight);
@@ -247,7 +250,9 @@ class GridLayout : public Layout {
 };
 ```
 
-默认横纵间距 `0`、对齐 `Start`，默认横纵拉伸权重均 `1.0`。
+- 默认横纵间距 `0`、对齐 `Start`、默认横纵拉伸权重均 `1.0`。
+- `SetColumnStretch/SetRowStretch` 控制某列/行在多余空间中的分配比例；`0` 表示不参与分配。
+- `rowSpan/colSpan` 用于跨行跨列。`LayoutHost` 默认持有 `GridLayout`，因此 `Card` / `Page` 通常用 `GetLayoutAs&lt;GridLayout&gt;()` 直接加子元素。
 
 ## LayoutHost（可替换布局容器）
 
@@ -259,7 +264,8 @@ class LayoutHost : public UIElement {
 };
 ```
 
-构造时默认持有一个 `GridLayout`。`GetLayoutAs&lt;GridLayout&gt;()` 是拿布局的常用方式。
+- 构造时默认持有一个 `GridLayout`。`GetLayoutAs&lt;GridLayout&gt;()` 是拿布局的常用方式。
+- `SetLayout` 会替换内部布局并把其父元素设为自己；传入 `nullptr` 或自己会被忽略。
 
 ## Card（卡片）
 
@@ -274,9 +280,16 @@ class Card : public LayoutHost {
     void SetCornerRadius(float);
     void SetBackgroundColor(Color);
     void SetBorderColor(Color);
+    void SetHoverBackgroundColor(Color);   // 悬停背景
+    void SetHoverBorderColor(Color);       // 悬停边框
+    void SetHoverAnimationSpeed(float);
     // 另有对应的 static SetDefault*
 };
 ```
+
+- 卡片是“带背景/边框/圆角/内边距的容器”。子元素加到它的内部布局（`GetLayoutAs&lt;GridLayout&gt;()`）。
+- 支持悬停配色与平滑过渡动画；开启阴影时自动启用缓存。
+- 禁用时整体绘制为灰色。
 
 ## Page（页面）
 
@@ -287,6 +300,8 @@ class Page : public LayoutHost {
     void SetBackgroundColor(Color);
 };
 ```
+
+- 一个 `Page` 通常代表 `PageHost` 中的一屏内容。
 
 ## PageHost（页面宿主 / 切换动画）
 
@@ -301,74 +316,82 @@ class PageHost : public UIElement {
     int GetCurrentIndex() const;
     std::shared_ptr&lt;Page&gt; GetCurrentPage() const;
 };
-```</pre></div></div>
+```
+
+- `NavigateTo` 触发滑动切换；动画期间只更新“源页”和“目标页”，动画结束后只更新当前页（避免同一页每帧被更新两次导致内嵌动画变快）。
+- 非当前页的缓存会在切换结束后释放，以节省显存。
+- **注意**：切换过程中不要假设 `GetCurrentIndex()` 已变为目标值——它在动画结束后才更新。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 7 章 · 布局</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 7 章</span><h1>布局</h1><p class="chapter-summary">Layout、ColumnBox、RowBox、GridLayout、LayoutHost、Card、Page、PageHost</p></header><h2 id="layout基类">Layout（基类）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-eeb2b13b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-413f55b3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Layout</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="o">~</span><span class="n">Layout</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">UseCache</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="k">override</span><span class="p">;</span><span class="w">   </span><span class="c1">// 布局容器默认不用缓存</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-eeb2b13b" style="display: none;">class Layout : public UIElement {
+<pre id="code-413f55b3" style="display: none;">class Layout : public UIElement {
     virtual ~Layout() = default;
     bool UseCache() const override;   // 布局容器默认不用缓存
 };</pre>
 </div>
+<ul>
+<li>布局容器<strong>默认关闭缓存</strong>（<code>UseCache()==false</code>），因为它们通常直接绘制/组织子元素，缓存收益低而显存占用高。</li>
+</ul>
 <h2 id="columnbox垂直布局">ColumnBox（垂直布局）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-5fff4225', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-6c3dacfe', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ColumnBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Layout</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">child</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSpacing</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">spacing</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetSpacing</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="c1">// 默认横向拉伸权重 1.0，纵向 0.0</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-5fff4225" style="display: none;">class ColumnBox : public Layout {
+<pre id="code-6c3dacfe" style="display: none;">class ColumnBox : public Layout {
     void AddChild(std::shared_ptr&lt;UIElement&gt; child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
-    // 默认横向拉伸权重 1.0，纵向 0.0
 };</pre>
 </div>
+<ul>
+<li>子元素自上而下排列；<code>spacing</code> 是相邻元素间距。</li>
+<li>默认横向拉伸权重 <code>1.0</code>（子元素默认横向填满），纵向 <code>0.0</code>。</li>
+</ul>
 <h2 id="rowbox水平布局">RowBox（水平布局）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-99654ba9', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-a2aebf3a', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">RowBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Layout</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">child</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSpacing</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">spacing</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetSpacing</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="c1">// 默认横向拉伸权重 0.0，纵向 1.0</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-99654ba9" style="display: none;">class RowBox : public Layout {
+<pre id="code-a2aebf3a" style="display: none;">class RowBox : public Layout {
     void AddChild(std::shared_ptr&lt;UIElement&gt; child);
     void SetSpacing(float spacing);
     float GetSpacing() const;
-    // 默认横向拉伸权重 0.0，纵向 1.0
 };</pre>
 </div>
+<ul>
+<li>子元素自左向右排列；默认横向 <code>0.0</code>、纵向 <code>1.0</code>。</li>
+</ul>
 <h2 id="gridlayout网格布局">GridLayout（网格布局）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-cc320c27', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-4f84fd72', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">GridLayout</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Layout</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Alignment</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Start</span><span class="p">,</span><span class="w"> </span><span class="n">Center</span><span class="p">,</span><span class="w"> </span><span class="n">End</span><span class="w"> </span><span class="p">};</span>
-<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">GridItem</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">element</span><span class="p">;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="n">rowSpan</span><span class="p">,</span><span class="w"> </span><span class="n">colSpan</span><span class="p">;</span><span class="w"> </span><span class="p">};</span>
-
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddChild</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">child</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">rowSpan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">colSpan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSpacing</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">horizontal</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">vertical</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColumnStretch</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">col</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">weight</span><span class="p">);</span>
@@ -377,10 +400,8 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetVerticalAlignment</span><span class="p">(</span><span class="n">Alignment</span><span class="w"> </span><span class="n">align</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-cc320c27" style="display: none;">class GridLayout : public Layout {
+<pre id="code-4f84fd72" style="display: none;">class GridLayout : public Layout {
     enum class Alignment { Start, Center, End };
-    struct GridItem { std::shared_ptr&lt;UIElement&gt; element; int row, col, rowSpan, colSpan; };
-
     void AddChild(std::shared_ptr&lt;UIElement&gt; child, int row, int col, int rowSpan = 1, int colSpan = 1);
     void SetSpacing(float horizontal, float vertical);
     void SetColumnStretch(int col, float weight);
@@ -389,12 +410,16 @@ class PageHost : public UIElement {
     void SetVerticalAlignment(Alignment align);
 };</pre>
 </div>
-<p>默认横纵间距 <code>0</code>、对齐 <code>Start</code>，默认横纵拉伸权重均 <code>1.0</code>。</p>
+<ul>
+<li>默认横纵间距 <code>0</code>、对齐 <code>Start</code>、默认横纵拉伸权重均 <code>1.0</code>。</li>
+<li><code>SetColumnStretch/SetRowStretch</code> 控制某列/行在多余空间中的分配比例；<code>0</code> 表示不参与分配。</li>
+<li><code>rowSpan/colSpan</code> 用于跨行跨列。<code>LayoutHost</code> 默认持有 <code>GridLayout</code>，因此 <code>Card</code> / <code>Page</code> 通常用 <code>GetLayoutAs&lt;GridLayout&gt;()</code> 直接加子元素。</li>
+</ul>
 <h2 id="layouthost可替换布局容器">LayoutHost（可替换布局容器）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-32436f8f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-0a103fbe', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">LayoutHost</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetLayout</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
@@ -402,18 +427,21 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetLayoutAs</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-32436f8f" style="display: none;">class LayoutHost : public UIElement {
+<pre id="code-0a103fbe" style="display: none;">class LayoutHost : public UIElement {
     std::shared_ptr&lt;UIElement&gt; GetLayout() const;
     void SetLayout(std::shared_ptr&lt;UIElement&gt; layout);
     template&lt;typename T&gt; std::shared_ptr&lt;T&gt; GetLayoutAs() const;
 };</pre>
 </div>
-<p>构造时默认持有一个 <code>GridLayout</code>。<code>GetLayoutAs&lt;GridLayout&gt;()</code> 是拿布局的常用方式。</p>
+<ul>
+<li>构造时默认持有一个 <code>GridLayout</code>。<code>GetLayoutAs&lt;GridLayout&gt;()</code> 是拿布局的常用方式。</li>
+<li><code>SetLayout</code> 会替换内部布局并把其父元素设为自己；传入 <code>nullptr</code> 或自己会被忽略。</li>
+</ul>
 <h2 id="card卡片">Card（卡片）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-abbcf8d9', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-6f1caac2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Card</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">LayoutHost</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">DefaultPadding</span><span class="p">;</span><span class="w">           </span><span class="c1">// 12.0f</span>
@@ -425,10 +453,13 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCornerRadius</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBorderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w">   </span><span class="c1">// 悬停背景</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverBorderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w">       </span><span class="c1">// 悬停边框</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverAnimationSpeed</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
 <span class="w">    </span><span class="c1">// 另有对应的 static SetDefault*</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-abbcf8d9" style="display: none;">class Card : public LayoutHost {
+<pre id="code-6f1caac2" style="display: none;">class Card : public LayoutHost {
     static float DefaultPadding;           // 12.0f
     static float DefaultCornerRadius;      // 8.0f
     static Color DefaultBgColor;           // 白
@@ -438,14 +469,22 @@ class PageHost : public UIElement {
     void SetCornerRadius(float);
     void SetBackgroundColor(Color);
     void SetBorderColor(Color);
+    void SetHoverBackgroundColor(Color);   // 悬停背景
+    void SetHoverBorderColor(Color);       // 悬停边框
+    void SetHoverAnimationSpeed(float);
     // 另有对应的 static SetDefault*
 };</pre>
 </div>
+<ul>
+<li>卡片是“带背景/边框/圆角/内边距的容器”。子元素加到它的内部布局（<code>GetLayoutAs&lt;GridLayout&gt;()</code>）。</li>
+<li>支持悬停配色与平滑过渡动画；开启阴影时自动启用缓存。</li>
+<li>禁用时整体绘制为灰色。</li>
+</ul>
 <h2 id="page页面">Page（页面）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-d6b5f2b3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-b56a23f0', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Page</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">LayoutHost</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">DefaultPadding</span><span class="p">;</span><span class="w">     </span><span class="c1">// 10.0f</span>
@@ -453,17 +492,20 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-d6b5f2b3" style="display: none;">class Page : public LayoutHost {
+<pre id="code-b56a23f0" style="display: none;">class Page : public LayoutHost {
     static float DefaultPadding;     // 10.0f
     void SetPadding(float);
     void SetBackgroundColor(Color);
 };</pre>
 </div>
+<ul>
+<li>一个 <code>Page</code> 通常代表 <code>PageHost</code> 中的一屏内容。</li>
+</ul>
 <h2 id="pagehost页面宿主-切换动画">PageHost（页面宿主 / 切换动画）</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-d0b53fe5', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-06cc0af3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">PageHost</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">TransitionDirection</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Left</span><span class="p">,</span><span class="w"> </span><span class="n">Right</span><span class="p">,</span><span class="w"> </span><span class="n">Up</span><span class="p">,</span><span class="w"> </span><span class="n">Down</span><span class="w"> </span><span class="p">};</span>
@@ -476,7 +518,7 @@ class PageHost : public UIElement {
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Page</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCurrentPage</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-d0b53fe5" style="display: none;">class PageHost : public UIElement {
+<pre id="code-06cc0af3" style="display: none;">class PageHost : public UIElement {
     enum class TransitionDirection { Left, Right, Up, Down };
 
     void AddPage(std::shared_ptr&lt;Page&gt; page);
@@ -487,6 +529,11 @@ class PageHost : public UIElement {
     std::shared_ptr&lt;Page&gt; GetCurrentPage() const;
 };</pre>
 </div>
+<ul>
+<li><code>NavigateTo</code> 触发滑动切换；动画期间只更新“源页”和“目标页”，动画结束后只更新当前页（避免同一页每帧被更新两次导致内嵌动画变快）。</li>
+<li>非当前页的缓存会在切换结束后释放，以节省显存。</li>
+<li><strong>注意</strong>：切换过程中不要假设 <code>GetCurrentIndex()</code> 已变为目标值——它在动画结束后才更新。</li>
+</ul>
 <nav class="chapter-nav"><a class="prev" href="API.6.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">核心元素 UIElement</span><span class="nav-desc">尺寸、布局、绘制、事件与字体接口</span></a><a class="next" href="API.8.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">菜单</span><span class="nav-desc">MenuItem、Menu 与 MenuWindow</span></a></nav>
         </main>
     </div>

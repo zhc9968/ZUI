@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signals and Connections · ZUI API Reference</title>
+    <title>Signals and connections · ZUI API Reference</title>
     <style>
 
 :root {
@@ -197,18 +197,30 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class="active"><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="connectionthread"><div class="toc-row"><a href="#connectionthread" data-target="connectionthread">ConnectionThread</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="connection"><div class="toc-row"><a href="#connection" data-target="connection">Connection</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="connectiongroup"><div class="toc-row"><a href="#connectiongroup" data-target="connectiongroup">ConnectionGroup</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="zsignal"><div class="toc-row"><a href="#zsignal" data-target="zsignal">ZSignal</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="global-signals-uizsignals"><div class="toc-row"><a href="#global-signals-uizsignals" data-target="global-signals-uizsignals">Global Signals UIZSignals</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class="active"><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="what-this-chapter-solves"><div class="toc-row"><a href="#what-this-chapter-solves" data-target="what-this-chapter-solves">What this chapter solves</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="connectionthread"><div class="toc-row"><a href="#connectionthread" data-target="connectionthread">ConnectionThread</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="connection"><div class="toc-row"><a href="#connection" data-target="connection">Connection</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="connectiongroup"><div class="toc-row"><a href="#connectiongroup" data-target="connectiongroup">ConnectionGroup</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="zsignal"><div class="toc-row"><a href="#zsignal" data-target="zsignal">ZSignal</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="global-signals-uizsignals"><div class="toc-row"><a href="#global-signals-uizsignals" data-target="global-signals-uizsignals">Global signals UIZSignals</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>## ConnectionThread
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>## What this chapter solves
+
+ZUI's signals are not just "connect and forget" — they also handle **automatic disconnection on object destruction**. Understand the three actors to avoid dangling callbacks and leaks:
+
+- `ZSignal`: owns the slots (a list of `std::function`).
+- `Connection`: the handle of one connection; disconnects on destruction.
+- `ConnectionGroup`: a set of connections that are all disconnected together on destruction. Every `UIElement` owns one.
+
+## ConnectionThread
 
 ```cpp
 enum class ConnectionThread {
-    CurrentThread,   // run directly on the emitting thread (default)
-    NewThread,       // spawn a detached thread per emission
+    CurrentThread,   // run on the firing thread (default)
+    NewThread,       // spawn a detached thread per fire
     UIThread         // post to the UI thread message loop
 };
 ```
+
+- `CurrentThread`: synchronous; safe to mutate control state from the slot. Use this in almost all cases.
+- `NewThread`: detaches a thread per fire; **do not touch the UI from the slot**.
+- `UIThread`: posts to the UI thread; use it when a worker thread produces data and the UI must be updated.
 
 ## Connection
 
@@ -216,7 +228,7 @@ enum class ConnectionThread {
 class Connection {
     Connection();
     Connection(std::shared_ptr&lt;detail::ConnectionState&gt; state);
-    ~Connection();                         // disconnects automatically on destruction
+    ~Connection();                         // auto-disconnect
     Connection(const Connection&amp;) = delete;
     Connection&amp; operator=(const Connection&amp;) = delete;
     Connection(Connection&amp;&amp;) noexcept;
@@ -226,17 +238,23 @@ class Connection {
 };
 ```
 
+- **Move-only, not copyable** (so one connection is not disconnected twice).
+- Destructor disconnects. Storing the returned `Connection` in a local variable disconnects it when the scope ends — if the slot must live long, **do not** let the return value die. Prefer `UIElement::Connect(...)`, which registers the connection in the element's `ConnectionGroup`.
+
 ## ConnectionGroup
 
 ```cpp
 class ConnectionGroup : public std::enable_shared_from_this&lt;ConnectionGroup&gt; {
     ConnectionGroup();
-    ~ConnectionGroup();                    // disconnects all on destruction
+    ~ConnectionGroup();                    // disconnect all
     void disconnectAll();
     size_t size() const;
     void addState(const std::shared_ptr&lt;detail::ConnectionState&gt;&amp; state);
 };
 ```
+
+- Every `UIElement` has one. Destroying a control destroys its group, which disconnects everything attached to the control.
+- You can create your own group and pass it to `signal.connect(slot, ConnectionThread::CurrentThread, group)` for batch management.
 
 ## ZSignal
 
@@ -248,54 +266,84 @@ class ZSignal {
                        ConnectionThread thread = ConnectionThread::CurrentThread,
                        std::shared_ptr&lt;ConnectionGroup&gt; group = nullptr);
     void Fire(TArgs... targs) const;
-    void operator()(TArgs... targs) const;   // syntactic sugar for Fire
+    void operator()(TArgs... targs) const;   // sugar for Fire
 };
 ```
 
+**Implementation notes that affect usage:**
+
+- Firing takes a snapshot of the current connections, so **connecting/disconnecting slots from within a slot is safe**.
+- The snapshot reuses a thread-local buffer (no heap allocation when non-reentrant); reentrant firing falls back to a local copy.
+- `Fire` is `const`.
+- Thread-safe: the connection list is guarded by a mutex.
+
 ###block_green_start
-**Recommended usage**: controls already provide `UIElement::Connect(signal, slot)`, which attaches the connection to that control's `ConnectionGroup` and disconnects it automatically when the control is destroyed. When using `signal.connect(...)` manually, pay attention to the lifetime of the connection.
+**Recommended usage**: controls provide `UIElement::Connect(signal, slot)`, which attaches the connection to that control's `ConnectionGroup` so it disconnects automatically when the control is destroyed. When using `signal.connect(...)` manually, mind the connection's lifetime.
 ###block_green_end
 
-## Global Signals `UIZSignals`
+###block_orange_start
+**Note (signals and object lifetime)**: if a slot (lambda) passed to `Connect` **captures by value the `shared_ptr` of the object that owns the signal** (e.g. `obj-&gt;Connect(obj-&gt;SomeSignal, [obj](){...})`), it forms a reference cycle and the object and its whole subtree will never be released (`ConnectionGroup` cannot break it either, because it is owned by that object). Capture a **raw pointer** or a `weak_ptr` instead:
 
-| Signal | Parameters | Firing condition |
-| --- | --- | --- |
-| `DrawOverlay` | `ID2D1RenderTarget*` | Overlay drawing after all UI drawing has completed |
-| `GlobalMouseDown` | `float, float` | Global mouse-down (DIP coordinates) |
-| `WindowDeactivated` | — | Window deactivated/minimized |
-| `ElementCaptureRequest` | `UIElement*` | A control requests mouse capture |
-| `ElementCaptureRelease` | `UIElement*` | A control releases mouse capture |
-| `RepaintRequest` | `UIElement*` | A control requests a repaint |
-| `LayoutInvalidated` | — | Global layout invalidation |</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 4 · Signals and Connections</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">Chapter 4</span><h1>Signals and Connections</h1><p class="chapter-summary">ZSignal, Connection, ConnectionGroup, and global signals</p></header><h2 id="connectionthread">ConnectionThread</h2>
+```cpp
+auto b = btn.get();   // raw pointer; the signal is a member of btn, so the connection dies with btn
+btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
+```
+###block_orange_end
+
+## Global signals `UIZSignals`
+
+| Signal | Args | Fired when | Notes |
+| --- | --- | --- | --- |
+| `DrawOverlay` | `ID2D1RenderTarget*` | after all UI is drawn | used for overlays such as open combo-box lists and tooltips |
+| `GlobalMouseDown` | `float, float` | any mouse-down (DIP) | controls use it to close-on-outside-click |
+| `WindowDeactivated` | — | window deactivated/minimized | collapse expanded state |
+| `ElementCaptureRequest` | `UIElement*` | a control requests mouse capture | framework-internal |
+| `ElementCaptureRelease` | `UIElement*` | a control releases capture | framework-internal |
+| `RepaintRequest` | `UIElement*` | a control requests repaint | backs `RequestRepaint()` |
+| `LayoutInvalidated` | — | global layout invalidation | backs `InvalidateLayout()` |
+
+&gt; These are global singleton signals, not members of a control. When connecting them, register the connection in a well-defined `ConnectionGroup` or disconnect it yourself at the right time.</pre></div></div>
+<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 4 · Signals and connections</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 4</span><h1>Signals and connections</h1><p class="chapter-summary">ZSignal, Connection, ConnectionGroup, and global signals</p></header><h2 id="what-this-chapter-solves">What this chapter solves</h2>
+<p>ZUI's signals are not just "connect and forget" — they also handle <strong>automatic disconnection on object destruction</strong>. Understand the three actors to avoid dangling callbacks and leaks:</p>
+<ul>
+<li><code>ZSignal</code>: owns the slots (a list of <code>std::function</code>).</li>
+<li><code>Connection</code>: the handle of one connection; disconnects on destruction.</li>
+<li><code>ConnectionGroup</code>: a set of connections that are all disconnected together on destruction. Every <code>UIElement</code> owns one.</li>
+</ul>
+<h2 id="connectionthread">ConnectionThread</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-44ee8c64', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-f58dc25a', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ConnectionThread</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">CurrentThread</span><span class="p">,</span><span class="w">   </span><span class="c1">// run directly on the emitting thread (default)</span>
-<span class="w">    </span><span class="n">NewThread</span><span class="p">,</span><span class="w">       </span><span class="c1">// spawn a detached thread per emission</span>
+<span class="w">    </span><span class="n">CurrentThread</span><span class="p">,</span><span class="w">   </span><span class="c1">// run on the firing thread (default)</span>
+<span class="w">    </span><span class="n">NewThread</span><span class="p">,</span><span class="w">       </span><span class="c1">// spawn a detached thread per fire</span>
 <span class="w">    </span><span class="n">UIThread</span><span class="w">         </span><span class="c1">// post to the UI thread message loop</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-44ee8c64" style="display: none;">enum class ConnectionThread {
-    CurrentThread,   // run directly on the emitting thread (default)
-    NewThread,       // spawn a detached thread per emission
+<pre id="code-f58dc25a" style="display: none;">enum class ConnectionThread {
+    CurrentThread,   // run on the firing thread (default)
+    NewThread,       // spawn a detached thread per fire
     UIThread         // post to the UI thread message loop
 };</pre>
 </div>
+<ul>
+<li><code>CurrentThread</code>: synchronous; safe to mutate control state from the slot. Use this in almost all cases.</li>
+<li><code>NewThread</code>: detaches a thread per fire; <strong>do not touch the UI from the slot</strong>.</li>
+<li><code>UIThread</code>: posts to the UI thread; use it when a worker thread produces data and the UI must be updated.</li>
+</ul>
 <h2 id="connection">Connection</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-8513c8db', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-aa29cc2c', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Connection</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">Connection</span><span class="p">();</span>
 <span class="w">    </span><span class="n">Connection</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">detail</span><span class="o">::</span><span class="n">ConnectionState</span><span class="o">&gt;</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
-<span class="w">    </span><span class="o">~</span><span class="n">Connection</span><span class="p">();</span><span class="w">                         </span><span class="c1">// disconnects automatically on destruction</span>
+<span class="w">    </span><span class="o">~</span><span class="n">Connection</span><span class="p">();</span><span class="w">                         </span><span class="c1">// auto-disconnect</span>
 <span class="w">    </span><span class="n">Connection</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Connection</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delete</span><span class="p">;</span>
 <span class="w">    </span><span class="n">Connection</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Connection</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delete</span><span class="p">;</span>
 <span class="w">    </span><span class="n">Connection</span><span class="p">(</span><span class="n">Connection</span><span class="o">&amp;&amp;</span><span class="p">)</span><span class="w"> </span><span class="k">noexcept</span><span class="p">;</span>
@@ -304,10 +352,10 @@ class ZSignal {
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">isConnected</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-8513c8db" style="display: none;">class Connection {
+<pre id="code-aa29cc2c" style="display: none;">class Connection {
     Connection();
     Connection(std::shared_ptr&lt;detail::ConnectionState&gt; state);
-    ~Connection();                         // disconnects automatically on destruction
+    ~Connection();                         // auto-disconnect
     Connection(const Connection&amp;) = delete;
     Connection&amp; operator=(const Connection&amp;) = delete;
     Connection(Connection&amp;&amp;) noexcept;
@@ -316,33 +364,41 @@ class ZSignal {
     bool isConnected() const;
 };</pre>
 </div>
+<ul>
+<li><strong>Move-only, not copyable</strong> (so one connection is not disconnected twice).</li>
+<li>Destructor disconnects. Storing the returned <code>Connection</code> in a local variable disconnects it when the scope ends — if the slot must live long, <strong>do not</strong> let the return value die. Prefer <code>UIElement::Connect(...)</code>, which registers the connection in the element's <code>ConnectionGroup</code>.</li>
+</ul>
 <h2 id="connectiongroup">ConnectionGroup</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-1af96e26', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-9dc26793', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ConnectionGroup</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">enable_shared_from_this</span><span class="o">&lt;</span><span class="n">ConnectionGroup</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ConnectionGroup</span><span class="p">();</span>
-<span class="w">    </span><span class="o">~</span><span class="n">ConnectionGroup</span><span class="p">();</span><span class="w">                    </span><span class="c1">// disconnects all on destruction</span>
+<span class="w">    </span><span class="o">~</span><span class="n">ConnectionGroup</span><span class="p">();</span><span class="w">                    </span><span class="c1">// disconnect all</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">disconnectAll</span><span class="p">();</span>
 <span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="nf">size</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">addState</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">detail</span><span class="o">::</span><span class="n">ConnectionState</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-1af96e26" style="display: none;">class ConnectionGroup : public std::enable_shared_from_this&lt;ConnectionGroup&gt; {
+<pre id="code-9dc26793" style="display: none;">class ConnectionGroup : public std::enable_shared_from_this&lt;ConnectionGroup&gt; {
     ConnectionGroup();
-    ~ConnectionGroup();                    // disconnects all on destruction
+    ~ConnectionGroup();                    // disconnect all
     void disconnectAll();
     size_t size() const;
     void addState(const std::shared_ptr&lt;detail::ConnectionState&gt;&amp; state);
 };</pre>
 </div>
+<ul>
+<li>Every <code>UIElement</code> has one. Destroying a control destroys its group, which disconnects everything attached to the control.</li>
+<li>You can create your own group and pass it to <code>signal.connect(slot, ConnectionThread::CurrentThread, group)</code> for batch management.</li>
+</ul>
 <h2 id="zsignal">ZSignal</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-993bd321', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-d055cf62', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="p">...</span><span class="w"> </span><span class="n">TArgs</span><span class="o">&gt;</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">ZSignal</span><span class="w"> </span><span class="p">{</span>
@@ -351,70 +407,102 @@ class ZSignal {
 <span class="w">                       </span><span class="n">ConnectionThread</span><span class="w"> </span><span class="kr">thread</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ConnectionThread</span><span class="o">::</span><span class="n">CurrentThread</span><span class="p">,</span>
 <span class="w">                       </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">ConnectionGroup</span><span class="o">&gt;</span><span class="w"> </span><span class="n">group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Fire</span><span class="p">(</span><span class="n">TArgs</span><span class="p">...</span><span class="w"> </span><span class="n">targs</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">operator</span><span class="p">()(</span><span class="n">TArgs</span><span class="p">...</span><span class="w"> </span><span class="n">targs</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// syntactic sugar for Fire</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">operator</span><span class="p">()(</span><span class="n">TArgs</span><span class="p">...</span><span class="w"> </span><span class="n">targs</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// sugar for Fire</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-993bd321" style="display: none;">template &lt;typename... TArgs&gt;
+<pre id="code-d055cf62" style="display: none;">template &lt;typename... TArgs&gt;
 class ZSignal {
     using SlotType = std::function&lt;void(TArgs...)&gt;;
     Connection connect(SlotType slot,
                        ConnectionThread thread = ConnectionThread::CurrentThread,
                        std::shared_ptr&lt;ConnectionGroup&gt; group = nullptr);
     void Fire(TArgs... targs) const;
-    void operator()(TArgs... targs) const;   // syntactic sugar for Fire
+    void operator()(TArgs... targs) const;   // sugar for Fire
 };</pre>
 </div>
+<p><strong>Implementation notes that affect usage:</strong></p>
+<ul>
+<li>Firing takes a snapshot of the current connections, so <strong>connecting/disconnecting slots from within a slot is safe</strong>.</li>
+<li>The snapshot reuses a thread-local buffer (no heap allocation when non-reentrant); reentrant firing falls back to a local copy.</li>
+<li><code>Fire</code> is <code>const</code>.</li>
+<li>Thread-safe: the connection list is guarded by a mutex.</li>
+</ul>
 <div class="green">
-<p><strong>Recommended usage</strong>: controls already provide <code>UIElement::Connect(signal, slot)</code>, which attaches the connection to that control's <code>ConnectionGroup</code> and disconnects it automatically when the control is destroyed. When using <code>signal.connect(...)</code> manually, pay attention to the lifetime of the connection.</p>
+<p><strong>Recommended usage</strong>: controls provide <code>UIElement::Connect(signal, slot)</code>, which attaches the connection to that control's <code>ConnectionGroup</code> so it disconnects automatically when the control is destroyed. When using <code>signal.connect(...)</code> manually, mind the connection's lifetime.</p>
 </div>
-<h2 id="global-signals-uizsignals">Global Signals <code>UIZSignals</code></h2>
+<div class="orange">
+<p><strong>Note (signals and object lifetime)</strong>: if a slot (lambda) passed to <code>Connect</code> <strong>captures by value the <code>shared_ptr</code> of the object that owns the signal</strong> (e.g. <code>obj-&gt;Connect(obj-&gt;SomeSignal, [obj](){...})</code>), it forms a reference cycle and the object and its whole subtree will never be released (<code>ConnectionGroup</code> cannot break it either, because it is owned by that object). Capture a <strong>raw pointer</strong> or a <code>weak_ptr</code> instead:</p>
+<div class="code-container">
+<div class="code-header">
+<span class="code-language">cpp</span>
+<button class="copy-btn" onclick="copyCode('code-2e39669b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+</div>
+<div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">btn</span><span class="p">.</span><span class="n">get</span><span class="p">();</span><span class="w">   </span><span class="c1">// raw pointer; the signal is a member of btn, so the connection dies with btn</span>
+<span class="n">btn</span><span class="o">-&gt;</span><span class="n">Connect</span><span class="p">(</span><span class="n">btn</span><span class="o">-&gt;</span><span class="n">Clicked</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">b</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">SetText</span><span class="p">(</span><span class="sa">L</span><span class="s">"..."</span><span class="p">);</span><span class="w"> </span><span class="p">});</span>
+</pre></div>
+<pre id="code-2e39669b" style="display: none;">auto b = btn.get();   // raw pointer; the signal is a member of btn, so the connection dies with btn
+btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });</pre>
+</div>
+</div>
+<h2 id="global-signals-uizsignals">Global signals <code>UIZSignals</code></h2>
 <table>
 <thead>
 <tr>
 <th>Signal</th>
-<th>Parameters</th>
-<th>Firing condition</th>
+<th>Args</th>
+<th>Fired when</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>DrawOverlay</code></td>
 <td><code>ID2D1RenderTarget*</code></td>
-<td>Overlay drawing after all UI drawing has completed</td>
+<td>after all UI is drawn</td>
+<td>used for overlays such as open combo-box lists and tooltips</td>
 </tr>
 <tr>
 <td><code>GlobalMouseDown</code></td>
 <td><code>float, float</code></td>
-<td>Global mouse-down (DIP coordinates)</td>
+<td>any mouse-down (DIP)</td>
+<td>controls use it to close-on-outside-click</td>
 </tr>
 <tr>
 <td><code>WindowDeactivated</code></td>
 <td>—</td>
-<td>Window deactivated/minimized</td>
+<td>window deactivated/minimized</td>
+<td>collapse expanded state</td>
 </tr>
 <tr>
 <td><code>ElementCaptureRequest</code></td>
 <td><code>UIElement*</code></td>
-<td>A control requests mouse capture</td>
+<td>a control requests mouse capture</td>
+<td>framework-internal</td>
 </tr>
 <tr>
 <td><code>ElementCaptureRelease</code></td>
 <td><code>UIElement*</code></td>
-<td>A control releases mouse capture</td>
+<td>a control releases capture</td>
+<td>framework-internal</td>
 </tr>
 <tr>
 <td><code>RepaintRequest</code></td>
 <td><code>UIElement*</code></td>
-<td>A control requests a repaint</td>
+<td>a control requests repaint</td>
+<td>backs <code>RequestRepaint()</code></td>
 </tr>
 <tr>
 <td><code>LayoutInvalidated</code></td>
 <td>—</td>
-<td>Global layout invalidation</td>
+<td>global layout invalidation</td>
+<td>backs <code>InvalidateLayout()</code></td>
 </tr>
 </tbody>
 </table>
-<nav class="chapter-nav"><a class="prev" href="API.en.3.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Global Functions and DPI</span><span class="nav-desc">clamp, DPI scaling, and pixel snapping</span></a><a class="next" href="API.en.5.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Fonts</span><span class="nav-desc">FontSpec and FontManager</span></a></nav>
+<blockquote>
+<p>These are global singleton signals, not members of a control. When connecting them, register the connection in a well-defined <code>ConnectionGroup</code> or disconnect it yourself at the right time.</p>
+</blockquote>
+<nav class="chapter-nav"><a class="prev" href="API.en.3.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Global functions and DPI</span><span class="nav-desc">clamp, DPI scale, pixel snapping</span></a><a class="next" href="API.en.5.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Fonts</span><span class="nav-desc">FontSpec and FontManager</span></a></nav>
         </main>
     </div>
 

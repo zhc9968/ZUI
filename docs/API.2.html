@@ -212,12 +212,10 @@ struct Color {
 };
 ```
 
-| 成员 | 说明 |
-| --- | --- |
-| `Color(r,g,b,a)` | 分量范围 `[0,1]`，默认黑色不透明 |
-| `FromArgb(a,r,g,b)` | 用 0–255 的分量构造 |
-| `ToD2D()` | 转为 Direct2D 颜色结构 |
-| `Lerp(c1,c2,t)` | 线性插值 |
+- **分量范围 `[0,1]`（float）**，不是 0–255。混用是最常见的错误来源：`Color(255,0,0)` 不会得到红色，而是“极大的越界值”，最终颜色不可预期。要么用 `Color(1,0,0)`，要么用 `FromArgb(255, 255, 0, 0)`。
+- `FromArgb` 的参数顺序是 **`(a, r, g, b)`**：alpha 在最前，和 `Color(r,g,b,a)` 的顺序不同，注意别混。
+- `ToD2D()` 返回 Direct2D 的 `D2D1_COLOR_F`。内部会缓存画刷，颜色改变后需要 `RequestRepaint()`（控件 setter 已自动调用）。
+- `Lerp` 对四个分量分别线性插值，`t` 未做 clamp；动画里通常先自行 clamp。
 
 ## Rect
 
@@ -230,6 +228,10 @@ struct Rect {
 };
 ```
 
+- 表示**位置 + 尺寸**（不是 left/top/right/bottom）。
+- `Contains` 判定是否在矩形内（含边界）。
+- `ToD2D()` 转成 Direct2D 的 `D2D1_RECT_F`（left/top/right/bottom）。
+
 ## Thickness
 
 ```cpp
@@ -239,6 +241,9 @@ struct Thickness {
 };
 ```
 
+- 用于 `SetMargin()`、`ScrollViewer::SetContentMargin()` 的四周间距。
+- 没有 `Thickness(all)` 单参构造的“四边相同”语义：写 `Thickness(8,8,8,8)`。
+
 ## Size
 
 ```cpp
@@ -246,13 +251,15 @@ struct Size {
     float width, height;
     Size(float w = 0, float h = 0);
 };
-```</pre></div></div>
+```
+
+- 用于 `Measure()` 的可用空间与返回值。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 2 章 · 基础类型</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 2 章</span><h1>基础类型</h1><p class="chapter-summary">Color、Rect、Thickness、Size</p></header><h2 id="color">Color</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-f1cbc416', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-8229541e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">Color</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
@@ -262,7 +269,7 @@ struct Size {
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="nf">Lerp</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Color</span><span class="o">&amp;</span><span class="w"> </span><span class="n">c1</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Color</span><span class="o">&amp;</span><span class="w"> </span><span class="n">c2</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">t</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-f1cbc416" style="display: none;">struct Color {
+<pre id="code-8229541e" style="display: none;">struct Color {
     float r, g, b, a;
     Color(float r = 0, float g = 0, float b = 0, float a = 1.0f);
     static Color FromArgb(uint8_t a, uint8_t r, uint8_t g, uint8_t b);
@@ -270,37 +277,17 @@ struct Size {
     static Color Lerp(const Color&amp; c1, const Color&amp; c2, float t);
 };</pre>
 </div>
-<table>
-<thead>
-<tr>
-<th>成员</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Color(r,g,b,a)</code></td>
-<td>分量范围 <code>[0,1]</code>，默认黑色不透明</td>
-</tr>
-<tr>
-<td><code>FromArgb(a,r,g,b)</code></td>
-<td>用 0–255 的分量构造</td>
-</tr>
-<tr>
-<td><code>ToD2D()</code></td>
-<td>转为 Direct2D 颜色结构</td>
-</tr>
-<tr>
-<td><code>Lerp(c1,c2,t)</code></td>
-<td>线性插值</td>
-</tr>
-</tbody>
-</table>
+<ul>
+<li><strong>分量范围 <code>[0,1]</code>（float）</strong>，不是 0–255。混用是最常见的错误来源：<code>Color(255,0,0)</code> 不会得到红色，而是“极大的越界值”，最终颜色不可预期。要么用 <code>Color(1,0,0)</code>，要么用 <code>FromArgb(255, 255, 0, 0)</code>。</li>
+<li><code>FromArgb</code> 的参数顺序是 <strong><code>(a, r, g, b)</code></strong>：alpha 在最前，和 <code>Color(r,g,b,a)</code> 的顺序不同，注意别混。</li>
+<li><code>ToD2D()</code> 返回 Direct2D 的 <code>D2D1_COLOR_F</code>。内部会缓存画刷，颜色改变后需要 <code>RequestRepaint()</code>（控件 setter 已自动调用）。</li>
+<li><code>Lerp</code> 对四个分量分别线性插值，<code>t</code> 未做 clamp；动画里通常先自行 clamp。</li>
+</ul>
 <h2 id="rect">Rect</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-b70a4073', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-2fc256cc', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">Rect</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="n">height</span><span class="p">;</span>
@@ -309,45 +296,57 @@ struct Size {
 <span class="w">    </span><span class="n">D2D1_RECT_F</span><span class="w"> </span><span class="nf">ToD2D</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-b70a4073" style="display: none;">struct Rect {
+<pre id="code-2fc256cc" style="display: none;">struct Rect {
     float x, y, width, height;
     Rect(float x = 0, float y = 0, float w = 0, float h = 0);
     bool Contains(float px, float py) const;
     D2D1_RECT_F ToD2D() const;
 };</pre>
 </div>
+<ul>
+<li>表示<strong>位置 + 尺寸</strong>（不是 left/top/right/bottom）。</li>
+<li><code>Contains</code> 判定是否在矩形内（含边界）。</li>
+<li><code>ToD2D()</code> 转成 Direct2D 的 <code>D2D1_RECT_F</code>（left/top/right/bottom）。</li>
+</ul>
 <h2 id="thickness">Thickness</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-b3e55946', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-e1f39b07', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">Thickness</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">left</span><span class="p">,</span><span class="w"> </span><span class="n">top</span><span class="p">,</span><span class="w"> </span><span class="n">right</span><span class="p">,</span><span class="w"> </span><span class="n">bottom</span><span class="p">;</span>
 <span class="w">    </span><span class="n">Thickness</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-b3e55946" style="display: none;">struct Thickness {
+<pre id="code-e1f39b07" style="display: none;">struct Thickness {
     float left, top, right, bottom;
     Thickness(float l = 0, float t = 0, float r = 0, float b = 0);
 };</pre>
 </div>
+<ul>
+<li>用于 <code>SetMargin()</code>、<code>ScrollViewer::SetContentMargin()</code> 的四周间距。</li>
+<li>没有 <code>Thickness(all)</code> 单参构造的“四边相同”语义：写 <code>Thickness(8,8,8,8)</code>。</li>
+</ul>
 <h2 id="size">Size</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-1d55be0a', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-68e97249', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">Size</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="n">height</span><span class="p">;</span>
 <span class="w">    </span><span class="n">Size</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-1d55be0a" style="display: none;">struct Size {
+<pre id="code-68e97249" style="display: none;">struct Size {
     float width, height;
     Size(float w = 0, float h = 0);
 };</pre>
 </div>
+<ul>
+<li>用于 <code>Measure()</code> 的可用空间与返回值。</li>
+</ul>
 <nav class="chapter-nav"><a class="prev" href="API.1.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">约定</span><span class="nav-desc">命名空间、单位、生命周期与默认值约定</span></a><a class="next" href="API.3.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">全局函数与 DPI</span><span class="nav-desc">clamp、DPI 缩放与像素吸附</span></a></nav>
         </main>
     </div>

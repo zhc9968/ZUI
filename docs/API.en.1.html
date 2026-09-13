@@ -197,23 +197,84 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class="active"><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class="active"><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="namespace-and-headers"><div class="toc-row"><a href="#namespace-and-headers" data-target="namespace-and-headers">Namespace and headers</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="units"><div class="toc-row"><a href="#units" data-target="units">Units</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="object-model-and-lifetime"><div class="toc-row"><a href="#object-model-and-lifetime" data-target="object-model-and-lifetime">Object model and lifetime</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="signals-and-events"><div class="toc-row"><a href="#signals-and-events" data-target="signals-and-events">Signals and events</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="default-value-system"><div class="toc-row"><a href="#default-value-system" data-target="default-value-system">Default-value system</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="three-cross-cutting-concepts-apply-to-all-controls"><div class="toc-row"><a href="#three-cross-cutting-concepts-apply-to-all-controls" data-target="three-cross-cutting-concepts-apply-to-all-controls">Three cross-cutting concepts (apply to all controls)</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>- Everything lives in `namespace ZUI`.
-- Coordinates and sizes are in **DIP** (device-independent pixels); before rendering they are snapped to physical pixels by `Snap()`.
-- Controls are held via `std::shared_ptr&lt;T&gt;` and attached through a layout's `AddChild()`.
-- Events are bound with `Connect(signal, slot)`, which returns a `Connection` that is automatically disconnected when its owner is destroyed.
-- The `inline static` defaults of each class can be changed globally through the corresponding `static SetDefault*()`, affecting instances created afterward.</pre></div></div>
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>## Namespace and headers
+
+- Everything lives in `namespace ZUI`.
+- Files: `ZUI.h` (core: types / signals / fonts / elements / layout / menus / window), `ZUIWidgets.h` (basic controls), `ZDataViewer.h` (data views). `ZUIWidgets.h` includes `ZUI.h`; `ZDataViewer.h` depends on both.
+- All three are header-only; `#pragma comment(lib, ...)` links `d2d1 / dwrite / dwmapi / imm32 / winmm` automatically.
+
+## Units
+
+- All coordinates and sizes are **DIP** (device-independent pixels), not physical pixels.
+- Before drawing, the framework uses the internal `Snap()` to snap coordinates to the physical-pixel grid and avoid half-pixel blur. You do **not** need to do DPI conversion yourself.
+- Mouse-event coordinates are also DIP.
+
+## Object model and lifetime
+
+- Controls are owned through `std::shared_ptr&lt;T&gt;` and created with `std::make_shared&lt;T&gt;()`.
+- Attach them to a parent with the layout's `AddChild()`; the parent keeps the child's `shared_ptr`, so **the child stays alive as long as the parent does**.
+- Once detached (e.g. `RemoveChild` / `Clear`) and with no other `shared_ptr`, the element is freed.
+- When an element is destroyed it automatically releases its offscreen cache and its connections (via an internal `ConnectionGroup`).
+
+## Signals and events
+
+- Bind events with `Connect(signal, slot)`; it returns a `Connection` that disconnects automatically when the host element is destroyed.
+- A slot can be any callable (lambda / function pointer / `std::function`).
+- **Important:** do not connect a signal of an object to a lambda that captures the object's own `shared_ptr` by value — this creates a reference cycle and leaks the whole subtree. See Chapter 4.
+
+## Default-value system
+
+- Every control has `inline static` `Default*` fields (e.g. `Button::DefaultSize`).
+- Changing them via `static SetDefault*()` affects **only instances created afterwards**; existing instances are unaffected.
+- Instance setters (e.g. `SetColors`) affect only that instance.
+
+## Three cross-cutting concepts (apply to all controls)
+
+- **Enabled/disabled**: `UIElement::SetEnabled(false)` makes an element and its subtree non-interactive (mouse/keyboard are intercepted). The control itself should look at `IsEffectivelyEnabled()` and grey itself out. Disabling does **not** change layout.
+- **Focus**: only elements whose `IsFocusable()` returns true can hold keyboard focus. The window cycles focusable elements with Tab; the focus ring is drawn only when focus was obtained via Tab, not via a mouse click.
+- **Offscreen cache**: see the "Cache mechanism" section in Chapter 6. Enabled by default; turn it off with `SetUseCache(false)`.</pre></div></div>
 <div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 1 · Conventions</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">Chapter 1</span><h1>Conventions</h1><p class="chapter-summary">Namespace, units, lifetime, and default-value conventions</p></header><ul>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 1</span><h1>Conventions</h1><p class="chapter-summary">Namespace, units, lifetime, and defaults</p></header><h2 id="namespace-and-headers">Namespace and headers</h2>
+<ul>
 <li>Everything lives in <code>namespace ZUI</code>.</li>
-<li>Coordinates and sizes are in <strong>DIP</strong> (device-independent pixels); before rendering they are snapped to physical pixels by <code>Snap()</code>.</li>
-<li>Controls are held via <code>std::shared_ptr&lt;T&gt;</code> and attached through a layout's <code>AddChild()</code>.</li>
-<li>Events are bound with <code>Connect(signal, slot)</code>, which returns a <code>Connection</code> that is automatically disconnected when its owner is destroyed.</li>
-<li>The <code>inline static</code> defaults of each class can be changed globally through the corresponding <code>static SetDefault*()</code>, affecting instances created afterward.</li>
+<li>Files: <code>ZUI.h</code> (core: types / signals / fonts / elements / layout / menus / window), <code>ZUIWidgets.h</code> (basic controls), <code>ZDataViewer.h</code> (data views). <code>ZUIWidgets.h</code> includes <code>ZUI.h</code>; <code>ZDataViewer.h</code> depends on both.</li>
+<li>All three are header-only; <code>#pragma comment(lib, ...)</code> links <code>d2d1 / dwrite / dwmapi / imm32 / winmm</code> automatically.</li>
 </ul>
-<nav class="chapter-nav"><a class="prev" href="API.en.html"><span class="nav-label">&#8592; Contents</span><span class="nav-title">Back to the chapter list</span></a><a class="next" href="API.en.2.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Basic Types</span><span class="nav-desc">Color, Rect, Thickness, Size</span></a></nav>
+<h2 id="units">Units</h2>
+<ul>
+<li>All coordinates and sizes are <strong>DIP</strong> (device-independent pixels), not physical pixels.</li>
+<li>Before drawing, the framework uses the internal <code>Snap()</code> to snap coordinates to the physical-pixel grid and avoid half-pixel blur. You do <strong>not</strong> need to do DPI conversion yourself.</li>
+<li>Mouse-event coordinates are also DIP.</li>
+</ul>
+<h2 id="object-model-and-lifetime">Object model and lifetime</h2>
+<ul>
+<li>Controls are owned through <code>std::shared_ptr&lt;T&gt;</code> and created with <code>std::make_shared&lt;T&gt;()</code>.</li>
+<li>Attach them to a parent with the layout's <code>AddChild()</code>; the parent keeps the child's <code>shared_ptr</code>, so <strong>the child stays alive as long as the parent does</strong>.</li>
+<li>Once detached (e.g. <code>RemoveChild</code> / <code>Clear</code>) and with no other <code>shared_ptr</code>, the element is freed.</li>
+<li>When an element is destroyed it automatically releases its offscreen cache and its connections (via an internal <code>ConnectionGroup</code>).</li>
+</ul>
+<h2 id="signals-and-events">Signals and events</h2>
+<ul>
+<li>Bind events with <code>Connect(signal, slot)</code>; it returns a <code>Connection</code> that disconnects automatically when the host element is destroyed.</li>
+<li>A slot can be any callable (lambda / function pointer / <code>std::function</code>).</li>
+<li><strong>Important:</strong> do not connect a signal of an object to a lambda that captures the object's own <code>shared_ptr</code> by value — this creates a reference cycle and leaks the whole subtree. See Chapter 4.</li>
+</ul>
+<h2 id="default-value-system">Default-value system</h2>
+<ul>
+<li>Every control has <code>inline static</code> <code>Default*</code> fields (e.g. <code>Button::DefaultSize</code>).</li>
+<li>Changing them via <code>static SetDefault*()</code> affects <strong>only instances created afterwards</strong>; existing instances are unaffected.</li>
+<li>Instance setters (e.g. <code>SetColors</code>) affect only that instance.</li>
+</ul>
+<h2 id="three-cross-cutting-concepts-apply-to-all-controls">Three cross-cutting concepts (apply to all controls)</h2>
+<ul>
+<li><strong>Enabled/disabled</strong>: <code>UIElement::SetEnabled(false)</code> makes an element and its subtree non-interactive (mouse/keyboard are intercepted). The control itself should look at <code>IsEffectivelyEnabled()</code> and grey itself out. Disabling does <strong>not</strong> change layout.</li>
+<li><strong>Focus</strong>: only elements whose <code>IsFocusable()</code> returns true can hold keyboard focus. The window cycles focusable elements with Tab; the focus ring is drawn only when focus was obtained via Tab, not via a mouse click.</li>
+<li><strong>Offscreen cache</strong>: see the "Cache mechanism" section in Chapter 6. Enabled by default; turn it off with <code>SetUseCache(false)</code>.</li>
+</ul>
+<nav class="chapter-nav"><a class="prev" href="API.en.html"><span class="nav-label">&#8592; Contents</span><span class="nav-title">Back to the chapter list</span></a><a class="next" href="API.en.2.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Basic types</span><span class="nav-desc">Color, Rect, Thickness, Size</span></a></nav>
         </main>
     </div>
 

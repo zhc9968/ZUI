@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Functions and DPI · ZUI API Reference</title>
+    <title>Global functions and DPI · ZUI API Reference</title>
     <style>
 
 :root {
@@ -197,7 +197,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic Types</a></li><li class="active"><a href="API.en.3.html"><span class="chapter-index">3</span>Global Functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and Connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core Element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic Controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data Views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class="active"><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Basic controls</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Data views</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Appendix</a></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>```cpp
@@ -208,17 +208,19 @@ inline float GetGlobalDpiScale();
 inline float Snap(float dip);
 ```
 
-| Function | Description |
+| Function | Implementation notes |
 | --- | --- |
-| `clamp(v, low, high)` | Clamps to the interval (note that the argument order is reversed compared with `std::clamp`) |
-| `SetGlobalDpiScale(s)` | Sets the global DPI scale; `s&lt;=0` falls back to `1.0f` |
-| `GetGlobalDpiScale()` | Reads the current scale, defaults to `1.0f` |
-| `Snap(dip)` | Snaps a DIP value to the nearest physical pixel |</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 3 · Global Functions and DPI</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">Chapter 3</span><h1>Global Functions and DPI</h1><p class="chapter-summary">clamp, DPI scaling, and pixel snapping</p></header><div class="code-container">
+| `clamp(v, low, high)` | Order is **`(value, low, high)`** (same as `std::clamp`), **not** `(value, high, low)`. Returns the boundary on overflow. |
+| `SetGlobalDpiScale(s)` | Set automatically by `Window` to `dpi/96` before rendering. `s&lt;=0` falls back to `1.0f`. Normally you never call it. |
+| `GetGlobalDpiScale()` | Reads the current scale, default `1.0f`. |
+| `Snap(dip)` | Snaps a DIP coordinate to the physical-pixel grid (`round(dip*scale)/scale`). The framework calls it before drawing. |
+
+&gt; **Why `Snap` exists**: Direct2D antialiases on non-integer pixels, making text and 1px lines look fuzzy. Snapping to physical pixels keeps them sharp.</pre></div></div>
+<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 3 · Global functions and DPI</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 3</span><h1>Global functions and DPI</h1><p class="chapter-summary">clamp, DPI scale, pixel snapping</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-c4c1e829', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-95a17fcf', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">clamp</span><span class="p">(</span><span class="n">T</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">low</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">high</span><span class="p">);</span>
 <span class="kr">inline</span><span class="w"> </span><span class="kt">float</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">GlobalDpiScaleRef</span><span class="p">();</span>
@@ -226,7 +228,7 @@ inline float Snap(float dip);
 <span class="kr">inline</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetGlobalDpiScale</span><span class="p">();</span>
 <span class="kr">inline</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">Snap</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">dip</span><span class="p">);</span>
 </pre></div>
-<pre id="code-c4c1e829" style="display: none;">template&lt;typename T&gt; T clamp(T value, T low, T high);
+<pre id="code-95a17fcf" style="display: none;">template&lt;typename T&gt; T clamp(T value, T low, T high);
 inline float&amp; GlobalDpiScaleRef();
 inline void SetGlobalDpiScale(float scale);
 inline float GetGlobalDpiScale();
@@ -236,29 +238,32 @@ inline float Snap(float dip);</pre>
 <thead>
 <tr>
 <th>Function</th>
-<th>Description</th>
+<th>Implementation notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>clamp(v, low, high)</code></td>
-<td>Clamps to the interval (note that the argument order is reversed compared with <code>std::clamp</code>)</td>
+<td>Order is <strong><code>(value, low, high)</code></strong> (same as <code>std::clamp</code>), <strong>not</strong> <code>(value, high, low)</code>. Returns the boundary on overflow.</td>
 </tr>
 <tr>
 <td><code>SetGlobalDpiScale(s)</code></td>
-<td>Sets the global DPI scale; <code>s&lt;=0</code> falls back to <code>1.0f</code></td>
+<td>Set automatically by <code>Window</code> to <code>dpi/96</code> before rendering. <code>s&lt;=0</code> falls back to <code>1.0f</code>. Normally you never call it.</td>
 </tr>
 <tr>
 <td><code>GetGlobalDpiScale()</code></td>
-<td>Reads the current scale, defaults to <code>1.0f</code></td>
+<td>Reads the current scale, default <code>1.0f</code>.</td>
 </tr>
 <tr>
 <td><code>Snap(dip)</code></td>
-<td>Snaps a DIP value to the nearest physical pixel</td>
+<td>Snaps a DIP coordinate to the physical-pixel grid (<code>round(dip*scale)/scale</code>). The framework calls it before drawing.</td>
 </tr>
 </tbody>
 </table>
-<nav class="chapter-nav"><a class="prev" href="API.en.2.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Basic Types</span><span class="nav-desc">Color, Rect, Thickness, Size</span></a><a class="next" href="API.en.4.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Signals and Connections</span><span class="nav-desc">ZSignal, Connection, ConnectionGroup, and global signals</span></a></nav>
+<blockquote>
+<p><strong>Why <code>Snap</code> exists</strong>: Direct2D antialiases on non-integer pixels, making text and 1px lines look fuzzy. Snapping to physical pixels keeps them sharp.</p>
+</blockquote>
+<nav class="chapter-nav"><a class="prev" href="API.en.2.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Basic types</span><span class="nav-desc">Color, Rect, Thickness, Size</span></a><a class="next" href="API.en.4.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Signals and connections</span><span class="nav-desc">ZSignal, Connection, ConnectionGroup, and global signals</span></a></nav>
         </main>
     </div>
 

@@ -230,12 +230,19 @@ class Window {
 
 `WindowBackdrop` 取值：`None`、`Gradient`、`TransparentGradient`、`BlurBehind`、`AcrylicBlurBehind`。
 
-默认根布局是带 `margin 20`、`spacing 10` 的 `ColumnBox`。</pre></div></div>
+**行为与易混点**：
+
+- `Create` 创建窗口、初始化 Direct2D、应用背景，并生成一个默认根布局：带 `margin 20`、`spacing 10` 的 `ColumnBox`。`GetRootColumnBox()` 就是它。
+- `Run()` 进入消息循环，阻塞直到窗口关闭。
+- 窗口内部维护 16ms 定时器驱动动画；`timeBeginPeriod(1)` / `timeEndPeriod(1)` 用于降低定时器抖动。
+- 帧时间 `deltaTime` 被钳制在 `0.033s`，空闲或最小化恢复后不会让动画一帧跳到终点。
+- 标题栏颜色是 Win11 的 DWM 属性；在不支持的系统上会被忽略。
+- 阴影：窗口负责把元素的阴影合成进其离屏缓存；ToolTip 也由窗口统一绘制。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 9 章 · 窗口 Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 9 章</span><h1>窗口 Window</h1><p class="chapter-summary">创建、背景、标题栏与根布局</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-5c1d5b69', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-0d6097a2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
@@ -263,7 +270,7 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-5c1d5b69" style="display: none;">class Window {
+<pre id="code-0d6097a2" style="display: none;">class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
     static Color DefaultBackgroundColor;          // 透明
@@ -290,8 +297,16 @@ class Window {
 };</pre>
 </div>
 <p><code>WindowBackdrop</code> 取值：<code>None</code>、<code>Gradient</code>、<code>TransparentGradient</code>、<code>BlurBehind</code>、<code>AcrylicBlurBehind</code>。</p>
-<p>默认根布局是带 <code>margin 20</code>、<code>spacing 10</code> 的 <code>ColumnBox</code>。</p>
-<nav class="chapter-nav"><a class="prev" href="API.8.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">菜单</span><span class="nav-desc">MenuItem、Menu 与 MenuWindow</span></a><a class="next" href="API.10.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">基础控件</span><span class="nav-desc">Label、Button、TextBox、ComboBox、ToggleSwitch、ScrollViewer、ProgressBar、Slider</span></a></nav>
+<p><strong>行为与易混点</strong>：</p>
+<ul>
+<li><code>Create</code> 创建窗口、初始化 Direct2D、应用背景，并生成一个默认根布局：带 <code>margin 20</code>、<code>spacing 10</code> 的 <code>ColumnBox</code>。<code>GetRootColumnBox()</code> 就是它。</li>
+<li><code>Run()</code> 进入消息循环，阻塞直到窗口关闭。</li>
+<li>窗口内部维护 16ms 定时器驱动动画；<code>timeBeginPeriod(1)</code> / <code>timeEndPeriod(1)</code> 用于降低定时器抖动。</li>
+<li>帧时间 <code>deltaTime</code> 被钳制在 <code>0.033s</code>，空闲或最小化恢复后不会让动画一帧跳到终点。</li>
+<li>标题栏颜色是 Win11 的 DWM 属性；在不支持的系统上会被忽略。</li>
+<li>阴影：窗口负责把元素的阴影合成进其离屏缓存；ToolTip 也由窗口统一绘制。</li>
+</ul>
+<nav class="chapter-nav"><a class="prev" href="API.8.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">菜单</span><span class="nav-desc">MenuItem、Menu 与 MenuWindow</span></a><a class="next" href="API.10.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">基础控件</span><span class="nav-desc">Label、Button、TextBox、ComboBox、ToggleSwitch、CheckBox、ScrollViewer、ProgressBar、Slider</span></a></nav>
         </main>
     </div>
 

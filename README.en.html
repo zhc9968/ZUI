@@ -197,7 +197,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item has-children" data-toc="zui"><div class="toc-row"><a href="#zui" data-target="zui">ZUI</a><button class="toc-caret" data-toc="zui" title="Expand / collapse"><span class="arrow">&#9662;</span></button></div><ul class="toc-sublist"><li class="toc-item" data-toc="features"><div class="toc-row"><a href="#features" data-target="features">Features</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="requirements"><div class="toc-row"><a href="#requirements" data-target="requirements">Requirements</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="build"><div class="toc-row"><a href="#build" data-target="build">Build</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="project-structure"><div class="toc-row"><a href="#project-structure" data-target="project-structure">Project structure</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="quick-start"><div class="toc-row"><a href="#quick-start" data-target="quick-start">Quick start</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="documentation"><div class="toc-row"><a href="#documentation" data-target="documentation">Documentation</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="license"><div class="toc-row"><a href="#license" data-target="license">License</a><span class="toc-caret-space"></span></div></li></ul></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item has-children" data-toc="zui"><div class="toc-row"><a href="#zui" data-target="zui">ZUI</a><button class="toc-caret" data-toc="zui" title="Expand / collapse"><span class="arrow">&#9662;</span></button></div><ul class="toc-sublist"><li class="toc-item" data-toc="features"><div class="toc-row"><a href="#features" data-target="features">Features</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="requirements"><div class="toc-row"><a href="#requirements" data-target="requirements">Requirements</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="build"><div class="toc-row"><a href="#build" data-target="build">Build</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="project-structure"><div class="toc-row"><a href="#project-structure" data-target="project-structure">Project structure</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="quick-start"><div class="toc-row"><a href="#quick-start" data-target="quick-start">Quick start</a><span class="toc-caret-space"></span></div></li><li class="toc-item has-children" data-toc="changelog"><div class="toc-row"><a href="#changelog" data-target="changelog">Changelog</a><button class="toc-caret" data-toc="changelog" title="Expand / collapse"><span class="arrow">&#9662;</span></button></div><ul class="toc-sublist"><li class="toc-item" data-toc="2026-09-13-major-update-interaction-states-shadows-tooltips-controls-and-data-views"><div class="toc-row"><a href="#2026-09-13-major-update-interaction-states-shadows-tooltips-controls-and-data-views" data-target="2026-09-13-major-update-interaction-states-shadows-tooltips-controls-and-data-views">2026-09-13 — Major update: interaction states, shadows / tooltips, controls and data views</a><span class="toc-caret-space"></span></div></li></ul></li><li class="toc-item" data-toc="documentation"><div class="toc-row"><a href="#documentation" data-target="documentation">Documentation</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="license"><div class="toc-row"><a href="#license" data-target="license">License</a><span class="toc-caret-space"></span></div></li></ul></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre># ZUI
@@ -308,6 +308,43 @@ Key points:
 - Bind events with `Connect(signal, slot)`; connections are automatically disconnected when the control is destroyed;
 - Finally, call `win.Run()` to enter the message loop.
 
+## Changelog
+
+### 2026-09-13 — Major update: interaction states, shadows / tooltips, controls and data views
+
+**Core**
+
+- `UIElement` gained: enabled/disabled (`SetEnabled/IsEnabled/IsEffectivelyEnabled` — disabled state inherits from the parent chain, blocks mouse/keyboard input, and controls grey themselves), generic tooltips (`SetToolTip/GetToolTip`), shadows (`SetShadow/SetShadowColor/SetShadowBlur/SetShadowOffset/SetShadowCornerRadius/GetShadowExtent`), and a context-menu hook `OnContextMenu`.
+- `Window`: element shadows are composited into the offscreen cache; a shared tooltip overlay (anchored at a fixed offset above the mouse position when shown, fades in after a 0.5s hover, white background with black text and a soft shadow, dismissed as soon as the mouse moves); Tab focus traversal (the focus ring is shown only for Tab navigation, not for mouse clicks).
+- Shadows rewritten as **layered Gaussian CDF** (`DrawSoftShadow`): per-layer alpha is derived from the Gaussian distribution so the composite approximates `targetA·(1-Φ(d/σ))`; the alpha of `SetShadowColor` now means the *visible edge* opacity (the interior is roughly 2×).
+- Frame-time clamping: `deltaTime` in `OnPaint` is capped at `0.033s`, fixing animations that jumped straight to their end after an idle period or a restore from minimize.
+- `PageHost`: fixed a bug where, during a page transition, the same page was updated twice per frame, doubling the speed of animations nested inside it.
+- Timer precision: `timeBeginPeriod(1)` on window creation and `timeEndPeriod(1)` on destruction reduce animation jitter.
+- Debug output is now controlled by the `ZUI_DEBUG` macro (off by default; define it to enable); Release hot paths no longer build debug strings.
+- Performance / memory: `GetChildren()` now returns `const&amp;` (reused buffer, no per-frame allocation); `ZSignal::Fire` uses a thread-local snapshot; `Compose` culls subtrees entirely outside the clip; the active-animation set reuses a buffer; `DrawSoftShadow` uses fixed-size arrays to avoid per-frame heap allocation.
+
+**Basic controls**
+
+- `Button`: disabled state, Enter/Space activation, checkable mode (`SetCheckable/SetChecked/IsChecked/Toggled`), text alignment / padding, auto-repeat.
+- `CheckBox`: hover halo animation, text label and color, hover box color, keyboard, disabled.
+- `ToggleSwitch`: disabled, text label, keyboard, `SetSize`, indeterminate state, custom colors.
+- `Label`: padding, line spacing, max lines (with ellipsis), `GetDesiredSize`, disabled color.
+- `ProgressBar`: `ValueChanged`, range, percentage text with text color, disabled.
+- `Slider`: `SliderReleased`, stepping / snapping (`SetStep/SetSnapToStep`), arrow keys / Home / End, disabled.
+- `ScrollViewer`: scrollbar visibility policy (`Auto/Always/Hidden`), `ScrollChanged`, `GetScrollOffset`, per-instance colors, `ContentMargin`.
+- `TextBox`: read-only (`SetReadOnly`), input filter (`SetInputFilter`), `ReturnPressed`, public selection / undo / copy-paste / select-all, placeholder color, password reveal (`SetRevealPassword`); fixed Shift and mouse-drag selection not accumulating (independent anchor).
+- `ComboBox`: data add/remove/query, placeholder, per-item disabled, max visible items, open/close signals (`DropDownOpened/DropDownClosed`), **editable + input filtering** (`SetEditable/SetFilterEnabled/SetEditText`, with a blinking caret and click positioning).
+
+**Data views**
+
+- `ListView`: new `None` selection mode; type-ahead; sort comparator + indicator; per-item disabled / text color / tooltip (**bound to the item itself, so they survive sorting**); keyboard navigation skips disabled items.
+- `TableView`: per-column sorting + indicator (row-level metadata is remapped when sorting or inserting/removing rows/columns); cell text color / tooltip; per-row disabled; column hiding; column alignment; per-row height; keyboard navigation skips disabled rows.
+- `TreeView`: filter / search, `GetNodePath`, default expand depth; per-node `tooltip` wired to the shared tooltip in the base class.
+
+**Docs**
+
+- Added this changelog; the API docs were rewritten from a "list of signatures" into a more detailed "implementation notes + pitfalls" style; added a warning about signal/object lifetime reference cycles.
+
 ## Documentation
 
 - Online documentation: &lt;https://zhc9968.github.io/ZUI/&gt;
@@ -384,11 +421,11 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">bash</span>
-<button class="copy-btn" onclick="copyCode('code-a243faed', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-99473393', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>msbuild<span class="w"> </span>ZUI.slnx<span class="w"> </span>/p:Configuration<span class="o">=</span>Release<span class="w"> </span>/p:Platform<span class="o">=</span>x64
 </pre></div>
-<pre id="code-a243faed" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
+<pre id="code-99473393" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
 </div>
 <blockquote>
 <p><code>ZUI.cpp</code> is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own <code>WinMain</code>.</p>
@@ -397,7 +434,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">text</span>
-<button class="copy-btn" onclick="copyCode('code-5d69a4d4', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-81d6eb3c', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
@@ -409,7 +446,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 └── docs/
     └── API.en.md      # Full API documentation
 </pre></div>
-<pre id="code-5d69a4d4" style="display: none;">ZUI/
+<pre id="code-81d6eb3c" style="display: none;">ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
 ├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
@@ -423,7 +460,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-c6261073', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-682f8b3b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZUIWidgets.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -459,7 +496,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-c6261073" style="display: none;">#include "ZUIWidgets.h"
+<pre id="code-682f8b3b" style="display: none;">#include "ZUIWidgets.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -499,6 +536,41 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <li>Create controls with <code>std::make_shared&lt;T&gt;()</code> and attach them to the layout with <code>AddChild</code>;</li>
 <li>Bind events with <code>Connect(signal, slot)</code>; connections are automatically disconnected when the control is destroyed;</li>
 <li>Finally, call <code>win.Run()</code> to enter the message loop.</li>
+</ul>
+<h2 id="changelog">Changelog</h2>
+<h3 id="2026-09-13-major-update-interaction-states-shadows-tooltips-controls-and-data-views">2026-09-13 — Major update: interaction states, shadows / tooltips, controls and data views</h3>
+<p><strong>Core</strong></p>
+<ul>
+<li><code>UIElement</code> gained: enabled/disabled (<code>SetEnabled/IsEnabled/IsEffectivelyEnabled</code> — disabled state inherits from the parent chain, blocks mouse/keyboard input, and controls grey themselves), generic tooltips (<code>SetToolTip/GetToolTip</code>), shadows (<code>SetShadow/SetShadowColor/SetShadowBlur/SetShadowOffset/SetShadowCornerRadius/GetShadowExtent</code>), and a context-menu hook <code>OnContextMenu</code>.</li>
+<li><code>Window</code>: element shadows are composited into the offscreen cache; a shared tooltip overlay (anchored at a fixed offset above the mouse position when shown, fades in after a 0.5s hover, white background with black text and a soft shadow, dismissed as soon as the mouse moves); Tab focus traversal (the focus ring is shown only for Tab navigation, not for mouse clicks).</li>
+<li>Shadows rewritten as <strong>layered Gaussian CDF</strong> (<code>DrawSoftShadow</code>): per-layer alpha is derived from the Gaussian distribution so the composite approximates <code>targetA·(1-Φ(d/σ))</code>; the alpha of <code>SetShadowColor</code> now means the <em>visible edge</em> opacity (the interior is roughly 2×).</li>
+<li>Frame-time clamping: <code>deltaTime</code> in <code>OnPaint</code> is capped at <code>0.033s</code>, fixing animations that jumped straight to their end after an idle period or a restore from minimize.</li>
+<li><code>PageHost</code>: fixed a bug where, during a page transition, the same page was updated twice per frame, doubling the speed of animations nested inside it.</li>
+<li>Timer precision: <code>timeBeginPeriod(1)</code> on window creation and <code>timeEndPeriod(1)</code> on destruction reduce animation jitter.</li>
+<li>Debug output is now controlled by the <code>ZUI_DEBUG</code> macro (off by default; define it to enable); Release hot paths no longer build debug strings.</li>
+<li>Performance / memory: <code>GetChildren()</code> now returns <code>const&amp;</code> (reused buffer, no per-frame allocation); <code>ZSignal::Fire</code> uses a thread-local snapshot; <code>Compose</code> culls subtrees entirely outside the clip; the active-animation set reuses a buffer; <code>DrawSoftShadow</code> uses fixed-size arrays to avoid per-frame heap allocation.</li>
+</ul>
+<p><strong>Basic controls</strong></p>
+<ul>
+<li><code>Button</code>: disabled state, Enter/Space activation, checkable mode (<code>SetCheckable/SetChecked/IsChecked/Toggled</code>), text alignment / padding, auto-repeat.</li>
+<li><code>CheckBox</code>: hover halo animation, text label and color, hover box color, keyboard, disabled.</li>
+<li><code>ToggleSwitch</code>: disabled, text label, keyboard, <code>SetSize</code>, indeterminate state, custom colors.</li>
+<li><code>Label</code>: padding, line spacing, max lines (with ellipsis), <code>GetDesiredSize</code>, disabled color.</li>
+<li><code>ProgressBar</code>: <code>ValueChanged</code>, range, percentage text with text color, disabled.</li>
+<li><code>Slider</code>: <code>SliderReleased</code>, stepping / snapping (<code>SetStep/SetSnapToStep</code>), arrow keys / Home / End, disabled.</li>
+<li><code>ScrollViewer</code>: scrollbar visibility policy (<code>Auto/Always/Hidden</code>), <code>ScrollChanged</code>, <code>GetScrollOffset</code>, per-instance colors, <code>ContentMargin</code>.</li>
+<li><code>TextBox</code>: read-only (<code>SetReadOnly</code>), input filter (<code>SetInputFilter</code>), <code>ReturnPressed</code>, public selection / undo / copy-paste / select-all, placeholder color, password reveal (<code>SetRevealPassword</code>); fixed Shift and mouse-drag selection not accumulating (independent anchor).</li>
+<li><code>ComboBox</code>: data add/remove/query, placeholder, per-item disabled, max visible items, open/close signals (<code>DropDownOpened/DropDownClosed</code>), <strong>editable + input filtering</strong> (<code>SetEditable/SetFilterEnabled/SetEditText</code>, with a blinking caret and click positioning).</li>
+</ul>
+<p><strong>Data views</strong></p>
+<ul>
+<li><code>ListView</code>: new <code>None</code> selection mode; type-ahead; sort comparator + indicator; per-item disabled / text color / tooltip (<strong>bound to the item itself, so they survive sorting</strong>); keyboard navigation skips disabled items.</li>
+<li><code>TableView</code>: per-column sorting + indicator (row-level metadata is remapped when sorting or inserting/removing rows/columns); cell text color / tooltip; per-row disabled; column hiding; column alignment; per-row height; keyboard navigation skips disabled rows.</li>
+<li><code>TreeView</code>: filter / search, <code>GetNodePath</code>, default expand depth; per-node <code>tooltip</code> wired to the shared tooltip in the base class.</li>
+</ul>
+<p><strong>Docs</strong></p>
+<ul>
+<li>Added this changelog; the API docs were rewritten from a "list of signatures" into a more detailed "implementation notes + pitfalls" style; added a warning about signal/object lifetime reference cycles.</li>
 </ul>
 <h2 id="documentation">Documentation</h2>
 <ul>
