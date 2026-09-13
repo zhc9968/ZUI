@@ -223,6 +223,10 @@ class Window {
     void SetBorderColor(COLORREF color);
 
     void SetMinSize(int width, int height);
+    void SetPosition(int x, int y);            // move the window, in DIP (useful for multiple windows)
+    void SetSize(int width, int height);       // resize the window, in DIP
+    bool IsValid() const;                      // still valid (not destroyed)
+    void Close();                              // close this window (others keep running)
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -242,7 +246,7 @@ class Window {
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 9</span><h1>Window</h1><p class="chapter-summary">Creation, backdrop, title bar, and root layout</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-d5da3e09', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-16b99585', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
@@ -266,11 +270,15 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBorderColor</span><span class="p">(</span><span class="n">COLORREF</span><span class="w"> </span><span class="n">color</span><span class="p">);</span>
 
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMinSize</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPosition</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">);</span><span class="w">            </span><span class="c1">// move the window, in DIP (useful for multiple windows)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSize</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">);</span><span class="w">       </span><span class="c1">// resize the window, in DIP</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsValid</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">                      </span><span class="c1">// still valid (not destroyed)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Close</span><span class="p">();</span><span class="w">                              </span><span class="c1">// close this window (others keep running)</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-d5da3e09" style="display: none;">class Window {
+<pre id="code-16b99585" style="display: none;">class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
     static Color DefaultBackgroundColor;          // transparent
@@ -292,6 +300,10 @@ class Window {
     void SetBorderColor(COLORREF color);
 
     void SetMinSize(int width, int height);
+    void SetPosition(int x, int y);            // move the window, in DIP (useful for multiple windows)
+    void SetSize(int width, int height);       // resize the window, in DIP
+    bool IsValid() const;                      // still valid (not destroyed)
+    void Close();                              // close this window (others keep running)
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
