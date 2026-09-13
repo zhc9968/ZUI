@@ -1237,7 +1237,8 @@ namespace ZUI {
             UpdateIndicatorPosition();
 
             auto conn = UIZSignals::DrawOverlay.connect(
-                [this](ID2D1RenderTarget* rt) {
+                [this](Window* w, ID2D1RenderTarget* rt) {
+                    if (w != GetWindow()) return;   // 只画在自己所属窗口上
                     if (expandProgress_ > 0.01f || expanded_) DrawExpandedList(rt);
                 },
                 ConnectionThread::CurrentThread,
@@ -1892,7 +1893,7 @@ namespace ZUI {
         void AcquireControlCapture() {
             if (!controlCaptureActive_) {
                 if (GetWindow()) GetWindow()->RequestElementCapture(this);
-                else UIZSignals::ElementCaptureRequest(this);
+                else UIZSignals::ElementCaptureRequest(GetWindow(), this);
                 controlCaptureActive_ = true;
             }
         }
@@ -1900,7 +1901,7 @@ namespace ZUI {
         void ReleaseControlCapture() {
             if (controlCaptureActive_) {
                 if (GetWindow()) GetWindow()->ReleaseElementCapture(this);
-                else UIZSignals::ElementCaptureRelease(this);
+                else UIZSignals::ElementCaptureRelease(GetWindow(), this);
                 controlCaptureActive_ = false;
             }
         }

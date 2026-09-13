@@ -524,26 +524,24 @@ namespace ZUI {
     class UIElement;  // 前向声明
 
     namespace UIZSignals {
-        // 原有信号
-        inline ZSignal<ID2D1RenderTarget*> DrawOverlay;
+        // 叠加绘制（参数：所属窗口, 渲染目标）。订阅者必须按窗口过滤，避免把 A 窗口的弹层画到 B 窗口。
+        inline ZSignal<Window*, ID2D1RenderTarget*> DrawOverlay;
 
-        // 新增：全局鼠标按下（坐标单位为 dip），参数为所在窗口
+        // 全局鼠标按下（参数：所在窗口, x, y，单位 dip）
         inline ZSignal<Window*, float, float> GlobalMouseDown;
 
-        // 新增：窗口失去激活（失活或最小化），参数为失活的窗口
+        // 窗口失去激活（失活或最小化），参数为失活的窗口
         inline ZSignal<Window*> WindowDeactivated;
 
-        // 控件请求鼠标捕获（参数为控件指针）
-        inline ZSignal<UIElement*> ElementCaptureRequest;
+        // 控件请求/释放鼠标捕获（参数：所属窗口, 控件）。已挂载控件走 Window 直接路由，这里是无窗口时的兜底。
+        inline ZSignal<Window*, UIElement*> ElementCaptureRequest;
+        inline ZSignal<Window*, UIElement*> ElementCaptureRelease;
 
-        // 控件释放鼠标捕获
-        inline ZSignal<UIElement*> ElementCaptureRelease;
+        // 重绘请求（参数：所属窗口, 控件）。已挂载控件走 Window 直接路由，这里是无窗口时的兜底。
+        inline ZSignal<Window*, UIElement*> RepaintRequest;
 
-        // 新增：重绘请求信号（控件自身视觉状态变化）
-        inline ZSignal<UIElement*> RepaintRequest;
-
-        // 新增：布局失效信号（全局布局需要重建）
-        inline ZSignal<> LayoutInvalidated;
+        // 布局失效（参数：所属窗口）。已挂载控件走 Window 直接路由，这里是无窗口时的兜底。
+        inline ZSignal<Window*> LayoutInvalidated;
     }
 
     // ---------- 基础元素 ----------
@@ -2667,6 +2665,17 @@ namespace ZUI {
             customMinHeight_ = height;
         }
 
+        // 多窗口常用：把窗口移动到指定位置 / 设置尺寸（单位 DIP）
+        void SetPosition(int x, int y) {
+            if (!hwnd_) return;
+            SetWindowPos(hwnd_, nullptr, MulDiv(x, dpi_, 96), MulDiv(y, dpi_, 96), 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+        }
+        void SetSize(int width, int height) {
+            if (!hwnd_) return;
+            SetWindowPos(hwnd_, nullptr, 0, 0, MulDiv(width, dpi_, 96), MulDiv(height, dpi_, 96), SWP_NOMOVE | SWP_NOZORDER);
+        }
+        bool IsValid() const { return hwnd_ != nullptr; }
+
         void Run() { core_->Run(); }
 
         // 关闭本窗口（其余窗口不受影响；全部关闭后消息循环才会退出）
@@ -3418,7 +3427,7 @@ namespace ZUI {
                 ComposeImpl(rootElement_.get(), renderTarget_, D2D1::RectF(0, 0, rsz.width, rsz.height), true);
             }
 
-            UIZSignals::DrawOverlay(renderTarget_);
+            UIZSignals::DrawOverlay(this, renderTarget_);
 
             DrawFocusAndTooltip(renderTarget_);
             focusDirty_ = false;
@@ -3788,13 +3797,13 @@ namespace ZUI {
     // ---------- UIElement 路由实现（需 Window 完整类型） ----------
     inline void UIElement::RequestRepaint() {
         if (window_) window_->MarkRepaint(this);
-        else UIZSignals::RepaintRequest(this);
+        else UIZSignals::RepaintRequest(window_, this);
     }
     inline void UIElement::InvalidateLayout() {
         layoutDirty_ = true;
         ZUI_DEBUG_LOG_A((std::string("InvalidateLayout called by: ") + typeid(*this).name() + "\n").c_str());
         if (window_) window_->MarkLayoutInvalidated();
-        else UIZSignals::LayoutInvalidated();
+        else UIZSignals::LayoutInvalidated(window_);
     }
 
     // ---------- 应用（Qt 风格：app.CreateWindow(...) -> app.Run()） ----------

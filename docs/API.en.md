@@ -621,6 +621,10 @@ class Window {
     void SetBorderColor(COLORREF color);
 
     void SetMinSize(int width, int height);
+    void SetPosition(int x, int y);            // move the window, in DIP (useful for multiple windows)
+    void SetSize(int width, int height);       // resize the window, in DIP
+    bool IsValid() const;                      // still valid (not destroyed)
+    void Close();                              // close this window (others keep running)
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -680,6 +684,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **Per-window repaint/layout**: each element records its owning window (`UIElement::GetWindow()`); `RequestRepaint()` / `InvalidateLayout()` only affect that window — windows do not repaint each other.
 - **Per-window DPI**: the current DPI scale is **thread-local** and set per window before drawing, so mixed-DPI windows snap correctly.
 - **Per-window activation**: `Window` exposes instance signals `Activated` / `Deactivated` / `Closed`; global `UIZSignals::WindowDeactivated` now carries a `Window*`, and `GlobalMouseDown` carries a `Window*`. Controls such as ComboBox only react to their own window's events.
+- **Per-window overlay drawing**: global `UIZSignals::DrawOverlay` now carries a `Window*` (plus the render target); subscribers **must** filter with `GetWindow()`, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZUI's own controls already do this.
 - **Shared resources**: the `ID2D1Factory` and the system timer period (`timeBeginPeriod`) are managed by the application core and shared by all windows.
 - **Backward compatible**: the single-window style still works — `Window win; win.Create(...); win.Run();` (`Run()` forwards to the app-level loop).
 
