@@ -637,6 +637,58 @@ class Window {
 - Title-bar colors use Win11 DWM attributes; ignored on unsupported systems.
 - Shadows: the window composites element shadows into their caches; tooltips are drawn by the window too.
 
+###chapter: Application and multiple windows | Application and multi-window
+
+## Application
+
+`Application` is the process / UI-thread-level object that manages one shared message loop and all top-level windows. It is decoupled from window lifetime: `Application` is just a handle to an internal singleton, so constructing/destroying it does **not** destroy existing windows (no "app destroyed, windows dangling" pitfalls).
+
+```cpp
+class Application {
+    std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title);
+    void AddWindow(const std::shared_ptr<Window>& w);
+    int Run();
+    void Quit(int code = 0);
+    void CloseAllWindows();
+    size_t WindowCount() const;
+    static Application& Instance();
+};
+```
+
+**Recommended usage (Qt style):**
+
+```cpp
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    ZUI::Application app;
+    auto w1 = app.CreateWindow(1000, 700, L"Main");
+    auto w2 = app.CreateWindow(640, 480, L"Tool");
+    // build each UI: w1->GetRootColumnBox()->AddChild(...)
+    return app.Run();                    // one shared message loop
+}
+```
+
+**Behavior:**
+
+- `CreateWindow` creates and registers a window; you **must hold** the returned `shared_ptr<Window>`, otherwise the window is destroyed when the pointer dies.
+- `Run()` runs **one** message loop; messages for all windows on the thread are dispatched by it.
+- Calling `CreateWindow` while the loop is running also works.
+- Closing one window leaves the others running; the loop exits when the **last** window closes. You can also call `Quit()`.
+- A process should run windows on a single UI thread (same as Win32).
+
+## Independence and compatibility
+
+- **Per-window repaint/layout**: each element records its owning window (`UIElement::GetWindow()`); `RequestRepaint()` / `InvalidateLayout()` only affect that window — windows do not repaint each other.
+- **Per-window DPI**: the current DPI scale is **thread-local** and set per window before drawing, so mixed-DPI windows snap correctly.
+- **Per-window activation**: `Window` exposes instance signals `Activated` / `Deactivated` / `Closed`; global `UIZSignals::WindowDeactivated` now carries a `Window*`, and `GlobalMouseDown` carries a `Window*`. Controls such as ComboBox only react to their own window's events.
+- **Shared resources**: the `ID2D1Factory` and the system timer period (`timeBeginPeriod`) are managed by the application core and shared by all windows.
+- **Backward compatible**: the single-window style still works — `Window win; win.Create(...); win.Run();` (`Run()` forwards to the app-level loop).
+
+## Multi-window pitfalls
+
+- Keep the `shared_ptr` returned by `CreateWindow` alive (e.g. store it in a container).
+- Window-scoped global signals (`GlobalMouseDown`, `WindowDeactivated`) carry a `Window*`; filter with `GetWindow()`.
+- Create and run all windows on the same UI thread.
+
 ###chapter: Basic controls | Label, Button, TextBox, ComboBox, ToggleSwitch, CheckBox, ScrollViewer, ProgressBar, Slider
 
 ## Helper

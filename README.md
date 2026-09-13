@@ -143,10 +143,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 - 新增本更新日志；API 文档从“定义罗列”改为更详细的“实现要点 + 易混点”风格；补充信号与对象生命周期的引用环警示。
 
+### 2026-09-13（续）— 多窗口支持（Application）
+
+- 新增 `ZUI::Application`：`app.CreateWindow(...)` 创建窗口、`app.Run()` 运行单一共享消息循环，Qt 风格；窗口之间真正独立。
+- 重绘 / 布局按所属窗口路由（`UIElement::GetWindow()`）；DPI 缩放改为**线程本地**（每个窗口渲染前设置自己的缩放）；`Window` 新增实例信号 `Activated` / `Deactivated` / `Closed`，全局 `UIZSignals::WindowDeactivated` 与 `GlobalMouseDown` 增加 `Window*` 参数。
+- 关闭单个窗口不再退出应用，**最后一个窗口关闭才退出**；`ID2D1Factory` 与 `timeBeginPeriod` 由应用核心共享。
+- 向后兼容：单窗口 `Window win; win.Create(...); win.Run();` 仍可用。`#undef CreateWindow` 以避免与 Win32 宏冲突。
+
 ## 文档
 
 - 在线文档站点：<https://zhc9968.github.io/ZUI/>
-- API 参考（中文，12 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
+- API 参考（中文，13 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
 - API Reference (English)：<https://zhc9968.github.io/ZUI/docs/API.en.html>
 
 ## 许可证

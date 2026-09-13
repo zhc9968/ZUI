@@ -39,6 +39,11 @@
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "winmm.lib")
 
+// Windows 头把 CreateWindow 定义为宏，这里取消，避免与 Application::CreateWindow 冲突
+#ifdef CreateWindow
+#undef CreateWindow
+#endif
+
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34
 #endif
@@ -61,7 +66,7 @@ namespace ZUI {
     // ---------- DPI 物理像素吸附 ----------
     // 动画/滚动进度保持 float 平滑；一旦落到 Arrange 或 Draw，就用 Snap() 吸附到物理像素
     inline float& GlobalDpiScaleRef() {
-        static float scale = 1.0f;
+        static thread_local float scale = 1.0f;
         return scale;
     }
 
@@ -155,6 +160,7 @@ namespace ZUI {
     class Menu;
     class MenuWindow;
     class ComboBox;
+    class Window;
 
     // ========== 信号槽机制 ==========
     enum class ConnectionThread {
@@ -521,11 +527,11 @@ namespace ZUI {
         // 原有信号
         inline ZSignal<ID2D1RenderTarget*> DrawOverlay;
 
-        // 新增：全局鼠标按下（坐标单位为 dip）
-        inline ZSignal<float, float> GlobalMouseDown;
+        // 新增：全局鼠标按下（坐标单位为 dip），参数为所在窗口
+        inline ZSignal<Window*, float, float> GlobalMouseDown;
 
-        // 新增：窗口失去激活（失活或最小化）
-        inline ZSignal<> WindowDeactivated;
+        // 新增：窗口失去激活（失活或最小化），参数为失活的窗口
+        inline ZSignal<Window*> WindowDeactivated;
 
         // 控件请求鼠标捕获（参数为控件指针）
         inline ZSignal<UIElement*> ElementCaptureRequest;
@@ -562,11 +568,7 @@ namespace ZUI {
         virtual ~UIElement() = default;
 
         // ---------- 布局相关 ----------
-        void InvalidateLayout() {
-            layoutDirty_ = true;
-            ZUI_DEBUG_LOG_A((std::string("InvalidateLayout called by: ") + typeid(*this).name() + "\n").c_str());
-            UIZSignals::LayoutInvalidated();
-        }
+        void InvalidateLayout();   // 定义见文件末尾（需要 Window 完整类型才能路由到所属窗口）
         bool IsLayoutDirty() const { return layoutDirty_; }
         void ClearLayoutDirty() { layoutDirty_ = false; }
 
@@ -633,10 +635,8 @@ namespace ZUI {
         // 获取元素需要应用于其子元素的裁剪矩形（相对于自身坐标系），返回 std::nullopt 表示不裁剪
         virtual std::optional<D2D1_RECT_F> GetClipRect() const { return std::nullopt; }
 
-        // 请求重绘（仅视觉变化）
-        void RequestRepaint() {
-            UIZSignals::RepaintRequest(this);
-        }
+        // 请求重绘（仅视觉变化）；定义见文件末尾
+        void RequestRepaint();
 
         // 缓存有效性标记（由 Window 管理，但为了方便检查放在这里）
         bool cacheValid_ = false;
@@ -711,8 +711,18 @@ namespace ZUI {
         virtual bool IsFocusable() const { return false; }
 
         // ---------- 父子关系 ----------
-        void SetParent(UIElement* parent) { parent_ = parent; }
+        void SetParent(UIElement* parent) {
+            parent_ = parent;
+            // 挂到已属于某窗口的父级时，立即把自己的子树也归属到该窗口；
+            // 若父级尚未挂载，则等父级挂载时由 AttachWindowRecursive 统一传播。
+            AttachWindowRecursive(parent ? parent->window_ : nullptr);
+        }
         UIElement* GetParent() const { return parent_; }
+
+        // 所属窗口（挂载到窗口的树后由框架设置；未挂载时为 nullptr）
+        Window* GetWindow() const { return window_; }
+        // 把“所属窗口”沿子树传播；容器需重写以递归自己的子元素
+        virtual void AttachWindowRecursive(Window* w) { window_ = w; }
         void SetVisible(bool visible) {
             if (visible_ != visible) {
                 visible_ = visible;
@@ -870,6 +880,7 @@ namespace ZUI {
         std::vector<Connection> autoConnections_;
 
         bool useCache_; // 默认 true，可被重写
+        Window* window_ = nullptr;  // 所属窗口（非拥有，由框架在挂载时设置）
         mutable std::vector<UIElement*> childrenView_; // GetChildren 复用的视图缓冲，避免每帧分配
 
         // ---------- 字体相关成员 ----------
@@ -942,8 +953,13 @@ namespace ZUI {
 
         const std::vector<UIElement*>& GetChildren() const override {
             childrenView_.clear();
-            for (auto& child : children_) if (child->IsVisible()) childrenView_.push_back(child.get());
+            for (auto& child : children_) childrenView_.push_back(child.get());
             return childrenView_;
+        }
+
+        void AttachWindowRecursive(Window* w) override {
+            window_ = w;
+            for (auto& child : children_) child->AttachWindowRecursive(w);
         }
 
         UIElement* HitTest(float x, float y) override {
@@ -1029,8 +1045,13 @@ namespace ZUI {
 
         const std::vector<UIElement*>& GetChildren() const override {
             childrenView_.clear();
-            for (auto& child : children_) if (child->IsVisible()) childrenView_.push_back(child.get());
+            for (auto& child : children_) childrenView_.push_back(child.get());
             return childrenView_;
+        }
+
+        void AttachWindowRecursive(Window* w) override {
+            window_ = w;
+            for (auto& child : children_) child->AttachWindowRecursive(w);
         }
 
         UIElement* HitTest(float x, float y) override {
@@ -1288,8 +1309,13 @@ namespace ZUI {
 
         const std::vector<UIElement*>& GetChildren() const override {
             childrenView_.clear();
-            for (auto& item : items_) if (item.element->IsVisible()) childrenView_.push_back(item.element.get());
+            for (auto& item : items_) childrenView_.push_back(item.element.get());
             return childrenView_;
+        }
+
+        void AttachWindowRecursive(Window* w) override {
+            window_ = w;
+            for (auto& item : items_) if (item.element) item.element->AttachWindowRecursive(w);
         }
 
         UIElement* HitTest(float x, float y) override {
@@ -1353,6 +1379,11 @@ namespace ZUI {
             childrenView_.clear();
             if (layout_) childrenView_.push_back(layout_.get());
             return childrenView_;
+        }
+
+        void AttachWindowRecursive(Window* w) override {
+            window_ = w;
+            if (layout_) layout_->AttachWindowRecursive(w);
         }
 
         bool UseCache() const override { return false; }
@@ -1676,6 +1707,11 @@ namespace ZUI {
                 childrenView_.push_back(pages_[currentIndex_].get());
             }
             return childrenView_;
+        }
+
+        void AttachWindowRecursive(Window* w) override {
+            window_ = w;
+            for (auto& p : pages_) if (p) p->AttachWindowRecursive(w);
         }
 
         std::optional<D2D1_RECT_F> GetClipRect() const override {
@@ -2207,6 +2243,7 @@ namespace ZUI {
             PAINTSTRUCT ps;
             BeginPaint(hwnd_, &ps);
             if (renderTarget_) {
+                SetGlobalDpiScale(dpi_ / 96.0f);   // 线程本地缩放：菜单窗口用自己的 DPI
                 renderTarget_->BeginDraw();
                 renderTarget_->Clear(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f));
                 DrawMenu();
@@ -2439,6 +2476,56 @@ namespace ZUI {
 
     inline ComPtr<IDWriteFactory> MenuWindow::sharedDWriteFactory_ = nullptr;
 
+    // ---------- 应用核心（进程 / UI 线程级单例） ----------
+    namespace detail {
+        class AppCore {
+        public:
+            static AppCore& Instance() { static AppCore s; return s; }
+
+            ID2D1Factory* GetFactory() {
+                if (!d2dFactory_) D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2dFactory_.GetAddressOf());
+                return d2dFactory_.Get();
+            }
+
+            void AddWindow(Window* w) {
+                if (w && std::find(windows_.begin(), windows_.end(), w) == windows_.end())
+                    windows_.push_back(w);
+            }
+            void RemoveWindow(Window* w) {
+                windows_.erase(std::remove(windows_.begin(), windows_.end(), w), windows_.end());
+                if (windows_.empty()) Quit(0);   // 最后一个窗口关闭才退出
+            }
+            int WindowCount() const { return (int)windows_.size(); }
+            const std::vector<Window*>& Windows() const { return windows_; }
+
+            int Run() {
+                InitializeUIThread();
+                if (running_) return exitCode_;   // 防止嵌套消息循环
+                running_ = true;
+                MSG msg;
+                while (GetMessage(&msg, nullptr, 0, 0)) {
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }
+                running_ = false;
+                return exitCode_;
+            }
+            bool IsRunning() const { return running_; }
+            void Quit(int code = 0) {
+                exitCode_ = code;
+                if (running_) PostQuitMessage(code);
+            }
+
+        private:
+            AppCore() { timeBeginPeriod(1); }
+            ~AppCore() { timeEndPeriod(1); }
+            ComPtr<ID2D1Factory> d2dFactory_;
+            std::vector<Window*> windows_;
+            bool running_ = false;
+            int exitCode_ = 0;
+        };
+    }
+
     // ---------- 窗口 ----------
     class Window {
     public:
@@ -2446,7 +2533,7 @@ namespace ZUI {
         inline static DWORD DefaultBackdropColor = 0x80FFFFFF;
         inline static Color DefaultBackgroundColor = Color(0, 0, 0, 0);
 
-        Window() : hwnd_(nullptr), d2dFactory_(nullptr), renderTarget_(nullptr),
+        Window() : core_(&detail::AppCore::Instance()), hwnd_(nullptr), d2dFactory_(nullptr), renderTarget_(nullptr),
             rootElement_(nullptr), currentHovered_(nullptr), pressedElement_(nullptr),
             focusedElement_(nullptr), dpi_(96),
             captionColor_(RGB(240, 240, 240)), textColor_(RGB(0, 0, 0)), borderColor_(RGB(180, 180, 180)),
@@ -2457,9 +2544,10 @@ namespace ZUI {
             layoutInvalidated_(false) {}
 
         ~Window() {
-            if (timerPeriodRaised_) { timeEndPeriod(1); timerPeriodRaised_ = false; }
+            if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);
+            if (hwnd_) { DestroyWindow(hwnd_); hwnd_ = nullptr; }
             DiscardDeviceResources();
-            if (d2dFactory_) d2dFactory_->Release();
+            // d2dFactory_ 由 AppCore 共享，不在此释放
         }
 
         void SetMouseCapture(UIElement* elem) { mouseCaptureElement_ = elem; }
@@ -2518,46 +2606,20 @@ namespace ZUI {
             dpi_ = GetDpiForWindow(hwnd_);
             if (dpi_ == 0) dpi_ = 96;
 
-            // 提高系统定时器精度到 1ms，降低 WM_TIMER(16ms) 抖动，使动画节奏更稳定
-            if (!timerPeriodRaised_) { timeBeginPeriod(1); timerPeriodRaised_ = true; }
-
-            if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2dFactory_))) return false;
+            d2dFactory_ = core_->GetFactory();   // 共享工厂（进程级）
+            if (!d2dFactory_) return false;
             if (FAILED(CreateDeviceResources())) return false;
+
+            core_->AddWindow(this);
 
             ApplyBackdrop();
             ApplyTitleBarColors();
-
-            captureRequestConn_ = UIZSignals::ElementCaptureRequest.connect(
-                [this](UIElement* elem) { mouseCaptureElement_ = elem; },
-                ConnectionThread::CurrentThread
-            );
-            captureReleaseConn_ = UIZSignals::ElementCaptureRelease.connect(
-                [this](UIElement* elem) {
-                    if (mouseCaptureElement_ == elem) mouseCaptureElement_ = nullptr;
-                },
-                ConnectionThread::CurrentThread
-            );
-
-            // 连接全局重绘请求信号
-            repaintConn_ = UIZSignals::RepaintRequest.connect(
-                [this](UIElement* elem) {
-                    pendingRepaint_.insert(elem);
-                },
-                ConnectionThread::CurrentThread
-            );
-
-            // 连接全局布局失效信号
-            layoutInvalidatedConn_ = UIZSignals::LayoutInvalidated.connect(
-                [this]() {
-                    layoutInvalidated_ = true;
-                },
-                ConnectionThread::CurrentThread
-            );
 
             auto defaultRoot = std::make_shared<ColumnBox>();
             defaultRoot->SetMargin(Thickness(20, 20, 20, 20));
             defaultRoot->SetSpacing(10);
             rootElement_ = defaultRoot;
+            rootElement_->AttachWindowRecursive(this);
             layoutNeeded_ = true;
 
             defaultIMC_ = ImmGetContext(hwnd_);
@@ -2575,7 +2637,9 @@ namespace ZUI {
 
         void SetRootLayout(std::shared_ptr<Layout> layout) {
             if (!layout) return;
+            if (rootElement_ && rootElement_ != layout) rootElement_->AttachWindowRecursive(nullptr);
             rootElement_ = layout;
+            rootElement_->AttachWindowRecursive(this);
             layoutNeeded_ = true;
             layoutInvalidated_ = true;
             InvalidateRect(hwnd_, nullptr, FALSE);
@@ -2603,14 +2667,24 @@ namespace ZUI {
             customMinHeight_ = height;
         }
 
-        void Run() {
-            detail::InitializeUIThread();
-            MSG msg;
-            while (GetMessage(&msg, nullptr, 0, 0)) {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
-        }
+        void Run() { core_->Run(); }
+
+        // 关闭本窗口（其余窗口不受影响；全部关闭后消息循环才会退出）
+        void Close() { if (hwnd_) DestroyWindow(hwnd_); }
+
+        // 由 UIElement 直接路由，多窗口互不干扰
+        void MarkRepaint(UIElement* elem) { if (elem) pendingRepaint_.insert(elem); }
+        void MarkLayoutInvalidated() { layoutInvalidated_ = true; }
+
+        // 控件鼠标捕获（按窗口路由）
+        void RequestElementCapture(UIElement* elem) { if (elem) mouseCaptureElement_ = elem; }
+        void ReleaseElementCapture(UIElement* elem) { if (mouseCaptureElement_ == elem) mouseCaptureElement_ = nullptr; }
+
+    public:
+        // 窗口实例信号：按窗口区分激活/失活/关闭
+        ZSignal<> Activated;
+        ZSignal<> Deactivated;
+        ZSignal<> Closed;
 
     private:
         // 移除 kAnimationIdleFramesToStop 相关逻辑，定时器常驻
@@ -2765,7 +2839,7 @@ namespace ZUI {
             case WM_SIZE:
                 UpdateTimerState();
                 if (wParam == SIZE_MINIMIZED) {
-                    UIZSignals::WindowDeactivated();
+                    Deactivated(); UIZSignals::WindowDeactivated(this);
                 }
                 if (!IsIconic(hwnd_)) {
                     layoutNeeded_ = true;
@@ -2785,7 +2859,10 @@ namespace ZUI {
             case WM_ACTIVATE:
                 UpdateTimerState();
                 if (LOWORD(wParam) == WA_INACTIVE) {
-                    UIZSignals::WindowDeactivated();
+                    Deactivated(); UIZSignals::WindowDeactivated(this);
+                }
+                else {
+                    Activated();
                 }
                 return 0;
             case WM_DPICHANGED:
@@ -2904,8 +2981,10 @@ namespace ZUI {
                     KillTimer(hwnd_, 1);
                     timerRunning_ = false;
                 }
-                if (timerPeriodRaised_) { timeEndPeriod(1); timerPeriodRaised_ = false; }
-                PostQuitMessage(0);
+                if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);  // 清除整棵树的窗口指针，避免外部持有元素时悬垂
+                hwnd_ = nullptr;
+                Closed();
+                if (core_) core_->RemoveWindow(this);
                 return 0;
             }
             return DefWindowProc(hwnd_, message, wParam, lParam);
@@ -3407,7 +3486,7 @@ namespace ZUI {
                 return;
             }
 
-            UIZSignals::GlobalMouseDown(x, y);
+            UIZSignals::GlobalMouseDown(this, x, y);
 
             UIElement* hit = rootElement_ ? rootElement_->HitTest(x, y) : nullptr;
             if (hit) {
@@ -3661,6 +3740,7 @@ namespace ZUI {
         float PixelToDipY(int pixelY) const { return pixelY * 96.0f / dpi_; }
 
         HWND hwnd_;
+        detail::AppCore* core_ = nullptr;
         ID2D1Factory* d2dFactory_;
         ID2D1HwndRenderTarget* renderTarget_;
         std::shared_ptr<Layout> rootElement_;
@@ -3688,8 +3768,6 @@ namespace ZUI {
         std::shared_ptr<Menu> windowContextMenu_;
         std::unique_ptr<MenuWindow> activeMenuRoot_;
         UIElement* mouseCaptureElement_ = nullptr;
-        Connection captureRequestConn_;
-        Connection captureReleaseConn_;
         bool imePosUpdating_ = false;
         HIMC defaultIMC_ = nullptr;
 
@@ -3700,14 +3778,49 @@ namespace ZUI {
         // 新增成员
         std::unordered_set<UIElement*> pendingRepaint_;
         bool layoutInvalidated_;
-        Connection repaintConn_;
-        Connection layoutInvalidatedConn_;
         // 用于记录上一帧活跃动画元素
         std::unordered_set<UIElement*> lastActiveAnimElements_;
         std::unordered_set<UIElement*> activeAnimScratch_;
 
         bool timerRunning_ = false;
-        bool timerPeriodRaised_ = false;
+    };
+
+    // ---------- UIElement 路由实现（需 Window 完整类型） ----------
+    inline void UIElement::RequestRepaint() {
+        if (window_) window_->MarkRepaint(this);
+        else UIZSignals::RepaintRequest(this);
+    }
+    inline void UIElement::InvalidateLayout() {
+        layoutDirty_ = true;
+        ZUI_DEBUG_LOG_A((std::string("InvalidateLayout called by: ") + typeid(*this).name() + "\n").c_str());
+        if (window_) window_->MarkLayoutInvalidated();
+        else UIZSignals::LayoutInvalidated();
+    }
+
+    // ---------- 应用（Qt 风格：app.CreateWindow(...) -> app.Run()） ----------
+    class Application {
+    public:
+        Application() = default;
+
+        // 创建并注册一个窗口；返回的 shared_ptr 需要被持有以维持窗口存活
+        std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title) {
+            auto w = std::make_shared<Window>();
+            if (!w->Create(width, height, title)) return nullptr;
+            return w;
+        }
+        // 把已有窗口登记进应用（一般由 Create 自动完成）
+        void AddWindow(const std::shared_ptr<Window>& w) {
+            if (w) detail::AppCore::Instance().AddWindow(w.get());
+        }
+        int Run() { return detail::AppCore::Instance().Run(); }
+        void Quit(int code = 0) { detail::AppCore::Instance().Quit(code); }
+        void CloseAllWindows() {
+            auto wins = detail::AppCore::Instance().Windows();
+            for (auto* w : wins) if (w) w->Close();
+        }
+        size_t WindowCount() const { return (size_t)detail::AppCore::Instance().WindowCount(); }
+
+        static Application& Instance() { static Application a; return a; }
     };
 
 } // namespace ZUI

@@ -816,6 +816,38 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         mainHost->NavigateTo(index);
         });
 
+    // ---------- 多窗口验证：第二个独立窗口 ----------
+    auto app = &Application::Instance();
+    std::shared_ptr<Window> toolWin = app->CreateWindow(440, 380, L"ZUI 工具窗口（多窗口测试）");
+    if (toolWin) {
+        auto troot = toolWin->GetRootColumnBox();
+        troot->SetSpacing(10);
+        troot->AddChild(std::make_shared<Label>(L"这是一个独立的窗口，与主窗口互不干扰。"));
+
+        auto tcombo = std::make_shared<ComboBox>();
+        tcombo->AddItem(L"选项 1");
+        tcombo->AddItem(L"选项 2");
+        tcombo->AddItem(L"选项 3");
+        tcombo->SetPlaceholder(L"点击展开（测试跨窗口不误收）");
+        troot->AddChild(tcombo);
+
+        auto tbtn = std::make_shared<Button>(L"新建窗口");
+        tbtn->Connect(tbtn->Clicked, [app]() {
+            static int n = 0;
+            auto w = app->CreateWindow(360, 240, L"动态窗口");
+            if (w) {
+                w->GetRootColumnBox()->AddChild(std::make_shared<Label>(L"动态创建的窗口 " + std::to_wstring(++n)));
+                static std::vector<std::shared_ptr<Window>> keep;   // 保持存活
+                keep.push_back(w);
+            }
+            });
+        troot->AddChild(tbtn);
+
+        auto tclose = std::make_shared<Button>(L"关闭本窗口");
+        tclose->Connect(tclose->Clicked, [w = toolWin.get()]() { w->Close(); });
+        troot->AddChild(tclose);
+    }
+
     win.SetMinSize(800, 600);
     win.Run();
 

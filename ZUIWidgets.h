@@ -1246,7 +1246,8 @@ namespace ZUI {
             autoConnections_.push_back(std::move(conn));
 
             auto mouseConn = UIZSignals::GlobalMouseDown.connect(
-                [this](float x, float y) {
+                [this](Window* w, float x, float y) {
+                    if (w && w != GetWindow()) return;   // 只处理本窗口的点击
                     if ((expanded_ || expandProgress_ > 0.01f) && !controlCaptureActive_) {
                         bool insideSelf = arrangedRect_.Contains(x, y) || IsPointInExpandedList(x, y);
                         if (!insideSelf) {
@@ -1260,7 +1261,8 @@ namespace ZUI {
             autoConnections_.push_back(std::move(mouseConn));
 
             auto deactConn = UIZSignals::WindowDeactivated.connect(
-                [this]() {
+                [this](Window* w) {
+                    if (w && w != GetWindow()) return;   // 只处理本窗口失活
                     if (expanded_ || expandProgress_ > 0.01f) CollapseInternal();
                 },
                 ConnectionThread::CurrentThread,
@@ -1889,14 +1891,16 @@ namespace ZUI {
 
         void AcquireControlCapture() {
             if (!controlCaptureActive_) {
-                UIZSignals::ElementCaptureRequest(this);
+                if (GetWindow()) GetWindow()->RequestElementCapture(this);
+                else UIZSignals::ElementCaptureRequest(this);
                 controlCaptureActive_ = true;
             }
         }
 
         void ReleaseControlCapture() {
             if (controlCaptureActive_) {
-                UIZSignals::ElementCaptureRelease(this);
+                if (GetWindow()) GetWindow()->ReleaseElementCapture(this);
+                else UIZSignals::ElementCaptureRelease(this);
                 controlCaptureActive_ = false;
             }
         }
@@ -2586,13 +2590,20 @@ namespace ZUI {
 
         const std::vector<UIElement*>& GetChildren() const override {
             childrenView_.clear();
-            if (content_ && content_->IsVisible())
+            if (content_)
                 childrenView_.push_back(content_.get());
-            if (vScrollBar_ && vScrollBar_->IsVisible())
+            if (vScrollBar_)
                 childrenView_.push_back(vScrollBar_.get());
-            if (hScrollBar_ && hScrollBar_->IsVisible())
+            if (hScrollBar_)
                 childrenView_.push_back(hScrollBar_.get());
             return childrenView_;
+        }
+
+        void AttachWindowRecursive(Window* w) override {
+            window_ = w;
+            if (content_) content_->AttachWindowRecursive(w);
+            if (vScrollBar_) vScrollBar_->AttachWindowRecursive(w);
+            if (hScrollBar_) hScrollBar_->AttachWindowRecursive(w);
         }
 
         // 修改：裁剪区域返回整个控件区域，避免滚动条被裁剪

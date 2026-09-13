@@ -143,10 +143,17 @@ Key points:
 
 - Added this changelog; the API docs were rewritten from a "list of signatures" into a more detailed "implementation notes + pitfalls" style; added a warning about signal/object lifetime reference cycles.
 
+### 2026-09-13 (cont.) — Multi-window support (`Application`)
+
+- New `ZUI::Application`: `app.CreateWindow(...)` to create windows and `app.Run()` for a single shared message loop, Qt style; windows are truly independent.
+- Repaint/layout are routed per owning window (`UIElement::GetWindow()`); the DPI scale is now **thread-local** (set per window before drawing); `Window` gained instance signals `Activated` / `Deactivated` / `Closed`, and `UIZSignals::WindowDeactivated` / `GlobalMouseDown` now carry a `Window*`.
+- Closing one window no longer quits the app; it quits when the **last** window closes. The `ID2D1Factory` and `timeBeginPeriod` are shared by the app core.
+- Backward compatible: `Window win; win.Create(...); win.Run();` still works. `#undef CreateWindow` avoids the Win32 macro clash.
+
 ## Documentation
 
 - Online documentation: <https://zhc9968.github.io/ZUI/>
-- API Reference (English, 12 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
+- API Reference (English, 13 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
 - API 参考（中文）: <https://zhc9968.github.io/ZUI/docs/API.html>
 
 ## License
