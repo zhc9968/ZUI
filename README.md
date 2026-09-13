@@ -8,7 +8,8 @@ ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Dire
 
 - 仓库：GitHub <https://github.com/zhc9968/ZUI> · Gitee <https://gitee.com/zhc9968/zui>
 - 许可证：MIT
-- 完整 API 文档：[docs/API.md](docs/API.md)
+- 在线文档：<https://zhc9968.github.io/ZUI/>
+- API 参考：<https://zhc9968.github.io/ZUI/docs/API.html>
 
 ## 特性
 
@@ -135,7 +136,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 ## 文档
 
-- 详细 API（每个类、方法、信号、默认值）：[docs/API.md](docs/API.md)
+- 在线文档站点：<https://zhc9968.github.io/ZUI/>
+- API 参考（中文，12 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
+- API Reference (English)：<https://zhc9968.github.io/ZUI/docs/API.en.html>
 
 ## 许可证
 

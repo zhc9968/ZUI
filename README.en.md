@@ -8,7 +8,8 @@ ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D
 
 - Repository: GitHub <https://github.com/zhc9968/ZUI> · Gitee <https://gitee.com/zhc9968/zui>
 - License: MIT
-- Full API documentation: [docs/API.en.md](docs/API.en.md)
+- Online docs: <https://zhc9968.github.io/ZUI/>
+- API Reference (English): <https://zhc9968.github.io/ZUI/docs/API.en.html>
 
 ## Features
 
@@ -135,7 +136,9 @@ Key points:
 
 ## Documentation
 
-- Detailed API (every class, method, signal, and default value): [docs/API.en.md](docs/API.en.md)
+- Online documentation: <https://zhc9968.github.io/ZUI/>
+- API Reference (English, 12 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
+- API 参考（中文）: <https://zhc9968.github.io/ZUI/docs/API.html>
 
 ## License
 

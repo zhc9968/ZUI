@@ -26,3 +26,8 @@ ZUI_1.3dirtyupdate/
 ZUI_beforePixelSnap/
 ZUI_Release_1.4_beforeFontUpdate/
 ZUI_Release_1.5_fontUpdate1/
+
+# 生成的文档（部署到 GitHub Pages，不纳入仓库）
+/README.html
+/README.en.html
+/docs/API*.html
