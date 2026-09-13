@@ -3,6 +3,8 @@
 
 namespace ZUI {
 
+    enum class TextHAlign { Left, Center, Right };
+
     inline void DrawTextWithEllipsis(ID2D1RenderTarget* rt,
         const std::wstring& text,
         const D2D1_RECT_F& rect,
@@ -10,7 +12,8 @@ namespace ZUI {
         const FontSpec& spec,
         ComPtr<ID2D1SolidColorBrush>& textBrush,
         IDWriteTextFormat* textFormat = nullptr,
-        bool forceNoWrap = false) {
+        bool forceNoWrap = false,
+        TextHAlign align = TextHAlign::Left) {
         if (text.empty() || !rt) return;
 
         IDWriteTextFormat* fmt = textFormat;
@@ -66,7 +69,13 @@ namespace ZUI {
             fmt, maxWidth, maxHeight, &finalLayout);
         if (finalLayout) {
             if (forceNoWrap) finalLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-            rt->DrawTextLayout(D2D1::Point2F(Snap(rect.left), Snap(rect.top)), finalLayout.Get(), textBrush.Get());
+            DWRITE_TEXT_METRICS fm{};
+            finalLayout->GetMetrics(&fm);
+            float drawX = rect.left;
+            if (align == TextHAlign::Center) drawX = rect.left + (maxWidth - fm.width) / 2.0f;
+            else if (align == TextHAlign::Right) drawX = rect.left + (maxWidth - fm.width);
+            if (drawX < rect.left) drawX = rect.left;
+            rt->DrawTextLayout(D2D1::Point2F(Snap(drawX), Snap(rect.top)), finalLayout.Get(), textBrush.Get());
         }
     }
 
@@ -87,8 +96,7 @@ namespace ZUI {
         inline static VAlign DefaultVAlign = VAlign::Center;   // 默认垂直居中
         inline static float DefaultHorizontalStretchWeight = 0.0f;
         inline static float DefaultVerticalStretchWeight = 0.0f;
-
-        // 类型默认字体（全局字体管理器读取）
+        inline static Color DefaultDisabledColor = Color::FromArgb(255, 150, 150, 150);
         inline static FontSpec DefaultFontSpec = []() {
             FontSpec s;
             s.size = 16.0f;
@@ -115,6 +123,14 @@ namespace ZUI {
         }
         HAlign GetHorizontalAlignment() const { return hAlign_; }
         VAlign GetVerticalAlignment() const { return vAlign_; }
+        void SetPadding(const Thickness& p) { padding_ = p; InvalidateLayout(); RequestRepaint(); }
+        void SetPadding(float all) { padding_ = Thickness(all, all, all, all); InvalidateLayout(); RequestRepaint(); }
+        Thickness GetPadding() const { return padding_; }
+        void SetLineSpacing(float spacing) { lineSpacing_ = spacing; InvalidateLayout(); RequestRepaint(); }
+        float GetLineSpacing() const { return lineSpacing_; }
+        void SetMaxLines(int n) { maxLines_ = n; InvalidateLayout(); RequestRepaint(); }
+        int GetMaxLines() const { return maxLines_; }
+        Size GetDesiredSize() { return Measure(Size(FLT_MAX, FLT_MAX)); }
 
         static void SetDefaultTextColor(Color color) { DefaultTextColor = color; }
         static void SetDefaultFontSize(float size) { Label::DefaultFontSpec.size = size; }
@@ -133,21 +149,24 @@ namespace ZUI {
         }
 
         Size Measure(const Size& availableSize) override {
-            if (text_.empty()) return Size(0, 0);
+            float padW = padding_.left + padding_.right;
+            float padH = padding_.top + padding_.bottom;
+            if (text_.empty()) return Size(padW, padH);
 
             IDWriteFactory* factory = FontManager::Instance().GetFactory();
             IDWriteTextFormat* fmt = GetFontFormat();
-            if (!factory || !fmt) return Size(0, 0);
+            if (!factory || !fmt) return Size(padW, padH);
 
             if (overflow_ == TextOverflow::Wrap && availableSize.width != FLT_MAX && availableSize.width > 0) {
                 ComPtr<IDWriteTextLayout> tempLayout;
+                float availW = max(0.0f, availableSize.width - padW);
                 factory->CreateTextLayout(text_.c_str(), (UINT32)text_.length(), fmt,
-                    availableSize.width, 10000.0f, &tempLayout);
+                    availW, 10000.0f, &tempLayout);
                 if (tempLayout) {
                     tempLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
                     DWRITE_TEXT_METRICS metrics;
                     tempLayout->GetMetrics(&metrics);
-                    return Size(min(availableSize.width, metrics.width), metrics.height);
+                    return Size(min(availW, metrics.width) + padW, metrics.height + padH);
                 }
             }
 
@@ -158,9 +177,9 @@ namespace ZUI {
             if (layout) {
                 DWRITE_TEXT_METRICS metrics;
                 layout->GetMetrics(&metrics);
-                return Size(metrics.width, metrics.height);
+                return Size(metrics.width + padW, metrics.height + padH);
             }
-            return Size(0, 0);
+            return Size(padW, padH);
         }
 
         void Draw(ID2D1RenderTarget* rt) override {
@@ -172,6 +191,10 @@ namespace ZUI {
             if (!factory) return;
 
             D2D1_RECT_F rect = arrangedRect_.ToD2D();
+            rect.left += padding_.left; rect.top += padding_.top;
+            rect.right -= padding_.right; rect.bottom -= padding_.bottom;
+            if (rect.right < rect.left) rect.right = rect.left;
+            if (rect.bottom < rect.top) rect.bottom = rect.top;
             std::wstring displayText = text_;
 
             // ---------- Ellipsis 模式：先做截断判定，得到 displayText ----------
@@ -206,8 +229,23 @@ namespace ZUI {
             // ---------- 统一绘制：创建带对齐的 layout ----------
             ComPtr<IDWriteTextLayout> layout;
             factory->CreateTextLayout(displayText.c_str(), (UINT32)displayText.length(), fmt,
-                arrangedRect_.width, arrangedRect_.height, &layout);
+                rect.right - rect.left, rect.bottom - rect.top, &layout);
             if (!layout) return;
+
+            if (lineSpacing_ > 0.0f)
+                layout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, lineSpacing_, lineSpacing_ * 0.8f);
+            if (maxLines_ > 0) {
+                DWRITE_LINE_METRICS lm{};
+                UINT32 lc = 0;
+                layout->GetLineMetrics(&lm, 1, &lc);
+                float lh = lm.height > 0 ? lm.height : layout->GetFontSize() * 1.4f;
+                layout->SetMaxHeight(maxLines_ * lh);
+                ComPtr<IDWriteInlineObject> trimmingSign;
+                if (SUCCEEDED(factory->CreateEllipsisTrimmingSign(fmt, &trimmingSign))) {
+                    DWRITE_TRIMMING trimming{ DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0, 0 };
+                    layout->SetTrimming(&trimming, trimmingSign.Get());
+                }
+            }
 
             // 水平对齐
             switch (hAlign_) {
@@ -231,6 +269,7 @@ namespace ZUI {
 
             if (!textBrush_) rt->CreateSolidColorBrush(textColor_.ToD2D(), textBrush_.GetAddressOf());
             else textBrush_->SetColor(textColor_.ToD2D());
+            if (!IsEffectivelyEnabled() && textBrush_) textBrush_->SetColor(DefaultDisabledColor.ToD2D());
 
             rt->DrawTextLayout(D2D1::Point2F(Snap(rect.left), Snap(rect.top)), layout.Get(), textBrush_.Get());
         }
@@ -246,6 +285,9 @@ namespace ZUI {
         TextOverflow overflow_;
         HAlign hAlign_;
         VAlign vAlign_;
+        Thickness padding_;
+        float lineSpacing_ = 0.0f;
+        int maxLines_ = 0;
         ComPtr<ID2D1SolidColorBrush> textBrush_;
     };
 
@@ -263,6 +305,7 @@ namespace ZUI {
         inline static float DefaultFontSize = 16.0f;
         inline static float DefaultHorizontalStretchWeight = 0.2f;
         inline static float DefaultVerticalStretchWeight = 0.0f;
+        inline static Color DefaultDisabledColor = Color::FromArgb(255, 210, 210, 210);
 
         // 类型默认字体
         inline static FontSpec DefaultFontSpec = []() {
@@ -272,6 +315,7 @@ namespace ZUI {
             }();
 
         ZSignal<> Clicked;
+        ZSignal<bool> Toggled;   // 开关式按钮
 
         Button(const std::wstring& text = L"Button") : text_(text), hovered_(false), isPressed_(false), hoverProgress_(0.0f),
             normalColor_(DefaultNormalColor), hoverColor_(DefaultHoverColor), pressedColor_(DefaultPressedColor),
@@ -303,6 +347,13 @@ namespace ZUI {
         }
         void SetCornerRadius(float radius) { cornerRadius_ = radius; RequestRepaint(); }
         void SetHoverAnimationSpeed(float speed) { hoverAnimSpeed_ = speed; }
+        void SetCheckable(bool checkable) { checkable_ = checkable; if (!checkable) checked_ = false; RequestRepaint(); }
+        bool IsCheckable() const { return checkable_; }
+        void SetChecked(bool checked) { if (checkable_ && checked_ != checked) { checked_ = checked; Toggled(checked_); RequestRepaint(); } }
+        bool IsChecked() const { return checked_; }
+        void SetTextAlignment(Label::HAlign align) { hAlign_ = align; if (label_) label_->SetAlignment(align, Label::VAlign::Center); RequestRepaint(); }
+        void SetPadding(float p) { padding_ = max(0.0f, p); InvalidateLayout(); RequestRepaint(); }
+        void SetAutoRepeat(bool enable, float intervalMs = 400.0f) { autoRepeat_ = enable; autoRepeatInterval_ = intervalMs; }
 
         static void SetDefaultHoverAnimationSpeed(float speed) { DefaultHoverAnimationSpeed = speed; }
         static void SetDefaultColors(Color normal, Color hover, Color pressed) { DefaultNormalColor = normal; DefaultHoverColor = hover; DefaultPressedColor = pressed; }
@@ -327,7 +378,7 @@ namespace ZUI {
         void Arrange(const Rect& finalRect) override {
             UIElement::Arrange(finalRect);
             if (label_) {
-                float padding = 5.0f;
+                float padding = padding_;
                 Rect labelRect(finalRect.x + padding, finalRect.y, finalRect.width - padding * 2, finalRect.height);
                 label_->Arrange(labelRect);
             }
@@ -336,13 +387,20 @@ namespace ZUI {
         void Draw(ID2D1RenderTarget* rt) override {
             if (!visible_) return;
 
-            Color bgColor = isPressed_ ? pressedColor_ : Color::Lerp(normalColor_, hoverColor_, hoverProgress_);
+            bool enabled = IsEffectivelyEnabled();
+            Color bgColor;
+            if (!enabled) bgColor = DefaultDisabledColor;
+            else if (checkable_ && checked_) bgColor = pressedColor_;
+            else bgColor = isPressed_ ? pressedColor_ : Color::Lerp(normalColor_, hoverColor_, hoverProgress_);
             if (!bgBrush_) rt->CreateSolidColorBrush(bgColor.ToD2D(), bgBrush_.GetAddressOf());
             else bgBrush_->SetColor(bgColor.ToD2D());
 
             if (bgBrush_) rt->FillRoundedRectangle(D2D1::RoundedRect(arrangedRect_.ToD2D(), cornerRadius_, cornerRadius_), bgBrush_.Get());
 
-            if (label_) label_->Draw(rt);
+            if (label_) {
+                label_->SetTextColor(enabled ? textColor_ : Color::FromArgb(255, 120, 120, 120));
+                label_->Draw(rt);
+            }
         }
 
         void UpdateAnimation(float deltaTime) override {
@@ -351,6 +409,10 @@ namespace ZUI {
             else if (hoverProgress_ > target) { hoverProgress_ -= hoverAnimSpeed_ * deltaTime; if (hoverProgress_ < target) hoverProgress_ = target; }
             if (HasActiveAnimation()) RequestRepaint();
             ConvergeValue(hoverProgress_, hovered_ ? 1.0f : 0.0f, 0.001f);
+            if (autoRepeat_ && isPressed_ && autoRepeatInterval_ > 0.0f) {
+                DWORD now = GetTickCount();
+                if (now - lastRepeatTick_ >= (DWORD)autoRepeatInterval_) { lastRepeatTick_ = now; Clicked(); }
+            }
         }
 
         bool HasActiveAnimation() const override {
@@ -358,14 +420,32 @@ namespace ZUI {
             return hovered_ ? (hoverProgress_ < 1.0f - epsilon) : (hoverProgress_ > epsilon);
         }
 
-        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
+        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
         void OnMouseLeave() override { hovered_ = false; isPressed_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
-        void OnMouseDown(float x, float y) override { isPressed_ = true; RequestRepaint(); if (MouseDownHandler) MouseDownHandler(x, y); }
+        void OnMouseDown(float x, float y) override { if (!IsEffectivelyEnabled()) return; isPressed_ = true; lastRepeatTick_ = GetTickCount(); RequestRepaint(); if (MouseDownHandler) MouseDownHandler(x, y); }
         void OnMouseUp(float x, float y) override {
-            if (isPressed_) Clicked();
+            if (!IsEffectivelyEnabled()) return;
+            if (isPressed_) {
+                if (checkable_) SetChecked(!checked_);
+                Clicked();
+            }
             isPressed_ = false;
             RequestRepaint();
             if (MouseUpHandler) MouseUpHandler(x, y);
+        }
+        bool IsFocusable() const override { return true; }
+        void OnKeyDown(WPARAM key, LPARAM lParam) override {
+            if (!IsEffectivelyEnabled()) return;
+            if ((key == VK_SPACE || key == VK_RETURN) && !isPressed_) { isPressed_ = true; lastRepeatTick_ = GetTickCount(); RequestRepaint(); }
+        }
+        void OnKeyUp(WPARAM key, LPARAM lParam) override {
+            if (!IsEffectivelyEnabled()) return;
+            if ((key == VK_SPACE || key == VK_RETURN) && isPressed_) {
+                if (checkable_) SetChecked(!checked_);
+                Clicked();
+                isPressed_ = false;
+                RequestRepaint();
+            }
         }
 
         // 字体变化时，label 也要跟着变
@@ -389,6 +469,13 @@ namespace ZUI {
         float hoverAnimSpeed_;
         std::shared_ptr<Label> label_;
         ComPtr<ID2D1SolidColorBrush> bgBrush_;
+        bool checkable_ = false;
+        bool checked_ = false;
+        float padding_ = 5.0f;
+        Label::HAlign hAlign_ = Label::HAlign::Center;
+        bool autoRepeat_ = false;
+        float autoRepeatInterval_ = 400.0f;
+        DWORD lastRepeatTick_ = 0;
     };
 
     // ---------- 文本框（支持自动滚动、边框正常、文本裁剪） ----------
@@ -416,7 +503,7 @@ namespace ZUI {
 
         ZSignal<const std::wstring&> TextChanged;
 
-        TextBox() : text_(), placeholder_(), cursorPos_(0), selectionStart_(0), selectionEnd_(0),
+        TextBox() : text_(), placeholder_(), cursorPos_(0), selectionStart_(0), selectionEnd_(0), selectionAnchor_(0),
             focused_(false), showCursor_(true), cursorBlinkTime_(0.0f),
             hovered_(false), hoverProgress_(0.0f),
             bgColor_(DefaultBgColor), borderColor_(DefaultBorderColor), textColor_(DefaultTextColor),
@@ -441,7 +528,7 @@ namespace ZUI {
                 [](wchar_t c) { return c == L'\r' || c == L'\n'; }), text_.end());
             if (maxLength_ >= 0 && text_.size() > (size_t)maxLength_) text_.resize(maxLength_);
             cursorPos_ = min(cursorPos_, (int)text_.size());
-            selectionStart_ = selectionEnd_ = cursorPos_;
+            selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
             UpdateDisplayLayout();
             UpdateFullDisplayLayout();
             ClearUndoHistory();
@@ -465,8 +552,9 @@ namespace ZUI {
             if (maxLength_ >= 0 && text_.size() > (size_t)maxLength_) {
                 text_.resize(maxLength_);
                 if (cursorPos_ > maxLength_) cursorPos_ = maxLength_;
-                if (selectionStart_ > maxLength_) selectionStart_ = maxLength_;
-                if (selectionEnd_ > maxLength_) selectionEnd_ = maxLength_;
+                    if (selectionStart_ > maxLength_) selectionStart_ = maxLength_;
+                    if (selectionEnd_ > maxLength_) selectionEnd_ = maxLength_;
+                    if (selectionAnchor_ > maxLength_) selectionAnchor_ = maxLength_;
                 UpdateDisplayLayout();
                 UpdateFullDisplayLayout();
                 EnsureCursorVisible();
@@ -481,6 +569,28 @@ namespace ZUI {
         void Blur() { focused_ = false; OnBlur(); }
         void SetCursorBlinkInterval(float interval) { cursorBlinkInterval_ = interval; }
         void SetHoverAnimationSpeed(float speed) { hoverAnimSpeed_ = speed; }
+
+        // ---------- 只读 / 输入过滤 / 回车 / 占位色 / 密码显隐 / 选区编辑 ----------
+        void SetReadOnly(bool readOnly) { readOnly_ = readOnly; RequestRepaint(); }
+        bool IsReadOnly() const { return readOnly_; }
+        void SetInputFilter(std::function<bool(wchar_t)> filter) { inputFilter_ = std::move(filter); }
+        void ClearInputFilter() { inputFilter_ = nullptr; }
+        ZSignal<> ReturnPressed;
+        void SetPlaceholderColor(Color color) { placeholderColor_ = color.ToD2D(); placeholderBrush_.Reset(); RequestRepaint(); }
+        void SetRevealPassword(bool reveal) { revealPassword_ = reveal; UpdateDisplayLayout(); UpdateFullDisplayLayout(); EnsureCursorVisible(); RequestRepaint(); }
+        bool IsPasswordRevealed() const { return revealPassword_; }
+        int GetSelectionStart() const { return selectionStart_; }
+        int GetSelectionEnd() const { return selectionEnd_; }
+        int GetCursorPosition() const { return cursorPos_; }
+        void SetSelection(int start, int end) {
+            int n = (int)text_.size();
+            selectionStart_ = max(0, min(n, start));
+            selectionEnd_ = max(0, min(n, end));
+            if (selectionStart_ > selectionEnd_) std::swap(selectionStart_, selectionEnd_);
+            cursorPos_ = selectionEnd_;
+            selectionAnchor_ = selectionStart_;
+            EnsureCursorVisible(); RequestRepaint();
+        }
 
         static void SetDefaultSize(float width, float height) { DefaultWidth = width; DefaultHeight = height; }
         static void SetDefaultColors(D2D1_COLOR_F bg, D2D1_COLOR_F border, D2D1_COLOR_F text, D2D1_COLOR_F selection) { DefaultBgColor = bg; DefaultBorderColor = border; DefaultTextColor = text; DefaultSelectionColor = selection; }
@@ -572,8 +682,8 @@ namespace ZUI {
             // 4. 绘制文本（包括组合文本）或占位符
             if (text_.empty() && !hasComposition_ && !placeholder_.empty() && !focused_) {
                 // 占位符
-                if (!placeholderBrush_) rt->CreateSolidColorBrush(D2D1::ColorF(0.6f, 0.6f, 0.6f, 1.0f), placeholderBrush_.GetAddressOf());
-                else placeholderBrush_->SetColor(D2D1::ColorF(0.6f, 0.6f, 0.6f, 1.0f));
+                if (!placeholderBrush_) rt->CreateSolidColorBrush(placeholderColor_, placeholderBrush_.GetAddressOf());
+                else placeholderBrush_->SetColor(placeholderColor_);
                 if (placeholderBrush_) {
                     D2D1_RECT_F textRect = D2D1::RectF(
                         arrangedRect_.x + 5,
@@ -618,8 +728,16 @@ namespace ZUI {
 
         void OnMouseDown(float x, float y) override {
             int pos = GetCharIndexFromX(x - arrangedRect_.x - 5 + scrollX_);
+            bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
             cursorPos_ = pos;
-            selectionStart_ = selectionEnd_ = pos;
+            if (shift && selectionStart_ != selectionEnd_) {
+                selectionStart_ = min(selectionAnchor_, pos);
+                selectionEnd_ = max(selectionAnchor_, pos);
+            }
+            else {
+                selectionAnchor_ = pos;
+                selectionStart_ = selectionEnd_ = pos;
+            }
             ResetCursorBlink();
             EnsureCursorVisible();
             RequestRepaint();
@@ -628,9 +746,9 @@ namespace ZUI {
         void OnMouseMove(float x, float y) override {
             if (focused_ && (GetKeyState(VK_LBUTTON) & 0x8000)) {
                 int pos = GetCharIndexFromX(x - arrangedRect_.x - 5 + scrollX_);
-                selectionEnd_ = pos;
                 cursorPos_ = pos;
-                if (selectionStart_ > selectionEnd_) std::swap(selectionStart_, selectionEnd_);
+                selectionStart_ = min(selectionAnchor_, pos);
+                selectionEnd_ = max(selectionAnchor_, pos);
                 ResetCursorBlink();
                 EnsureCursorVisible();
                 RequestRepaint();
@@ -645,47 +763,54 @@ namespace ZUI {
             if (ctrl) {
                 switch (key) {
                 case 'C': Copy(); return;
-                case 'X': Cut(); return;
-                case 'V': Paste(); return;
+                case 'X': if (!readOnly_) Cut(); return;
+                case 'V': if (!readOnly_) Paste(); return;
                 case 'A': SelectAll(); return;
-                case 'Z': Undo(); return;
-                case 'Y': Redo(); return;
+                case 'Z': if (!readOnly_) Undo(); return;
+                case 'Y': if (!readOnly_) Redo(); return;
                 default: return;
                 }
+            }
+
+            if (readOnly_ && (key == VK_BACK || key == VK_DELETE)) {
+                if (KeyDownHandler) KeyDownHandler(key, lParam);
+                return;
             }
 
             switch (key) {
             case VK_LEFT:
                 if (shift) {
-                    if (selectionStart_ == selectionEnd_) selectionStart_ = cursorPos_;
+                    if (selectionStart_ == selectionEnd_) selectionAnchor_ = cursorPos_;
                     cursorPos_ = max(0, cursorPos_ - 1);
-                    selectionEnd_ = cursorPos_;
-                    if (selectionStart_ > selectionEnd_) std::swap(selectionStart_, selectionEnd_);
+                    selectionStart_ = min(selectionAnchor_, cursorPos_);
+                    selectionEnd_ = max(selectionAnchor_, cursorPos_);
                 }
                 else { cursorPos_ = max(0, cursorPos_ - 1); selectionStart_ = selectionEnd_ = cursorPos_; }
                 ResetCursorBlink(); EnsureCursorVisible(); RequestRepaint(); break;
             case VK_RIGHT:
                 if (shift) {
-                    if (selectionStart_ == selectionEnd_) selectionStart_ = cursorPos_;
+                    if (selectionStart_ == selectionEnd_) selectionAnchor_ = cursorPos_;
                     cursorPos_ = min((int)text_.size(), cursorPos_ + 1);
-                    selectionEnd_ = cursorPos_;
-                    if (selectionStart_ > selectionEnd_) std::swap(selectionStart_, selectionEnd_);
+                    selectionStart_ = min(selectionAnchor_, cursorPos_);
+                    selectionEnd_ = max(selectionAnchor_, cursorPos_);
                 }
                 else { cursorPos_ = min((int)text_.size(), cursorPos_ + 1); selectionStart_ = selectionEnd_ = cursorPos_; }
                 ResetCursorBlink(); EnsureCursorVisible(); RequestRepaint(); break;
             case VK_HOME:
                 if (shift) {
-                    if (selectionStart_ == selectionEnd_) selectionStart_ = cursorPos_;
-                    cursorPos_ = 0; selectionEnd_ = cursorPos_;
-                    if (selectionStart_ > selectionEnd_) std::swap(selectionStart_, selectionEnd_);
+                    if (selectionStart_ == selectionEnd_) selectionAnchor_ = cursorPos_;
+                    cursorPos_ = 0;
+                    selectionStart_ = min(selectionAnchor_, cursorPos_);
+                    selectionEnd_ = max(selectionAnchor_, cursorPos_);
                 }
                 else { cursorPos_ = 0; selectionStart_ = selectionEnd_ = 0; }
                 ResetCursorBlink(); EnsureCursorVisible(); RequestRepaint(); break;
             case VK_END:
                 if (shift) {
-                    if (selectionStart_ == selectionEnd_) selectionStart_ = cursorPos_;
-                    cursorPos_ = (int)text_.size(); selectionEnd_ = cursorPos_;
-                    if (selectionStart_ > selectionEnd_) std::swap(selectionStart_, selectionEnd_);
+                    if (selectionStart_ == selectionEnd_) selectionAnchor_ = cursorPos_;
+                    cursorPos_ = (int)text_.size();
+                    selectionStart_ = min(selectionAnchor_, cursorPos_);
+                    selectionEnd_ = max(selectionAnchor_, cursorPos_);
                 }
                 else { cursorPos_ = (int)text_.size(); selectionStart_ = selectionEnd_ = cursorPos_; }
                 ResetCursorBlink(); EnsureCursorVisible(); RequestRepaint(); break;
@@ -693,7 +818,7 @@ namespace ZUI {
                 if (selectionStart_ != selectionEnd_) DeleteSelection();
                 else if (cursorPos_ > 0) {
                     text_.erase(cursorPos_ - 1, 1);
-                    cursorPos_--; selectionStart_ = selectionEnd_ = cursorPos_;
+                    cursorPos_--; selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
                 }
                 UpdateDisplayLayout();
                 UpdateFullDisplayLayout();
@@ -704,25 +829,26 @@ namespace ZUI {
                 if (selectionStart_ != selectionEnd_) DeleteSelection();
                 else if (cursorPos_ < (int)text_.size()) {
                     text_.erase(cursorPos_, 1);
-                    selectionStart_ = selectionEnd_ = cursorPos_;
+                    selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_; selectionAnchor_ = cursorPos_;
                 }
                 UpdateDisplayLayout();
                 UpdateFullDisplayLayout();
                 PushUndoState();
                 TextChanged(text_);
                 ResetCursorBlink(); EnsureCursorVisible(); InvalidateLayout(); RequestRepaint(); break;
-            case VK_RETURN: break;
+            case VK_RETURN: ReturnPressed(); break;
             default: break;
             }
             if (KeyDownHandler) KeyDownHandler(key, lParam);
         }
         void OnChar(wchar_t ch) override {
-            if (!focused_) return;
+            if (!focused_ || readOnly_) return;
             if (ch < 32 || ch == L'\r' || ch == L'\n') return;
+            if (inputFilter_ && !inputFilter_(ch)) return;
             if (selectionStart_ != selectionEnd_) DeleteSelection();
             if (maxLength_ >= 0 && (int)text_.size() >= maxLength_) return;
             text_.insert(cursorPos_, 1, ch);
-            cursorPos_++; selectionStart_ = selectionEnd_ = cursorPos_;
+            cursorPos_++; selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
             UpdateDisplayLayout();
             UpdateFullDisplayLayout();
             PushUndoState();
@@ -738,7 +864,7 @@ namespace ZUI {
         }
         void OnBlur() override {
             focused_ = false; showCursor_ = false; cursorBlinkTime_ = 0.0f;
-            selectionStart_ = selectionEnd_ = cursorPos_;
+            selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
             RequestRepaint();
             if (BlurHandler) BlurHandler();
         }
@@ -807,7 +933,7 @@ namespace ZUI {
             IDWriteFactory* dwriteFactory = FontManager::Instance().GetFactory();
             IDWriteTextFormat* fmt = GetFontFormat();
             if (!dwriteFactory || !fmt) return;
-            std::wstring displayText = passwordMode_ ? std::wstring(text_.size(), L'\u2022') : text_;
+            std::wstring displayText = (passwordMode_ && !revealPassword_) ? std::wstring(text_.size(), L'\u2022') : text_;
             dwriteFactory->CreateTextLayout(displayText.c_str(), (UINT32)displayText.length(),
                 fmt, 10000.0f, 10000.0f, &displayTextLayout_);
         }
@@ -822,7 +948,7 @@ namespace ZUI {
                 int insertPos = min(cursorPos_, (int)fullText.size());
                 fullText.insert(insertPos, compositionText_);
             }
-            if (passwordMode_) {
+            if (passwordMode_ && !revealPassword_) {
                 fullText = std::wstring(fullText.size(), L'\u2022');
             }
             if (fullText.empty()) return;
@@ -878,7 +1004,7 @@ namespace ZUI {
         void DeleteSelection() {
             if (selectionStart_ == selectionEnd_) return;
             text_.erase(selectionStart_, selectionEnd_ - selectionStart_);
-            cursorPos_ = selectionStart_; selectionEnd_ = selectionStart_;
+            cursorPos_ = selectionStart_; selectionEnd_ = selectionStart_; selectionAnchor_ = cursorPos_;
             UpdateDisplayLayout();
             UpdateFullDisplayLayout();
             EnsureCursorVisible(); InvalidateLayout(); RequestRepaint();
@@ -889,6 +1015,7 @@ namespace ZUI {
             undoStack_.push_back(text_);
             undoIndex_ = (int)undoStack_.size() - 1;
         }
+        public:
         void Undo() {
             if (undoIndex_ > 0) {
                 undoIndex_--;
@@ -912,7 +1039,7 @@ namespace ZUI {
         void SetTextWithoutHistory(const std::wstring& text) {
             text_ = text;
             if (maxLength_ >= 0 && text_.size() > (size_t)maxLength_) text_.resize(maxLength_);
-            cursorPos_ = (int)text_.size(); selectionStart_ = selectionEnd_ = cursorPos_;
+            cursorPos_ = (int)text_.size(); selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
             UpdateDisplayLayout();
             UpdateFullDisplayLayout();
             EnsureCursorVisible();
@@ -951,7 +1078,7 @@ namespace ZUI {
                     }
                     text_.insert(cursorPos_, pasteText);
                     cursorPos_ += (int)pasteText.size();
-                    selectionStart_ = selectionEnd_ = cursorPos_;
+                    selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_; selectionAnchor_ = cursorPos_;
                     UpdateDisplayLayout();
                     UpdateFullDisplayLayout();
                     PushUndoState();
@@ -973,12 +1100,13 @@ namespace ZUI {
             }
         }
         void SelectAll() {
-            selectionStart_ = 0; selectionEnd_ = (int)text_.size(); cursorPos_ = selectionEnd_;
+            selectionStart_ = 0; selectionEnd_ = (int)text_.size(); cursorPos_ = selectionEnd_; selectionAnchor_ = 0;
             EnsureCursorVisible();
             InvalidateLayout();
             RequestRepaint();
         }
 
+        private:
         void EnsureCursorVisible() {
             int globalCursorPos = cursorPos_;
             if (hasComposition_ && !compositionText_.empty()) {
@@ -1017,8 +1145,13 @@ namespace ZUI {
 
         std::wstring text_;
         std::wstring placeholder_;
+        bool readOnly_ = false;
+        bool revealPassword_ = false;
+        std::function<bool(wchar_t)> inputFilter_;
+        D2D1_COLOR_F placeholderColor_ = D2D1::ColorF(0.6f, 0.6f, 0.6f, 1.0f);
         int cursorPos_;
         int selectionStart_, selectionEnd_;
+        int selectionAnchor_;
         bool focused_;
         bool showCursor_;
         float cursorBlinkTime_;
@@ -1178,18 +1311,14 @@ namespace ZUI {
         }
 
         void AddItem(const std::wstring& item) {
-            items_.push_back(item);
-            if (selectedIndex_ == -1) selectedIndex_ = 0;
-            UpdateIndicatorPosition();
-            InvalidateLayout();
-            RequestRepaint();
+            allItems_.push_back(item);
+            ApplyFilter();
         }
         void SetItems(const std::vector<std::wstring>& items) {
-            items_ = items;
-            selectedIndex_ = items_.empty() ? -1 : 0;
-            UpdateIndicatorPosition();
-            InvalidateLayout();
-            RequestRepaint();
+            allItems_ = items;
+            editText_.clear();
+            caretPos_ = 0;
+            ApplyFilter();
         }
         void SetSelectedIndex(int index) {
             if (index >= 0 && index < (int)items_.size()) {
@@ -1199,6 +1328,7 @@ namespace ZUI {
                     SelectionChanged(selectedIndex_);
                     RequestRepaint();
                 }
+                if (editable_) { editText_ = items_[index]; caretPos_ = (int)editText_.size(); }
                 if (expanded_) CollapseInternal();
             }
         }
@@ -1208,6 +1338,67 @@ namespace ZUI {
         bool IsExpanded() const { return expanded_; }
         float GetExpandProgress() const { return expandProgress_; }
         void Collapse() { CollapseInternal(); }
+
+        // ---------- 可编辑 / 输入过滤 ----------
+        void SetEditable(bool editable) { editable_ = editable; RequestRepaint(); }
+        bool IsEditable() const { return editable_; }
+        void SetFilterEnabled(bool enable) { filterEnabled_ = enable; ApplyFilter(); }
+        bool IsFilterEnabled() const { return filterEnabled_; }
+        void SetEditText(const std::wstring& text) {
+            editText_ = text;
+            caretPos_ = (int)editText_.size();
+            if (filterEnabled_) ApplyFilter(); else RequestRepaint();
+        }
+        std::wstring GetEditText() const { return editText_; }
+        bool IsFocusable() const override { return editable_; }
+        static std::wstring ToLower(std::wstring s) { for (auto& c : s) if (c >= L'A' && c <= L'Z') c = (wchar_t)(c + 32); return s; }
+        void ApplyFilter() {
+            if (!filterEnabled_ || editText_.empty()) items_ = allItems_;
+            else {
+                std::wstring key = ToLower(editText_);
+                items_.clear();
+                for (auto& s : allItems_) if (ToLower(s).find(key) != std::wstring::npos) items_.push_back(s);
+            }
+            disabledItems_.clear();
+            selectedIndex_ = items_.empty() ? -1 : 0;
+            UpdateIndicatorPosition();
+            InvalidateLayout();
+            RequestRepaint();
+        }
+
+        // ---------- 数据操作 / 占位符 / 每项禁用 / 开合信号 / 最大可见项 ----------
+        void InsertItem(int index, const std::wstring& item) {
+            index = max(0, min((int)allItems_.size(), index));
+            allItems_.insert(allItems_.begin() + index, item);
+            ApplyFilter();
+        }
+        void RemoveItemAt(int index) {
+            if (index < 0 || index >= (int)allItems_.size()) return;
+            allItems_.erase(allItems_.begin() + index);
+            ApplyFilter();
+        }
+        void RemoveItem(const std::wstring& item) {
+            for (int i = 0; i < (int)allItems_.size(); ++i) if (allItems_[i] == item) { RemoveItemAt(i); return; }
+        }
+        void ClearItems() { allItems_.clear(); items_.clear(); disabledItems_.clear(); selectedIndex_ = -1; UpdateIndicatorPosition(); InvalidateLayout(); RequestRepaint(); }
+        int GetItemCount() const { return (int)items_.size(); }
+        std::wstring GetItemAt(int index) const { return (index >= 0 && index < (int)items_.size()) ? items_[index] : L""; }
+        const std::vector<std::wstring>& GetItems() const { return items_; }
+        void SetItemDisabled(int index, bool disabled = true) {
+            if (index < 0 || index >= (int)items_.size()) return;
+            if ((int)disabledItems_.size() < (int)items_.size()) disabledItems_.resize(items_.size(), false);
+            disabledItems_[index] = disabled;
+            RequestRepaint();
+        }
+        bool IsItemDisabled(int index) const { return index >= 0 && index < (int)disabledItems_.size() && disabledItems_[index]; }
+        void SetPlaceholder(const std::wstring& placeholder) { placeholder_ = placeholder; RequestRepaint(); }
+        const std::wstring& GetPlaceholder() const { return placeholder_; }
+        void SetMaxVisibleItems(int count) { maxVisibleItems_ = max(0, count); InvalidateLayout(); RequestRepaint(); }
+        int GetMaxVisibleItems() const { return maxVisibleItems_; }
+        void Expand() { ExpandInternal(); }
+        void SetOpen(bool open) { if (open) ExpandInternal(); else CollapseInternal(); }
+        ZSignal<> DropDownOpened;
+        ZSignal<> DropDownClosed;
 
         bool IsPointInExpandedList(float x, float y) const {
             if (!expanded_ && expandProgress_ <= 0.01f) return false;
@@ -1253,13 +1444,31 @@ namespace ZUI {
             else borderBrush_->SetColor(borderColor_);
             if (borderBrush_) rt->DrawRoundedRectangle(D2D1::RoundedRect(arrangedRect_.ToD2D(), 4, 4), borderBrush_.Get(), 1.0f);
 
-            if (selectedIndex_ >= 0 && fmt) {
+            if (fmt) {
+                bool hasSel = selectedIndex_ >= 0 && selectedIndex_ < (int)items_.size();
                 if (!textBrush_) rt->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0, 1), textBrush_.GetAddressOf());
                 else textBrush_->SetColor(D2D1::ColorF(0, 0, 0, 1));
                 if (textBrush_) {
                     D2D1_RECT_F txtRect = D2D1::RectF(arrangedRect_.x + 8, arrangedRect_.y,
                         arrangedRect_.x + arrangedRect_.width - 28, arrangedRect_.y + arrangedRect_.height);
-                    rt->DrawText(items_[selectedIndex_].c_str(), (UINT32)items_[selectedIndex_].length(), fmt, txtRect, textBrush_.Get());
+                    std::wstring disp = editable_ ? editText_ : (hasSel ? items_[selectedIndex_] : L"");
+                    if (!disp.empty()) {
+                        rt->DrawText(disp.c_str(), (UINT32)disp.length(), fmt, txtRect, textBrush_.Get());
+                    }
+                    else if (!placeholder_.empty()) {
+                        textBrush_->SetColor(D2D1::ColorF(0.6f, 0.6f, 0.6f, 1.0f));
+                        rt->DrawText(placeholder_.c_str(), (UINT32)placeholder_.length(), fmt, txtRect, textBrush_.Get());
+                    }
+                    if (editable_ && focused_ && showCursor_) {
+                        float cx = arrangedRect_.x + 8 + MeasureEditX(caretPos_);
+                        float maxX = arrangedRect_.x + arrangedRect_.width - 30.0f;
+                        if (cx > maxX) cx = maxX;
+                        if (cx < arrangedRect_.x + 8) cx = arrangedRect_.x + 8;
+                        if (!caretBrush_) rt->CreateSolidColorBrush(D2D1::ColorF(0.1f, 0.1f, 0.1f, 1), caretBrush_.GetAddressOf());
+                        if (caretBrush_)
+                            rt->DrawLine(D2D1::Point2F(cx, arrangedRect_.y + 4),
+                                D2D1::Point2F(cx, arrangedRect_.y + arrangedRect_.height - 4), caretBrush_.Get(), 1.5f);
+                    }
                 }
             }
 
@@ -1278,7 +1487,9 @@ namespace ZUI {
             if (expandProgress_ <= 0.01f || items_.empty() || !fmt) return;
 
             float fullListHeight = (float)items_.size() * listItemHeight_;
-            float currentListHeight = fullListHeight * expandProgress_;
+            float visibleListHeight = fullListHeight;
+            if (maxVisibleItems_ > 0) visibleListHeight = min(fullListHeight, maxVisibleItems_ * listItemHeight_);
+            float currentListHeight = visibleListHeight * expandProgress_;
 
             D2D1_SIZE_F rtSize = rt->GetSize();
             float windowHeightDip = rtSize.height;
@@ -1360,18 +1571,20 @@ namespace ZUI {
                 bool isSelected = (i == selectedIndex_);
                 bool isHovered = (i == hoveredItemIndex_);
                 bool isPressed = (i == pressedItemIndex_);
+                bool isDisabled = IsItemDisabled(i);
                 D2D1_COLOR_F itemBgCol = D2D1::ColorF(1, 1, 1, 1);
                 if (isSelected) itemBgCol = D2D1::ColorF(0.9f, 0.9f, 0.9f, 1);
-                if (isHovered) itemBgCol = hoverItemColor_;
-                if (isPressed) itemBgCol = D2D1::ColorF(0.7f, 0.7f, 0.7f, 1);
-                if (isSelected && isHovered && !isPressed) itemBgCol = D2D1::ColorF(0.8f, 0.8f, 0.8f, 1);
+                if (isHovered && !isDisabled) itemBgCol = hoverItemColor_;
+                if (isPressed && !isDisabled) itemBgCol = D2D1::ColorF(0.7f, 0.7f, 0.7f, 1);
+                if (isSelected && isHovered && !isPressed && !isDisabled) itemBgCol = D2D1::ColorF(0.8f, 0.8f, 0.8f, 1);
 
                 if (!itemBgBrush_) rt->CreateSolidColorBrush(itemBgCol, &itemBgBrush_);
                 else itemBgBrush_->SetColor(itemBgCol);
                 rt->FillRectangle(itemRect, itemBgBrush_.Get());
 
-                if (!itemTextBrush_) rt->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0, 1), &itemTextBrush_);
-                else itemTextBrush_->SetColor(D2D1::ColorF(0, 0, 0, 1));
+                D2D1_COLOR_F itemTextCol = isDisabled ? D2D1::ColorF(0.65f, 0.65f, 0.65f, 1) : D2D1::ColorF(0, 0, 0, 1);
+                if (!itemTextBrush_) rt->CreateSolidColorBrush(itemTextCol, &itemTextBrush_);
+                else itemTextBrush_->SetColor(itemTextCol);
                 D2D1_RECT_F textRect = D2D1::RectF(itemRect.left + 12, itemRect.top, itemRect.right - 4, itemRect.bottom);
                 rt->DrawText(items_[i].c_str(), (UINT32)items_[i].length(), fmt, textRect, itemTextBrush_.Get());
             }
@@ -1424,6 +1637,11 @@ namespace ZUI {
             indicatorY_ += (targetIndicatorY_ - indicatorY_) * lerpFactor;
             if (fabs(indicatorY_ - targetIndicatorY_) < 0.01f) indicatorY_ = targetIndicatorY_;
 
+            if (editable_ && focused_) {
+                cursorBlinkTime_ += deltaTime;
+                if (cursorBlinkTime_ >= cursorBlinkInterval_) { cursorBlinkTime_ = 0.0f; showCursor_ = !showCursor_; RequestRepaint(); }
+            }
+
             if (HasActiveAnimation()) RequestRepaint();
             ConvergeValue(expandProgress_, expanded_ ? 1.0f : 0.0f, 0.001f);
             ConvergeValue(hoverProgress_, hovered_ ? 1.0f : 0.0f, 0.001f);
@@ -1434,7 +1652,8 @@ namespace ZUI {
             const float epsilon = 0.001f;
             return (expanded_ ? (expandProgress_ < 1.0f - epsilon) : (expandProgress_ > epsilon)) ||
                 (hovered_ ? (hoverProgress_ < 1.0f - epsilon) : (hoverProgress_ > epsilon)) ||
-                (fabs(indicatorY_ - targetIndicatorY_) > 0.01f);
+                (fabs(indicatorY_ - targetIndicatorY_) > 0.01f) ||
+                (editable_ && focused_ && cursorBlinkInterval_ > 0.0f);
         }
 
         void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
@@ -1476,6 +1695,7 @@ namespace ZUI {
                 else if (insideSelf) {
                     pressedOnSelf_ = true;
                     pressedItemIndex_ = -1;
+                    PlaceCaretFromX(x);
                     RequestRepaint();
                 }
                 else {
@@ -1485,18 +1705,8 @@ namespace ZUI {
                 return;
             }
 
-            expanded_ = true;
-            justExpanded_ = true;
-            float fullListHeight = (float)items_.size() * listItemHeight_;
-            expandUp_ = false;
-            AcquireControlCapture();
-            hoveredItemIndex_ = -1;
-            pressedItemIndex_ = -1;
-            pressedOnSelf_ = false;
-            listScrollOffset_ = 0.0f;
-            listViewHeight_ = fullListHeight;
-            RequestRepaint();
-            InvalidateLayout();
+            ExpandInternal();
+            PlaceCaretFromX(x);
             if (MouseDownHandler) MouseDownHandler(x, y);
         }
 
@@ -1510,12 +1720,13 @@ namespace ZUI {
             if (expanded_) {
                 if (pressedItemIndex_ >= 0) {
                     int idx = GetItemIndexFromPoint(x, y);
-                    if (idx == pressedItemIndex_) {
+                    if (idx == pressedItemIndex_ && !IsItemDisabled(idx)) {
                         if (selectedIndex_ != idx) {
                             selectedIndex_ = idx;
                             UpdateIndicatorPosition();
                             SelectionChanged(selectedIndex_);
                         }
+                        if (editable_) { editText_ = items_[idx]; caretPos_ = (int)editText_.size(); }
                     }
                 }
                 CollapseInternal();
@@ -1534,11 +1745,46 @@ namespace ZUI {
         }
 
         void OnKeyDown(WPARAM key, LPARAM lParam) override {
+            if (editable_) {
+                switch (key) {
+                case VK_BACK:
+                    if (caretPos_ > 0 && !editText_.empty()) {
+                        editText_.erase(caretPos_ - 1, 1);
+                        caretPos_--;
+                        ResetCursorBlink();
+                        if (filterEnabled_) ApplyFilter(); else RequestRepaint();
+                    }
+                    if (KeyDownHandler) KeyDownHandler(key, lParam);
+                    return;
+                case VK_DELETE:
+                    if (caretPos_ >= 0 && caretPos_ < (int)editText_.size()) {
+                        editText_.erase(caretPos_, 1);
+                        ResetCursorBlink();
+                        if (filterEnabled_) ApplyFilter(); else RequestRepaint();
+                    }
+                    return;
+                case VK_LEFT: caretPos_ = max(0, caretPos_ - 1); ResetCursorBlink(); RequestRepaint(); return;
+                case VK_RIGHT: caretPos_ = min((int)editText_.size(), caretPos_ + 1); ResetCursorBlink(); RequestRepaint(); return;
+                case VK_HOME: caretPos_ = 0; ResetCursorBlink(); RequestRepaint(); return;
+                case VK_END: caretPos_ = (int)editText_.size(); ResetCursorBlink(); RequestRepaint(); return;
+                case VK_RETURN:
+                    if (expanded_ && selectedIndex_ >= 0 && selectedIndex_ < (int)items_.size()) {
+                        editText_ = items_[selectedIndex_];
+                        caretPos_ = (int)editText_.size();
+                    }
+                    CollapseInternal();
+                    RequestRepaint();
+                    return;
+                case VK_ESCAPE: CollapseInternal(); return;
+                default: break;
+                }
+            }
             if (expanded_) {
                 if (key == VK_ESCAPE) { CollapseInternal(); return; }
                 if (key == VK_UP || key == VK_DOWN) {
                     int step = (key == VK_UP) ? -1 : 1;
                     int newIdx = selectedIndex_ + step;
+                    while (newIdx >= 0 && newIdx < (int)items_.size() && IsItemDisabled(newIdx)) newIdx += step;
                     if (newIdx >= 0 && newIdx < (int)items_.size()) SetSelectedIndex(newIdx);
                     return;
                 }
@@ -1547,10 +1793,26 @@ namespace ZUI {
             if (KeyDownHandler) KeyDownHandler(key, lParam);
         }
 
-        void OnFocus() override { if (FocusHandler) FocusHandler(); }
+        void OnFocus() override { focused_ = true; ResetCursorBlink(); RequestRepaint(); if (FocusHandler) FocusHandler(); }
         void OnBlur() override {
+            focused_ = false;
             if (expanded_) CollapseInternal();
+            RequestRepaint();
             if (BlurHandler) BlurHandler();
+        }
+        void OnChar(wchar_t ch) override {
+            if (!editable_ || !focused_) return;
+            if (ch < 32 || ch == L'\r' || ch == L'\n') return;
+            if (caretPos_ < 0) caretPos_ = 0;
+            if (caretPos_ > (int)editText_.size()) caretPos_ = (int)editText_.size();
+            editText_.insert(caretPos_, 1, ch);
+            caretPos_++;
+            ResetCursorBlink();
+            if (filterEnabled_) {
+                ApplyFilter();
+                if (!expanded_ && !items_.empty()) ExpandInternal();
+            }
+            else RequestRepaint();
         }
 
         void CollectExpandedComboBoxes(std::vector<ComboBox*>& list) override {
@@ -1560,11 +1822,50 @@ namespace ZUI {
         void ReleaseDeviceResources() override {
             bgBrush_.Reset(); borderBrush_.Reset(); textBrush_.Reset(); arrowBrush_.Reset();
             listBgBrush_.Reset(); listBorderBrush_.Reset(); itemBgBrush_.Reset(); itemTextBrush_.Reset();
-            scrollTrackBrush_.Reset(); scrollThumbBrush_.Reset(); indicatorBrush_.Reset();
+            scrollTrackBrush_.Reset(); scrollThumbBrush_.Reset(); indicatorBrush_.Reset(); caretBrush_.Reset();
             UIElement::ReleaseDeviceResources();
         }
 
     private:
+        float MeasureEditX(int index) const {
+            if (editText_.empty()) return 0.0f;
+            if (index < 0) index = 0;
+            if (index > (int)editText_.size()) index = (int)editText_.size();
+            IDWriteFactory* factory = FontManager::Instance().GetFactory();
+            IDWriteTextFormat* efmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+            if (!factory || !efmt) return index * 7.0f;
+            ComPtr<IDWriteTextLayout> layout;
+            factory->CreateTextLayout(editText_.c_str(), (UINT32)editText_.length(), efmt, 10000.0f, 100.0f, &layout);
+            if (!layout) return index * 7.0f;
+            DWRITE_HIT_TEST_METRICS m{};
+            float x = 0.0f, y = 0.0f;
+            layout->HitTestTextPosition((UINT32)index, false, &x, &y, &m);
+            return x;
+        }
+        int EditIndexFromX(float localX) const {
+            if (editText_.empty()) return 0;
+            IDWriteFactory* factory = FontManager::Instance().GetFactory();
+            IDWriteTextFormat* efmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+            if (!factory || !efmt) return (int)(localX / 7.0f);
+            ComPtr<IDWriteTextLayout> layout;
+            factory->CreateTextLayout(editText_.c_str(), (UINT32)editText_.length(), efmt, 10000.0f, 100.0f, &layout);
+            if (!layout) return (int)(localX / 7.0f);
+            BOOL trailing = FALSE, inside = FALSE;
+            DWRITE_HIT_TEST_METRICS m{};
+            layout->HitTestPoint(localX, 5.0f, &trailing, &inside, &m);
+            int pos = (int)m.textPosition;
+            if (trailing) pos += (int)m.length;
+            if (pos < 0) pos = 0;
+            if (pos > (int)editText_.size()) pos = (int)editText_.size();
+            return pos;
+        }
+        void ResetCursorBlink() { showCursor_ = true; cursorBlinkTime_ = 0.0f; }
+        void PlaceCaretFromX(float x) {
+            if (!editable_) return;
+            caretPos_ = EditIndexFromX(x - (arrangedRect_.x + 8));
+            ResetCursorBlink();
+        }
+
         void UpdateIndicatorPosition() {
             if (selectedIndex_ >= 0 && selectedIndex_ < (int)items_.size()) {
                 targetIndicatorY_ = selectedIndex_ * listItemHeight_;
@@ -1600,6 +1901,24 @@ namespace ZUI {
             }
         }
 
+        void ExpandInternal() {
+            if (expanded_ || items_.empty()) return;
+            expanded_ = true;
+            justExpanded_ = true;
+            expandUp_ = false;
+            AcquireControlCapture();
+            hoveredItemIndex_ = -1;
+            pressedItemIndex_ = -1;
+            pressedOnSelf_ = false;
+            listScrollOffset_ = 0.0f;
+            float fullListHeight = (float)items_.size() * listItemHeight_;
+            if (maxVisibleItems_ > 0) fullListHeight = min(fullListHeight, maxVisibleItems_ * listItemHeight_);
+            listViewHeight_ = fullListHeight;
+            InvalidateLayout();
+            RequestRepaint();
+            DropDownOpened();
+        }
+
         void CollapseInternal() {
             bool wasExpanded = expanded_;
             expanded_ = false;
@@ -1614,10 +1933,24 @@ namespace ZUI {
             if (wasExpanded) {
                 InvalidateLayout();
                 RequestRepaint();
+                DropDownClosed();
             }
         }
 
         std::vector<std::wstring> items_;
+        std::vector<std::wstring> allItems_;
+        std::vector<bool> disabledItems_;
+        std::wstring placeholder_;
+        int maxVisibleItems_ = 0;
+        bool editable_ = false;
+        bool filterEnabled_ = false;
+        std::wstring editText_;
+        int caretPos_ = 0;
+        bool focused_ = false;
+        bool showCursor_ = true;
+        float cursorBlinkTime_ = 0.0f;
+        float cursorBlinkInterval_ = 0.5f;
+        ComPtr<ID2D1SolidColorBrush> caretBrush_;
         int selectedIndex_;
         bool expanded_;
         float expandProgress_;
@@ -1675,6 +2008,7 @@ namespace ZUI {
         inline static float DefaultHeight = 24.0f;
         inline static float DefaultHorizontalStretchWeight = 0.0f;
         inline static float DefaultVerticalStretchWeight = 0.0f;
+        inline static Color DefaultDisabledColor = Color::FromArgb(255, 224, 224, 224);
 
         ZSignal<bool> Toggled;
 
@@ -1694,6 +2028,12 @@ namespace ZUI {
         bool IsOn() const { return isOn_; }
         void SetColors(Color on, Color off, Color knob) { onColor_ = on; offColor_ = off; knobColor_ = knob; trackBrush_.Reset(); knobBrush_.Reset(); RequestRepaint(); }
         void SetAnimationSpeed(float speed) { animSpeed_ = speed; }
+        void SetSize(float w, float h) { width_ = w; height_ = h; InvalidateLayout(); RequestRepaint(); }
+        void SetIndeterminate(bool ind) { indeterminate_ = ind; RequestRepaint(); }
+        bool IsIndeterminate() const { return indeterminate_; }
+        void SetLabel(const std::wstring& text) { label_ = text; InvalidateLayout(); RequestRepaint(); }
+        std::wstring GetLabel() const { return label_; }
+        void SetLabelColor(Color c) { labelColor_ = c.ToD2D(); labelBrush_.Reset(); RequestRepaint(); }
 
         static void SetDefaultAnimationSpeed(float speed) { DefaultAnimationSpeed = speed; }
         static void SetDefaultColors(Color on, Color off, Color knob) { DefaultOnColor = on; DefaultOffColor = off; DefaultKnobColor = knob; }
@@ -1707,36 +2047,58 @@ namespace ZUI {
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
 
         void Arrange(const Rect& finalRect) override {
-            arrangedRect_ = Rect(finalRect.x, finalRect.y, width_, height_);
+            float tw = width_, th = height_;
+            float w = label_.empty() ? tw : finalRect.width;
+            float h = max(th, finalRect.height);
+            UIElement::Arrange(Rect(finalRect.x, finalRect.y, w, h));
+            float ty = finalRect.y + (h - th) / 2.0f;
+            trackRect_ = Rect(finalRect.x, ty, tw, th);
             layoutDirty_ = false;
         }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        Size Measure(const Size& availableSize) override {
+            float tw = width_, th = height_;
+            if (label_.empty()) return Size(tw, th);
+            auto fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+            ComPtr<IDWriteTextLayout> layout;
+            if (fmt) FontManager::Instance().GetFactory()->CreateTextLayout(label_.c_str(), (UINT32)label_.length(), fmt, 10000.0f, 100.0f, &layout);
+            DWRITE_TEXT_METRICS tm{};
+            if (layout) layout->GetMetrics(&tm);
+            return Size(tw + 6.0f + tm.width, max(th, tm.height));
+        }
 
         void Draw(ID2D1RenderTarget* rt) override {
             if (!visible_) return;
-
-            Color trackColor = Color::Lerp(offColor_, onColor_, toggleProgress_);
+            bool en = IsEffectivelyEnabled();
+            Rect& tr = trackRect_;
+            Color trackColor = en ? Color::Lerp(offColor_, onColor_, toggleProgress_) : DefaultDisabledColor;
             if (!trackBrush_) rt->CreateSolidColorBrush(trackColor.ToD2D(), trackBrush_.GetAddressOf());
             else trackBrush_->SetColor(trackColor.ToD2D());
+            if (trackBrush_) rt->FillRoundedRectangle(D2D1::RoundedRect(tr.ToD2D(), tr.height / 2, tr.height / 2), trackBrush_.Get());
 
-            if (trackBrush_) rt->FillRoundedRectangle(D2D1::RoundedRect(arrangedRect_.ToD2D(), height_ / 2, height_ / 2), trackBrush_.Get());
-
-            float knobSize = height_ - 4 + hoverProgress_ * 2.0f;
-            float knobX = arrangedRect_.x + 2 + (arrangedRect_.width - 4 - knobSize) * toggleProgress_;
-            Rect knobRect(knobX, arrangedRect_.y + (height_ - knobSize) / 2, knobSize, knobSize);
+            float knobSize = tr.height - 4 + hoverProgress_ * 2.0f;
+            float knobX = tr.x + 2 + (tr.width - 4 - knobSize) * toggleProgress_;
+            Rect knobRect(knobX, tr.y + (tr.height - knobSize) / 2, knobSize, knobSize);
 
             if (!knobBrush_) rt->CreateSolidColorBrush(knobColor_.ToD2D(), knobBrush_.GetAddressOf());
             else knobBrush_->SetColor(knobColor_.ToD2D());
-
             if (knobBrush_) {
                 D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F(knobRect.x + knobRect.width / 2, knobRect.y + knobRect.height / 2), knobSize / 2, knobSize / 2);
                 rt->FillEllipse(ellipse, knobBrush_.Get());
             }
+
+            if (!label_.empty()) {
+                auto fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+                D2D1_COLOR_F lc = en ? labelColor_ : D2D1::ColorF(0.55f, 0.55f, 0.55f, 1.0f);
+                if (!labelBrush_) rt->CreateSolidColorBrush(lc, labelBrush_.GetAddressOf());
+                else labelBrush_->SetColor(lc);
+                D2D1_RECT_F lr = D2D1::RectF(tr.x + tr.width + 6.0f, arrangedRect_.y, arrangedRect_.x + arrangedRect_.width, arrangedRect_.y + arrangedRect_.height);
+                if (fmt && labelBrush_) rt->DrawText(label_.c_str(), (UINT32)label_.length(), fmt, lr, labelBrush_.Get());
+            }
         }
 
         void UpdateAnimation(float deltaTime) override {
-            float target = isOn_ ? 1.0f : 0.0f;
+            float target = indeterminate_ ? 0.5f : (isOn_ ? 1.0f : 0.0f);
             if (toggleProgress_ < target) { toggleProgress_ += animSpeed_ * deltaTime; if (toggleProgress_ > target) toggleProgress_ = target; }
             else if (toggleProgress_ > target) { toggleProgress_ -= animSpeed_ * deltaTime; if (toggleProgress_ < target) toggleProgress_ = target; }
             float hoverTarget = hovered_ ? 1.0f : 0.0f;
@@ -1744,28 +2106,37 @@ namespace ZUI {
             else if (hoverProgress_ > hoverTarget) { hoverProgress_ -= animSpeed_ * deltaTime; if (hoverProgress_ < hoverTarget) hoverProgress_ = hoverTarget; }
 
             if (HasActiveAnimation()) RequestRepaint();
-            ConvergeValue(toggleProgress_, isOn_ ? 1.0f : 0.0f, 0.001f);
+            ConvergeValue(toggleProgress_, indeterminate_ ? 0.5f : (isOn_ ? 1.0f : 0.0f), 0.001f);
             ConvergeValue(hoverProgress_, hovered_ ? 1.0f : 0.0f, 0.001f);
         }
 
         bool HasActiveAnimation() const override {
             const float epsilon = 0.001f;
-            return (isOn_ ? (toggleProgress_ < 1.0f - epsilon) : (toggleProgress_ > epsilon)) ||
+            float tk = indeterminate_ ? 0.5f : (isOn_ ? 1.0f : 0.0f);
+            return (fabs(toggleProgress_ - tk) > epsilon) ||
                 (hovered_ ? (hoverProgress_ < 1.0f - epsilon) : (hoverProgress_ > epsilon));
         }
 
-        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
+        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
         void OnMouseLeave() override { hovered_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
         void OnMouseDown(float x, float y) override {
+            if (!IsEffectivelyEnabled()) return;
+            indeterminate_ = false;
             isOn_ = !isOn_;
             Toggled(isOn_);
             RequestRepaint();
             if (MouseDownHandler) MouseDownHandler(x, y);
         }
+        bool IsFocusable() const override { return true; }
+        void OnKeyDown(WPARAM key, LPARAM lParam) override {
+            if (!IsEffectivelyEnabled()) return;
+            if (key == VK_SPACE || key == VK_RETURN) { indeterminate_ = false; isOn_ = !isOn_; Toggled(isOn_); RequestRepaint(); }
+        }
 
         void ReleaseDeviceResources() override {
             trackBrush_.Reset();
             knobBrush_.Reset();
+            labelBrush_.Reset();
             UIElement::ReleaseDeviceResources();
         }
 
@@ -1774,8 +2145,14 @@ namespace ZUI {
         float hoverProgress_, toggleProgress_;
         Color onColor_, offColor_, knobColor_;
         float animSpeed_;
+        bool indeterminate_ = false;
+        std::wstring label_;
+        D2D1_COLOR_F labelColor_ = D2D1::ColorF(0.15f, 0.15f, 0.15f, 1.0f);
+        D2D1_RECT_F trackRectD2D_ = D2D1::RectF(0, 0, 0, 0);
+        Rect trackRect_;
         ComPtr<ID2D1SolidColorBrush> trackBrush_;
         ComPtr<ID2D1SolidColorBrush> knobBrush_;
+        ComPtr<ID2D1SolidColorBrush> labelBrush_;
     };
 
     // ==================== 滚动容器（ScrollViewer） ====================
@@ -2078,6 +2455,24 @@ namespace ZUI {
         void SetScrollBarHitExtra(float extra) { scrollBarHitExtra_ = extra; }
         float GetScrollBarHitExtra() const { return scrollBarHitExtra_; }
 
+        // ---------- 可见性策略 / 事件 / 偏移 / 实例颜色 / 内边距 ----------
+        enum class ScrollBarVisibility { Auto, Always, Hidden };
+        void SetVerticalScrollBarVisibility(ScrollBarVisibility v) { vVisibility_ = v; allowVerticalScroll_ = (v != ScrollBarVisibility::Hidden); InvalidateLayout(); RequestRepaint(); }
+        void SetHorizontalScrollBarVisibility(ScrollBarVisibility v) { hVisibility_ = v; allowHorizontalScroll_ = (v != ScrollBarVisibility::Hidden); InvalidateLayout(); RequestRepaint(); }
+        ScrollBarVisibility GetVerticalScrollBarVisibility() const { return vVisibility_; }
+        ScrollBarVisibility GetHorizontalScrollBarVisibility() const { return hVisibility_; }
+        float GetScrollOffsetX() const { return scrollOffsetX_; }
+        float GetScrollOffsetY() const { return scrollOffsetY_; }
+        void SetScrollBarColors(Color track, Color thumb, Color hoverThumb) {
+            trackColor_ = track.ToD2D(); thumbColor_ = thumb.ToD2D(); hoverThumbColor_ = hoverThumb.ToD2D();
+            trackBrush_.Reset(); thumbBrush_.Reset(); RequestRepaint();
+            if (vScrollBar_) vScrollBar_->RequestRepaint();
+            if (hScrollBar_) hScrollBar_->RequestRepaint();
+        }
+        void SetContentMargin(const Thickness& m) { contentMargin_ = m; InvalidateLayout(); RequestRepaint(); }
+        Thickness GetContentMargin() const { return contentMargin_; }
+        ZSignal<float, float> ScrollChanged;   // 偏移变化 (x, y)
+
         static void SetDefaultScrollBarWidth(float width) { DefaultScrollBarWidth = width; }
         static void SetDefaultScrollBarMinLength(float length) { DefaultScrollBarMinLength = length; }
         static void SetDefaultScrollWheelStep(float step) { DefaultScrollWheelStep = step; }
@@ -2189,15 +2584,15 @@ namespace ZUI {
             // 无需绘制任何内容，子元素（内容、滚动条）会被 Window 自动绘制
         }
 
-        std::vector<UIElement*> GetChildren() const override {
-            std::vector<UIElement*> result;
+        const std::vector<UIElement*>& GetChildren() const override {
+            childrenView_.clear();
             if (content_ && content_->IsVisible())
-                result.push_back(content_.get());
+                childrenView_.push_back(content_.get());
             if (vScrollBar_ && vScrollBar_->IsVisible())
-                result.push_back(vScrollBar_.get());
+                childrenView_.push_back(vScrollBar_.get());
             if (hScrollBar_ && hScrollBar_->IsVisible())
-                result.push_back(hScrollBar_.get());
-            return result;
+                childrenView_.push_back(hScrollBar_.get());
+            return childrenView_;
         }
 
         // 修改：裁剪区域返回整个控件区域，避免滚动条被裁剪
@@ -2319,6 +2714,8 @@ namespace ZUI {
                 // 显式请求滚动条重绘，确保滑块同步
                 if (vScrollBar_) vScrollBar_->RequestRepaint();
                 if (hScrollBar_) hScrollBar_->RequestRepaint();
+                lastScrollX_ = scrollOffsetX_; lastScrollY_ = scrollOffsetY_;
+                ScrollChanged(scrollOffsetX_, scrollOffsetY_);
             }
 
             // 更新 hover 动画进度（平滑扩张/收缩）
@@ -2367,7 +2764,8 @@ namespace ZUI {
             float viewportHeight = lastArrangeRect_.height - (showHorizontalScrollBar_ ? scrollBarWidth_ : 0);
             float contentWidth = max(contentDesiredSize_.width, viewportWidth);
             float contentHeight = max(contentDesiredSize_.height, viewportHeight);
-            Rect contentRect(lastArrangeRect_.x - Snap(scrollOffsetX_), lastArrangeRect_.y - Snap(scrollOffsetY_), contentWidth, contentHeight);
+            Rect contentRect(lastArrangeRect_.x - Snap(scrollOffsetX_) + contentMargin_.left,
+                lastArrangeRect_.y - Snap(scrollOffsetY_) + contentMargin_.top, contentWidth, contentHeight);
             content_->Arrange(contentRect);
         }
 
@@ -2377,20 +2775,14 @@ namespace ZUI {
             if (!content_) return;
             float viewportWidth = availWidth - scrollBarWidth_;
             float viewportHeight = availHeight - scrollBarWidth_;
-            if (allowVerticalScroll_ && contentDesiredSize_.height > viewportHeight) {
-                showVerticalScrollBar_ = true;
-                viewportWidth = availWidth - scrollBarWidth_;
-            }
-            if (allowHorizontalScroll_ && contentDesiredSize_.width > viewportWidth) {
-                showHorizontalScrollBar_ = true;
-                viewportHeight = availHeight - scrollBarWidth_;
-            }
-            if (showHorizontalScrollBar_ && allowVerticalScroll_ && contentDesiredSize_.height > viewportHeight) {
-                showVerticalScrollBar_ = true;
-            }
-            if (showVerticalScrollBar_ && allowHorizontalScroll_ && contentDesiredSize_.width > (availWidth - scrollBarWidth_)) {
-                showHorizontalScrollBar_ = true;
-            }
+            bool wantV = (vVisibility_ == ScrollBarVisibility::Always) ? true
+                : (allowVerticalScroll_ && contentDesiredSize_.height > viewportHeight);
+            bool wantH = (hVisibility_ == ScrollBarVisibility::Always) ? true
+                : (allowHorizontalScroll_ && contentDesiredSize_.width > viewportWidth);
+            if (wantV) { showVerticalScrollBar_ = true; viewportWidth = availWidth - scrollBarWidth_; }
+            if (wantH) { showHorizontalScrollBar_ = true; viewportHeight = availHeight - scrollBarWidth_; }
+            if (!wantV && allowVerticalScroll_ && contentDesiredSize_.height > viewportHeight) showVerticalScrollBar_ = true;
+            if (!wantH && allowHorizontalScroll_ && contentDesiredSize_.width > viewportWidth) showHorizontalScrollBar_ = true;
         }
 
         // 成员变量
@@ -2417,6 +2809,10 @@ namespace ZUI {
         bool isVerticalHovered_, isHorizontalHovered_;
         float verticalHoverProgress_, horizontalHoverProgress_;
         float scrollBarHitExtra_;
+        ScrollBarVisibility vVisibility_ = ScrollBarVisibility::Auto;
+        ScrollBarVisibility hVisibility_ = ScrollBarVisibility::Auto;
+        Thickness contentMargin_;
+        float lastScrollX_ = -1.0f, lastScrollY_ = -1.0f;
         Rect lastArrangeRect_;
         ComPtr<ID2D1SolidColorBrush> trackBrush_;
         ComPtr<ID2D1SolidColorBrush> thumbBrush_;
@@ -2438,6 +2834,8 @@ namespace ZUI {
         inline static float DefaultHorizontalStretchWeight = 1.0f;
         inline static float DefaultVerticalStretchWeight = 0.0f;
 
+        ZSignal<float> ValueChanged;
+
         ProgressBar() : value_(0.0f), indeterminate_(false),
             indeterminatePos_(-40.0f),
             indeterminateSpeed_(DefaultIndeterminateSpeed),
@@ -2446,8 +2844,16 @@ namespace ZUI {
             width_ = DefaultWidth; height_ = DefaultHeight;
         }
 
-        void SetValue(float value) { value_ = clamp(value, 0.0f, 1.0f); indeterminate_ = false; RequestRepaint(); }
+        void SetValue(float value) { value_ = clamp(value, 0.0f, 1.0f); indeterminate_ = false; ValueChanged(GetRangeValue()); RequestRepaint(); }
         float GetValue() const { return value_; }
+        void SetRange(float min, float max) { if (max > min) { min_ = min; max_ = max; } else { min_ = min; max_ = min + 1.0f; } RequestRepaint(); }
+        float GetMin() const { return min_; }
+        float GetMax() const { return max_; }
+        void SetRangeValue(float v) { value_ = clamp((v - min_) / (max_ - min_), 0.0f, 1.0f); indeterminate_ = false; ValueChanged(GetRangeValue()); RequestRepaint(); }
+        float GetRangeValue() const { return min_ + value_ * (max_ - min_); }
+        void SetShowText(bool show) { showText_ = show; RequestRepaint(); }
+        bool IsShowText() const { return showText_; }
+        void SetTextColor(Color c) { textColor_ = c.ToD2D(); textBrush_.Reset(); RequestRepaint(); }
         void SetIndeterminate(bool indeterminate) { indeterminate_ = indeterminate; if (indeterminate_) { value_ = 0.0f; indeterminatePos_ = -indeterminateBlockWidth_; } RequestRepaint(); }
         bool IsIndeterminate() const { return indeterminate_; }
         void SetTrackColor(Color color) { trackColor_ = color.ToD2D(); trackBrush_.Reset(); RequestRepaint(); }
@@ -2500,6 +2906,21 @@ namespace ZUI {
             DrawFillContent(rt);
             rt->PopLayer();
             DrawBorder(rt);
+
+            if (showText_ && !indeterminate_) {
+                auto fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+                if (fmt) {
+                    wchar_t buf[32];
+                    int pct = (int)std::round(value_ * 100.0f);
+                    swprintf(buf, 32, L"%d%%", pct);
+                    if (!textBrush_) rt->CreateSolidColorBrush(textColor_, textBrush_.GetAddressOf());
+                    else textBrush_->SetColor(textColor_);
+                    float tw = 40.0f;
+                    D2D1_RECT_F tr = D2D1::RectF(arrangedRect_.x + arrangedRect_.width / 2 - tw, arrangedRect_.y,
+                        arrangedRect_.x + arrangedRect_.width / 2 + tw, arrangedRect_.y + arrangedRect_.height);
+                    if (textBrush_) rt->DrawText(buf, (UINT32)wcslen(buf), fmt, tr, textBrush_.Get());
+                }
+            }
         }
 
         void UpdateAnimation(float deltaTime) override {
@@ -2519,7 +2940,7 @@ namespace ZUI {
         }
 
         void ReleaseDeviceResources() override {
-            trackBrush_.Reset(); fillBrush_.Reset(); borderBrush_.Reset();
+            trackBrush_.Reset(); fillBrush_.Reset(); borderBrush_.Reset(); textBrush_.Reset();
             UIElement::ReleaseDeviceResources();
         }
 
@@ -2541,8 +2962,9 @@ namespace ZUI {
                 if (fillWidth > 0.0f) {
                     float radius = height_ / 2.0f;
                     D2D1_RECT_F fillRect = D2D1::RectF(arrangedRect_.x, arrangedRect_.y, arrangedRect_.x + fillWidth, arrangedRect_.y + arrangedRect_.height);
-                    if (!fillBrush_) rt->CreateSolidColorBrush(fillColor_, fillBrush_.GetAddressOf());
-                    else fillBrush_->SetColor(fillColor_);
+                    D2D1_COLOR_F fc = IsEffectivelyEnabled() ? fillColor_ : D2D1::ColorF(0.68f, 0.68f, 0.68f, 1.0f);
+                    if (!fillBrush_) rt->CreateSolidColorBrush(fc, fillBrush_.GetAddressOf());
+                    else fillBrush_->SetColor(fc);
                     if (fillBrush_) rt->FillRoundedRectangle(D2D1::RoundedRect(fillRect, radius, radius), fillBrush_.Get());
                 }
             }
@@ -2555,6 +2977,9 @@ namespace ZUI {
 
         float value_;
         bool indeterminate_;
+        float min_ = 0.0f, max_ = 1.0f;
+        bool showText_ = false;
+        D2D1_COLOR_F textColor_ = D2D1::ColorF(0.15f, 0.15f, 0.15f, 1.0f);
         float indeterminatePos_;
         float indeterminateSpeed_;
         D2D1_COLOR_F trackColor_, fillColor_, borderColor_;
@@ -2562,6 +2987,7 @@ namespace ZUI {
         ComPtr<ID2D1SolidColorBrush> trackBrush_;
         ComPtr<ID2D1SolidColorBrush> fillBrush_;
         ComPtr<ID2D1SolidColorBrush> borderBrush_;
+        ComPtr<ID2D1SolidColorBrush> textBrush_;
     };
 
     // ---------- 滑块 ----------
@@ -2582,6 +3008,7 @@ namespace ZUI {
         inline static float DefaultVerticalStretchWeight = 0.0f;
 
         ZSignal<float> ValueChanged;
+        ZSignal<float> SliderReleased;   // 拖动结束
 
         Slider() : min_(0.0f), max_(100.0f), value_(0.0f),
             isDragging_(false), hovered_(false), hoverProgress_(0.0f),
@@ -2596,10 +3023,14 @@ namespace ZUI {
 
         void SetRange(float min, float max) { if (max > min) { min_ = min; max_ = max; } value_ = clamp(value_, min_, max_); RequestRepaint(); }
         void SetValue(float value) {
-            value_ = clamp(value, min_, max_);
+            value_ = SnapValue(clamp(value, min_, max_));
             ValueChanged(value_);
             RequestRepaint();
         }
+        void SetStep(float step) { step_ = max(0.0f, step); }
+        float GetStep() const { return step_; }
+        void SetSnapToStep(bool snap) { snapToStep_ = snap; }
+        bool IsSnapToStep() const { return snapToStep_; }
         float GetValue() const { return value_; }
         void SetTrackColor(Color color) { trackColor_ = color.ToD2D(); trackBrush_.Reset(); RequestRepaint(); }
         void SetFillColor(Color color) { fillColor_ = color.ToD2D(); fillBrush_.Reset(); RequestRepaint(); }
@@ -2633,9 +3064,11 @@ namespace ZUI {
 
             float trackY = arrangedRect_.y + (arrangedRect_.height - trackHeight_) / 2;
             float trackWidth = arrangedRect_.width;
+            bool en = IsEffectivelyEnabled();
 
-            if (!trackBrush_) rt->CreateSolidColorBrush(trackColor_, trackBrush_.GetAddressOf());
-            else trackBrush_->SetColor(trackColor_);
+            D2D1_COLOR_F tcol = en ? trackColor_ : D2D1::ColorF(0.90f, 0.90f, 0.90f, 1.0f);
+            if (!trackBrush_) rt->CreateSolidColorBrush(tcol, trackBrush_.GetAddressOf());
+            else trackBrush_->SetColor(tcol);
             if (trackBrush_) rt->FillRoundedRectangle(D2D1::RoundedRect(D2D1::RectF(arrangedRect_.x, trackY, arrangedRect_.x + trackWidth, trackY + trackHeight_), trackHeight_ / 2, trackHeight_ / 2), trackBrush_.Get());
 
             float fillRatio = (value_ - min_) / (max_ - min_);
@@ -2643,8 +3076,9 @@ namespace ZUI {
             if (fillWidth > 0) {
                 float radius = min(trackHeight_ / 2.0f, fillWidth / 2.0f);
                 D2D1_ROUNDED_RECT fillRect = D2D1::RoundedRect(D2D1::RectF(arrangedRect_.x, trackY, arrangedRect_.x + fillWidth, trackY + trackHeight_), radius, radius);
-                if (!fillBrush_) rt->CreateSolidColorBrush(fillColor_, fillBrush_.GetAddressOf());
-                else fillBrush_->SetColor(fillColor_);
+                D2D1_COLOR_F fcol = en ? fillColor_ : D2D1::ColorF(0.74f, 0.74f, 0.74f, 1.0f);
+                if (!fillBrush_) rt->CreateSolidColorBrush(fcol, fillBrush_.GetAddressOf());
+                else fillBrush_->SetColor(fcol);
                 if (fillBrush_) rt->FillRoundedRectangle(fillRect, fillBrush_.Get());
             }
 
@@ -2685,9 +3119,10 @@ namespace ZUI {
             return (hovered_ ? (hoverProgress_ < 1.0f - epsilon) : (hoverProgress_ > epsilon));
         }
 
-        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
+        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
         void OnMouseLeave() override { hovered_ = false; if (!isDragging_) { RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); } }
         void OnMouseDown(float x, float y) override {
+            if (!IsEffectivelyEnabled()) return;
             isDragging_ = true;
             UpdateValueFromMouse(x);
             RequestRepaint();
@@ -2700,9 +3135,19 @@ namespace ZUI {
         void OnMouseUp(float x, float y) override {
             if (isDragging_) {
                 isDragging_ = false;
+                SliderReleased(value_);
                 RequestRepaint();
                 if (MouseUpHandler) MouseUpHandler(x, y);
             }
+        }
+        bool IsFocusable() const override { return true; }
+        void OnKeyDown(WPARAM key, LPARAM lParam) override {
+            if (!IsEffectivelyEnabled()) return;
+            float d = (step_ > 0.0f ? step_ : (max_ - min_) / 100.0f);
+            if (key == VK_LEFT || key == VK_DOWN) SetValue(value_ - d);
+            else if (key == VK_RIGHT || key == VK_UP) SetValue(value_ + d);
+            else if (key == VK_HOME) SetValue(min_);
+            else if (key == VK_END) SetValue(max_);
         }
 
         void ReleaseDeviceResources() override {
@@ -2713,14 +3158,20 @@ namespace ZUI {
     private:
         void UpdateValueFromMouse(float mouseX) {
             float ratio = clamp((mouseX - arrangedRect_.x) / arrangedRect_.width, 0.0f, 1.0f);
-            float newValue = min_ + (max_ - min_) * ratio;
+            float newValue = SnapValue(min_ + (max_ - min_) * ratio);
             if (newValue != value_) {
                 value_ = newValue;
                 ValueChanged(value_);
             }
         }
+        float SnapValue(float v) const {
+            if (!snapToStep_ || step_ <= 0.0f) return clamp(v, min_, max_);
+            return clamp(min_ + std::round((v - min_) / step_) * step_, min_, max_);
+        }
 
         float min_, max_, value_;
+        float step_ = 0.0f;
+        bool snapToStep_ = false;
         bool isDragging_;
         bool hovered_;
         float hoverProgress_;
@@ -2734,6 +3185,239 @@ namespace ZUI {
         ComPtr<ID2D1SolidColorBrush> fillBrush_;
         ComPtr<ID2D1SolidColorBrush> thumbBrush_;
         ComPtr<ID2D1SolidColorBrush> thumbBorderBrush_;
+    };
+
+    // ==================== 勾选框 CheckBox ====================
+    // 独立控件：圆角蓝底 + 白色对勾。勾选时蓝底渐显，蓝底过半后对勾从左到右绘制。
+    // 同时提供静态 DrawBox()，供列表/表格/树等控件复用同一套视觉与动画。
+    class CheckBox : public UIElement {
+    public:
+        enum class State { Unchecked, PartiallyChecked, Checked };
+
+        inline static float DefaultSize = 16.0f;
+        inline static float DefaultCornerRadius = 4.0f;
+        inline static D2D1_COLOR_F DefaultBoxColor = D2D1::ColorF(0.0f, 0.47f, 0.84f, 1.0f);      // 蓝
+        inline static D2D1_COLOR_F DefaultBorderColor = D2D1::ColorF(0.62f, 0.62f, 0.62f, 1.0f);
+        inline static D2D1_COLOR_F DefaultCheckColor = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
+        inline static float DefaultAnimationSpeed = 9.0f;
+
+        ZSignal<bool> Toggled;            // 选中/取消（Checked 为 true）
+        ZSignal<State> StateChanged;
+
+        CheckBox(bool checked = false)
+            : state_(checked ? State::Checked : State::Unchecked),
+            progress_(checked ? 1.0f : 0.0f), target_(checked ? 1.0f : 0.0f),
+            animSpeed_(DefaultAnimationSpeed),
+            cornerRadius_(DefaultCornerRadius),
+            boxColor_(DefaultBoxColor), borderColor_(DefaultBorderColor), checkColor_(DefaultCheckColor) {
+            width_ = DefaultSize;
+            height_ = DefaultSize;
+            bleed_ = 4.0f;
+        }
+
+        void SetChecked(bool checked) { SetState(checked ? State::Checked : State::Unchecked); }
+        bool IsChecked() const { return state_ == State::Checked; }
+        State GetState() const { return state_; }
+        void SetState(State s) {
+            if (state_ == s) return;
+            bool wasChecked = (state_ == State::Checked);
+            state_ = s;
+            target_ = (s == State::Unchecked) ? 0.0f : 1.0f;
+            if ((s == State::Checked) != wasChecked) Toggled(s == State::Checked);
+            StateChanged(s);
+            RequestRepaint();
+        }
+        void Toggle() {
+            if (triState_) {
+                if (state_ == State::Unchecked) SetState(State::PartiallyChecked);
+                else if (state_ == State::PartiallyChecked) SetState(State::Checked);
+                else SetState(State::Unchecked);
+            }
+            else {
+                SetChecked(!IsChecked());
+            }
+        }
+
+        void SetTriState(bool tri) { triState_ = tri; }
+        bool IsTriState() const { return triState_; }
+        void SetSize(float size) { width_ = size; height_ = size; InvalidateLayout(); RequestRepaint(); }
+        void SetCornerRadius(float r) { cornerRadius_ = r; RequestRepaint(); }
+        void SetBoxColor(Color c) { boxColor_ = c.ToD2D(); RequestRepaint(); }
+        void SetBorderColor(Color c) { borderColor_ = c.ToD2D(); RequestRepaint(); }
+        void SetCheckColor(Color c) { checkColor_ = c.ToD2D(); RequestRepaint(); }
+        void SetAnimationSpeed(float s) { animSpeed_ = s; }
+        void SetHoverBoxColor(Color c) { hoverBoxColor_ = c.ToD2D(); RequestRepaint(); }
+        void SetLabel(const std::wstring& text) { label_ = text; InvalidateLayout(); RequestRepaint(); }
+        std::wstring GetLabel() const { return label_; }
+        void SetLabelColor(Color c) { labelColor_ = c.ToD2D(); labelBrush_.Reset(); RequestRepaint(); }
+
+        // ---- 静态绘制：fillProgress 0..1（蓝底渐显）；对勾在 fill>0.5 后从左到右出现 ----
+        static void DrawBox(ID2D1RenderTarget* rt, const D2D1_RECT_F& rect, float fill,
+                            State state, D2D1_COLOR_F boxColor, D2D1_COLOR_F checkColor,
+                            D2D1_COLOR_F borderColor, float cornerRadius,
+                            ComPtr<ID2D1SolidColorBrush>& brush, bool enabled = true) {
+            float w = rect.right - rect.left, h = rect.bottom - rect.top;
+            if (w <= 1.0f || h <= 1.0f) return;
+            fill = clamp(fill, 0.0f, 1.0f);
+            if (!enabled) {
+                boxColor = D2D1::ColorF(0.80f, 0.80f, 0.80f, 1.0f);
+                borderColor = D2D1::ColorF(0.82f, 0.82f, 0.82f, 1.0f);
+                checkColor = D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f);
+            }
+
+            if (fill < 0.999f) {
+                D2D1_COLOR_F bc = borderColor;
+                bc.a = borderColor.a * (1.0f - fill);
+                if (!brush) rt->CreateSolidColorBrush(bc, brush.GetAddressOf());
+                else brush->SetColor(bc);
+                if (brush) rt->DrawRoundedRectangle(D2D1::RoundedRect(rect, cornerRadius, cornerRadius), brush.Get(), 1.4f);
+            }
+            if (fill > 0.001f) {
+                D2D1_COLOR_F fc = boxColor;
+                fc.a = boxColor.a * fill;
+                if (!brush) rt->CreateSolidColorBrush(fc, brush.GetAddressOf());
+                else brush->SetColor(fc);
+                if (brush) rt->FillRoundedRectangle(D2D1::RoundedRect(rect, cornerRadius, cornerRadius), brush.Get());
+            }
+
+            float reveal = clamp((fill - 0.5f) * 2.0f, 0.0f, 1.0f);
+            if (reveal <= 0.001f) return;
+            if (!brush) rt->CreateSolidColorBrush(checkColor, brush.GetAddressOf());
+            else brush->SetColor(checkColor);
+            if (!brush) return;
+
+            ID2D1StrokeStyle* ss = GetRoundStroke(rt);
+            float lw = max(1.6f, h * 0.15f);
+            if (state == State::Checked) {
+                D2D1_POINT_2F p0 = D2D1::Point2F(rect.left + w * 0.26f, rect.top + h * 0.52f);
+                D2D1_POINT_2F p1 = D2D1::Point2F(rect.left + w * 0.43f, rect.top + h * 0.72f);
+                D2D1_POINT_2F p2 = D2D1::Point2F(rect.left + w * 0.76f, rect.top + h * 0.30f);
+                DrawPartialPolyline(rt, p0, p1, p2, lw, reveal, brush.Get(), ss);
+            }
+            else if (state == State::PartiallyChecked) {
+                float y = (rect.top + rect.bottom) / 2.0f;
+                D2D1_POINT_2F a = D2D1::Point2F(rect.left + w * 0.26f, y);
+                D2D1_POINT_2F b = D2D1::Point2F(rect.left + w * 0.74f, y);
+                D2D1_POINT_2F m = D2D1::Point2F(a.x + (b.x - a.x) * reveal, y);
+                rt->DrawLine(a, m, brush.Get(), lw, ss);
+            }
+        }
+
+        Size Measure(const Size&) override {
+            float box = (width_ > 0.0f ? width_ : DefaultSize);
+            if (label_.empty()) return Size(box, box);
+            auto fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+            ComPtr<IDWriteTextLayout> layout;
+            if (fmt) FontManager::Instance().GetFactory()->CreateTextLayout(label_.c_str(), (UINT32)label_.length(), fmt, 10000.0f, 100.0f, &layout);
+            DWRITE_TEXT_METRICS tm{};
+            if (layout) layout->GetMetrics(&tm);
+            return Size(box + 6.0f + tm.width, max(box, tm.height));
+        }
+        void Arrange(const Rect& finalRect) override {
+            float box = (width_ > 0.0f && height_ > 0.0f) ? (width_ < height_ ? width_ : height_) : DefaultSize;
+            float w = label_.empty() ? box : finalRect.width;
+            float h = max(box, finalRect.height);
+            UIElement::Arrange(Rect(finalRect.x, finalRect.y, w, h));
+            float by = finalRect.y + (h - box) / 2.0f;
+            boxRect_ = D2D1::RectF(finalRect.x, by, finalRect.x + box, by + box);
+        }
+        void Draw(ID2D1RenderTarget* rt) override {
+            bool en = IsEffectivelyEnabled();
+            if (en && hoverProgress_ > 0.001f) {
+                D2D1_COLOR_F hc = hoverBoxColor_;
+                hc.a = hoverBoxColor_.a * hoverProgress_;
+                if (!hoverBrush_) rt->CreateSolidColorBrush(hc, hoverBrush_.GetAddressOf());
+                else hoverBrush_->SetColor(hc);
+                if (hoverBrush_) {
+                    D2D1_RECT_F hr = D2D1::RectF(boxRect_.left - 3.0f, boxRect_.top - 3.0f,
+                        boxRect_.right + 3.0f, boxRect_.bottom + 3.0f);
+                    rt->FillRoundedRectangle(D2D1::RoundedRect(hr, cornerRadius_ + 2.0f, cornerRadius_ + 2.0f), hoverBrush_.Get());
+                }
+            }
+            DrawBox(rt, boxRect_, progress_, state_, boxColor_, checkColor_, borderColor_, cornerRadius_, brush_, en);
+            if (!label_.empty()) {
+                auto fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+                D2D1_COLOR_F lc = en ? labelColor_ : D2D1::ColorF(0.55f, 0.55f, 0.55f, 1.0f);
+                if (!labelBrush_) rt->CreateSolidColorBrush(lc, labelBrush_.GetAddressOf());
+                else labelBrush_->SetColor(lc);
+                D2D1_RECT_F tr = D2D1::RectF(boxRect_.right + 6.0f, arrangedRect_.y, arrangedRect_.x + arrangedRect_.width, arrangedRect_.y + arrangedRect_.height);
+                if (fmt && labelBrush_) rt->DrawText(label_.c_str(), (UINT32)label_.length(), fmt, tr, labelBrush_.Get());
+            }
+        }
+        void OnKeyDown(WPARAM key, LPARAM lParam) override {
+            if (!IsEffectivelyEnabled()) return;
+            if (key == VK_SPACE || key == VK_RETURN) Toggle();
+        }
+        bool IsFocusable() const override { return true; }
+        void OnMouseDown(float x, float y) override { Toggle(); if (MouseDownHandler) MouseDownHandler(x, y); }
+        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
+        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
+
+        void UpdateAnimation(float dt) override {
+            if (fabs(target_ - progress_) > 0.001f) {
+                progress_ += (target_ - progress_) * min(1.0f, animSpeed_ * dt);
+                if (fabs(target_ - progress_) <= 0.001f) progress_ = target_;
+                RequestRepaint();
+            }
+            float ht = hovered_ ? 1.0f : 0.0f;
+            if (fabs(ht - hoverProgress_) > 0.001f) {
+                hoverProgress_ += (ht - hoverProgress_) * min(1.0f, hoverSpeed_ * dt);
+                if (fabs(ht - hoverProgress_) <= 0.001f) hoverProgress_ = ht;
+                RequestRepaint();
+            }
+        }
+        bool HasActiveAnimation() const override {
+            return fabs(target_ - progress_) > 0.001f ||
+                (hovered_ ? hoverProgress_ < 0.999f : hoverProgress_ > 0.001f);
+        }
+        void ReleaseDeviceResources() override { brush_.Reset(); labelBrush_.Reset(); hoverBrush_.Reset(); UIElement::ReleaseDeviceResources(); }
+
+    private:
+        static ID2D1StrokeStyle* GetRoundStroke(ID2D1RenderTarget* rt) {
+            static ComPtr<ID2D1StrokeStyle> ss;
+            if (!ss && rt) {
+                ComPtr<ID2D1Factory> factory;
+                rt->GetFactory(&factory);
+                if (factory)
+                    factory->CreateStrokeStyle(
+                        D2D1::StrokeStyleProperties(D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND,
+                            D2D1_CAP_STYLE_ROUND, D2D1_LINE_JOIN_ROUND), nullptr, 0, &ss);
+            }
+            return ss.Get();
+        }
+        static void DrawPartialPolyline(ID2D1RenderTarget* rt, D2D1_POINT_2F p0, D2D1_POINT_2F p1, D2D1_POINT_2F p2,
+                                        float width, float reveal, ID2D1Brush* brush, ID2D1StrokeStyle* ss) {
+            auto len = [](D2D1_POINT_2F a, D2D1_POINT_2F b) { float dx = b.x - a.x, dy = b.y - a.y; return sqrtf(dx * dx + dy * dy); };
+            auto lerp = [](D2D1_POINT_2F a, D2D1_POINT_2F b, float t) { return D2D1::Point2F(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t); };
+            float l1 = len(p0, p1), l2 = len(p1, p2), total = l1 + l2;
+            float d = clamp(reveal, 0.0f, 1.0f) * total;
+            if (d <= 0.01f) return;
+            if (d <= l1) {
+                rt->DrawLine(p0, lerp(p0, p1, d / l1), brush, width, ss);
+            }
+            else {
+                rt->DrawLine(p0, p1, brush, width, ss);
+                float d2 = d - l1;
+                rt->DrawLine(p1, lerp(p1, p2, clamp(d2 / l2, 0.0f, 1.0f)), brush, width, ss);
+            }
+        }
+
+        State state_;
+        float progress_, target_;
+        float animSpeed_;
+        float cornerRadius_;
+        D2D1_COLOR_F boxColor_, borderColor_, checkColor_;
+        bool hovered_ = false;
+        bool triState_ = false;
+        ComPtr<ID2D1SolidColorBrush> brush_;
+        D2D1_RECT_F boxRect_ = D2D1::RectF(0, 0, 0, 0);
+        std::wstring label_;
+        D2D1_COLOR_F labelColor_ = D2D1::ColorF(0.15f, 0.15f, 0.15f, 1.0f);
+        D2D1_COLOR_F hoverBoxColor_ = D2D1::ColorF(0.0f, 0.47f, 0.84f, 0.15f);
+        float hoverProgress_ = 0.0f;
+        float hoverSpeed_ = 10.0f;
+        ComPtr<ID2D1SolidColorBrush> hoverBrush_;
+        ComPtr<ID2D1SolidColorBrush> labelBrush_;
     };
 
 } // namespace ZUI

@@ -19,13 +19,25 @@
 #include <tuple>
 #include <wrl/client.h>
 #include <imm.h>
+#include <mmsystem.h>
 #include <unordered_set>
 #include <unordered_map>
+#include <array>
+
+// 调试输出宏：默认关闭，定义 ZUI_DEBUG 后启用（不删除调试代码）
+#ifdef ZUI_DEBUG
+#define ZUI_DEBUG_LOG_W(msg) OutputDebugStringW(msg)
+#define ZUI_DEBUG_LOG_A(msg) OutputDebugStringA(msg)
+#else
+#define ZUI_DEBUG_LOG_W(msg) ((void)0)
+#define ZUI_DEBUG_LOG_A(msg) ((void)0)
+#endif
 
 #pragma comment(lib, "imm32.lib")
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dwmapi.lib")
+#pragma comment(lib, "winmm.lib")
 
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34
@@ -338,13 +350,26 @@ namespace ZUI {
         }
 
         void Fire(TArgs... targs) const {
-            std::vector<std::shared_ptr<ConnectionData>> snapshot;
+            // 复用线程本地缓冲，避免每次触发都堆分配；
+            // 重入（slot 内再次触发同一信号）时退回局部拷贝，保证正确性。
+            static thread_local std::vector<std::shared_ptr<ConnectionData>> tlSnapshot;
+            static thread_local int tlDepth = 0;
+            std::vector<std::shared_ptr<ConnectionData>> reentrant;
+            std::vector<std::shared_ptr<ConnectionData>>* snapshot = nullptr;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
-                snapshot = connections_;
+                if (tlDepth == 0) {
+                    tlSnapshot.assign(connections_.begin(), connections_.end());
+                    snapshot = &tlSnapshot;
+                }
+                else {
+                    reentrant = connections_;
+                    snapshot = &reentrant;
+                }
+                tlDepth++;
             }
 
-            for (auto& data : snapshot) {
+            for (auto& data : *snapshot) {
                 if (!data || !data->state || !*(data->state->alive)) continue;
                 switch (data->thread) {
                 case ConnectionThread::CurrentThread:
@@ -365,6 +390,11 @@ namespace ZUI {
                     break;
                 }
                 }
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                tlDepth--;
             }
         }
 
@@ -534,7 +564,7 @@ namespace ZUI {
         // ---------- 布局相关 ----------
         void InvalidateLayout() {
             layoutDirty_ = true;
-            OutputDebugStringA((std::string("InvalidateLayout called by: ") + typeid(*this).name() + "\n").c_str());
+            ZUI_DEBUG_LOG_A((std::string("InvalidateLayout called by: ") + typeid(*this).name() + "\n").c_str());
             UIZSignals::LayoutInvalidated();
         }
         bool IsLayoutDirty() const { return layoutDirty_; }
@@ -593,7 +623,7 @@ namespace ZUI {
         virtual void Draw(ID2D1RenderTarget* rt) = 0;
 
         // ---------- 子元素列表（新增） ----------
-        virtual std::vector<UIElement*> GetChildren() const { return {}; }
+        virtual const std::vector<UIElement*>& GetChildren() const { return childrenView_; }
 
         // ---------- 缓存相关（新增） ----------
         // 控件可重写此方法声明不使用离屏缓存（如动画频繁的控件）
@@ -625,6 +655,8 @@ namespace ZUI {
         virtual void OnMouseMove(float x, float y) {}
         virtual void OnMouseDown(float x, float y) {}
         virtual void OnMouseUp(float x, float y) {}
+        // 右键菜单：返回 true 表示控件已自行处理（框架不再弹默认菜单）
+        virtual bool OnContextMenu(float x, float y) { return false; }
         virtual void OnKeyDown(WPARAM key, LPARAM lParam) {}
         virtual void OnKeyUp(WPARAM key, LPARAM lParam) {}
         virtual void OnChar(wchar_t ch) {}
@@ -697,6 +729,47 @@ namespace ZUI {
         // 设置出血尺寸（单位：DIP），影响缓存大小和贴图偏移
         void SetBleed(float bleed) { bleed_ = max(0.0f, bleed); }
         float GetBleed() const { return bleed_; }
+
+        // ---------- 禁用态 ----------
+        void SetEnabled(bool enabled) {
+            if (enabled_ != enabled) { enabled_ = enabled; cacheValid_ = false; RequestRepaint(); }
+        }
+        bool IsEnabled() const { return enabled_; }
+        // 考虑父链的实际可用性
+        bool IsEffectivelyEnabled() const {
+            const UIElement* p = this;
+            while (p) { if (!p->enabled_) return false; p = p->parent_; }
+            return true;
+        }
+
+        // ---------- 悬停提示 ----------
+        void SetToolTip(const std::wstring& text) { tooltip_ = text; }
+        std::wstring GetToolTip() const { return tooltip_; }
+
+        // ---------- 阴影（默认关闭；元素设置，Window 合成进缓存）----------
+        void SetShadow(bool enable) { shadowEnabled_ = enable; cacheValid_ = false; RequestRepaint(); }
+        bool HasShadow() const { return shadowEnabled_; }
+        void SetShadowColor(Color c) { shadowColor_ = c.ToD2D(); cacheValid_ = false; RequestRepaint(); }
+        void SetShadowBlur(float blur) { shadowBlur_ = max(0.0f, blur); cacheValid_ = false; RequestRepaint(); }
+        void SetShadowOffset(float x, float y) { shadowOffsetX_ = x; shadowOffsetY_ = y; cacheValid_ = false; RequestRepaint(); }
+        void SetShadowCornerRadius(float r) { shadowCornerRadius_ = r; cacheValid_ = false; RequestRepaint(); }
+        D2D1_COLOR_F GetShadowColor() const { return shadowColor_; }
+        float GetShadowBlur() const { return shadowBlur_; }
+        float GetShadowOffsetX() const { return shadowOffsetX_; }
+        float GetShadowOffsetY() const { return shadowOffsetY_; }
+        float GetShadowCornerRadius() const { return shadowCornerRadius_; }
+        float GetShadowExtent() const {
+            return shadowEnabled_ ? (shadowBlur_ * 2.0f + max(fabs(shadowOffsetX_), fabs(shadowOffsetY_))) : 0.0f;
+        }
+        bool enabled_ = true;
+        std::wstring tooltip_;
+        bool shadowEnabled_ = false;
+        D2D1_COLOR_F shadowColor_ = D2D1::ColorF(0.0f, 0.0f, 0.02f, 0.42f);
+        float shadowBlur_ = 10.0f;
+        float shadowOffsetX_ = 0.0f;
+        float shadowOffsetY_ = 3.0f;
+        float shadowCornerRadius_ = -1.0f;
+
         // 缓存内容实际绘制的原点（相对于缓存位图左上角）
         float cacheOriginX_ = 0.0f;
         float cacheOriginY_ = 0.0f;
@@ -797,6 +870,7 @@ namespace ZUI {
         std::vector<Connection> autoConnections_;
 
         bool useCache_; // 默认 true，可被重写
+        mutable std::vector<UIElement*> childrenView_; // GetChildren 复用的视图缓冲，避免每帧分配
 
         // ---------- 字体相关成员 ----------
         std::optional<FontSpec> fontOverride_;
@@ -866,10 +940,10 @@ namespace ZUI {
             // 布局容器自身无视觉内容，不绘制子元素（由 Window 合成）
         }
 
-        std::vector<UIElement*> GetChildren() const override {
-            std::vector<UIElement*> result;
-            for (auto& child : children_) if (child->IsVisible()) result.push_back(child.get());
-            return result;
+        const std::vector<UIElement*>& GetChildren() const override {
+            childrenView_.clear();
+            for (auto& child : children_) if (child->IsVisible()) childrenView_.push_back(child.get());
+            return childrenView_;
         }
 
         UIElement* HitTest(float x, float y) override {
@@ -953,10 +1027,10 @@ namespace ZUI {
             // 无自身视觉内容
         }
 
-        std::vector<UIElement*> GetChildren() const override {
-            std::vector<UIElement*> result;
-            for (auto& child : children_) if (child->IsVisible()) result.push_back(child.get());
-            return result;
+        const std::vector<UIElement*>& GetChildren() const override {
+            childrenView_.clear();
+            for (auto& child : children_) if (child->IsVisible()) childrenView_.push_back(child.get());
+            return childrenView_;
         }
 
         UIElement* HitTest(float x, float y) override {
@@ -1212,10 +1286,10 @@ namespace ZUI {
             // 无自身视觉内容
         }
 
-        std::vector<UIElement*> GetChildren() const override {
-            std::vector<UIElement*> result;
-            for (auto& item : items_) if (item.element->IsVisible()) result.push_back(item.element.get());
-            return result;
+        const std::vector<UIElement*>& GetChildren() const override {
+            childrenView_.clear();
+            for (auto& item : items_) if (item.element->IsVisible()) childrenView_.push_back(item.element.get());
+            return childrenView_;
         }
 
         UIElement* HitTest(float x, float y) override {
@@ -1275,9 +1349,10 @@ namespace ZUI {
             return std::dynamic_pointer_cast<T>(layout_);
         }
 
-        std::vector<UIElement*> GetChildren() const override {
-            if (layout_) return { layout_.get() };
-            return {};
+        const std::vector<UIElement*>& GetChildren() const override {
+            childrenView_.clear();
+            if (layout_) childrenView_.push_back(layout_.get());
+            return childrenView_;
         }
 
         bool UseCache() const override { return false; }
@@ -1297,12 +1372,16 @@ namespace ZUI {
         inline static float DefaultVerticalStretchWeight = 1.0f;
 
         Card() : padding_(DefaultPadding), cornerRadius_(DefaultCornerRadius),
-            bgColor_(DefaultBgColor), borderColor_(DefaultBorderColor) {}
+            bgColor_(DefaultBgColor), borderColor_(DefaultBorderColor),
+            hoverBgColor_(DefaultBgColor), hoverBorderColor_(DefaultBorderColor) {}
 
         void SetPadding(float padding) { padding_ = padding; InvalidateLayout(); }
         void SetCornerRadius(float radius) { cornerRadius_ = radius; RequestRepaint(); }
         void SetBackgroundColor(Color color) { bgColor_ = color; bgBrush_.Reset(); RequestRepaint(); }
         void SetBorderColor(Color color) { borderColor_ = color; borderBrush_.Reset(); RequestRepaint(); }
+        void SetHoverBackgroundColor(Color color) { hoverBgColor_ = color; RequestRepaint(); }
+        void SetHoverBorderColor(Color color) { hoverBorderColor_ = color; RequestRepaint(); }
+        void SetHoverAnimationSpeed(float speed) { hoverSpeed_ = speed; }
 
         static void SetDefaultPadding(float padding) { DefaultPadding = padding; }
         static void SetDefaultCornerRadius(float radius) { DefaultCornerRadius = radius; }
@@ -1331,15 +1410,33 @@ namespace ZUI {
 
         void Draw(ID2D1RenderTarget* rt) override {
             if (!visible_) return;
+            bool en = IsEffectivelyEnabled();
 
-            if (!bgBrush_) rt->CreateSolidColorBrush(bgColor_.ToD2D(), bgBrush_.GetAddressOf());
+            D2D1_COLOR_F bg = en ? D2D1::ColorF(
+                bgColor_.r + (hoverBgColor_.r - bgColor_.r) * hoverProgress_,
+                bgColor_.g + (hoverBgColor_.g - bgColor_.g) * hoverProgress_,
+                bgColor_.b + (hoverBgColor_.b - bgColor_.b) * hoverProgress_,
+                bgColor_.a + (hoverBgColor_.a - bgColor_.a) * hoverProgress_)
+                : D2D1::ColorF(0.95f, 0.95f, 0.95f, 1.0f);
+            if (!bgBrush_) rt->CreateSolidColorBrush(bg, bgBrush_.GetAddressOf());
+            else bgBrush_->SetColor(bg);
             if (bgBrush_) rt->FillRoundedRectangle(D2D1::RoundedRect(arrangedRect_.ToD2D(), cornerRadius_, cornerRadius_), bgBrush_.Get());
 
-            if (!borderBrush_) rt->CreateSolidColorBrush(borderColor_.ToD2D(), borderBrush_.GetAddressOf());
+            D2D1_COLOR_F bd = en ? D2D1::ColorF(
+                borderColor_.r + (hoverBorderColor_.r - borderColor_.r) * hoverProgress_,
+                borderColor_.g + (hoverBorderColor_.g - borderColor_.g) * hoverProgress_,
+                borderColor_.b + (hoverBorderColor_.b - borderColor_.b) * hoverProgress_,
+                borderColor_.a + (hoverBorderColor_.a - borderColor_.a) * hoverProgress_)
+                : D2D1::ColorF(0.8f, 0.8f, 0.8f, 1.0f);
+            if (!borderBrush_) rt->CreateSolidColorBrush(bd, borderBrush_.GetAddressOf());
+            else borderBrush_->SetColor(bd);
             if (borderBrush_) rt->DrawRoundedRectangle(D2D1::RoundedRect(arrangedRect_.ToD2D(), cornerRadius_, cornerRadius_), borderBrush_.Get(), 1.0f);
 
             // 不再绘制 layout_，子元素由 Window 合成
         }
+
+        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
+        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
 
         UIElement* HitTest(float x, float y) override {
             if (visible_ && arrangedRect_.Contains(x, y)) {
@@ -1350,11 +1447,15 @@ namespace ZUI {
         }
 
         void UpdateAnimation(float deltaTime) override {
+            float target = hovered_ ? 1.0f : 0.0f;
+            if (hoverProgress_ < target) { hoverProgress_ += hoverSpeed_ * deltaTime; if (hoverProgress_ > target) hoverProgress_ = target; RequestRepaint(); }
+            else if (hoverProgress_ > target) { hoverProgress_ -= hoverSpeed_ * deltaTime; if (hoverProgress_ < target) hoverProgress_ = target; RequestRepaint(); }
             if (layout_) layout_->UpdateAnimation(deltaTime);
         }
 
         bool HasActiveAnimation() const override {
-            return layout_ ? layout_->HasActiveAnimation() : false;
+            bool hoverAnim = (hovered_ ? (hoverProgress_ < 0.999f) : (hoverProgress_ > 0.001f));
+            return hoverAnim || (layout_ ? layout_->HasActiveAnimation() : false);
         }
 
         void ReleaseDeviceResources() override {
@@ -1364,13 +1465,18 @@ namespace ZUI {
             if (layout_) layout_->ReleaseDeviceResources();
         }
 
-        bool UseCache() const override { return false; }
+        bool UseCache() const override { return HasShadow(); }
 
     private:
         float padding_;
         float cornerRadius_;
         Color bgColor_;
         Color borderColor_;
+        Color hoverBgColor_;
+        Color hoverBorderColor_;
+        float hoverProgress_ = 0.0f;
+        bool hovered_ = false;
+        float hoverSpeed_ = 8.0f;
         ComPtr<ID2D1SolidColorBrush> bgBrush_;
         ComPtr<ID2D1SolidColorBrush> borderBrush_;
     };
@@ -1558,18 +1664,18 @@ namespace ZUI {
             rt->PopAxisAlignedClip();
         }
 
-        std::vector<UIElement*> GetChildren() const override {
-            std::vector<UIElement*> result;
+        const std::vector<UIElement*>& GetChildren() const override {
+            childrenView_.clear();
             if (animating_) {
                 if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size())
-                    result.push_back(pages_[fromIndex_].get());
+                    childrenView_.push_back(pages_[fromIndex_].get());
                 if (toIndex_ >= 0 && toIndex_ < (int)pages_.size())
-                    result.push_back(pages_[toIndex_].get());
+                    childrenView_.push_back(pages_[toIndex_].get());
             }
             else if (currentIndex_ >= 0 && currentIndex_ < (int)pages_.size()) {
-                result.push_back(pages_[currentIndex_].get());
+                childrenView_.push_back(pages_[currentIndex_].get());
             }
-            return result;
+            return childrenView_;
         }
 
         std::optional<D2D1_RECT_F> GetClipRect() const override {
@@ -1600,13 +1706,14 @@ namespace ZUI {
         }
 
         void UpdateAnimation(float deltaTime) override {
+#ifdef ZUI_DEBUG
             // 调试：当自身动画结束但整体仍为 true 时，打印子页面状态
             if (!animating_ && animProgress_ == 0.0f) {
                 for (size_t i = 0; i < pages_.size(); ++i) {
                     if (pages_[i] && pages_[i]->HasActiveAnimation()) {
                         wchar_t buf[256];
                         swprintf(buf, 256, L"  Page[%zu] has animation\n", i);
-                        OutputDebugStringW(buf);
+                        ZUI_DEBUG_LOG_W(buf);
                     }
                 }
             }
@@ -1618,19 +1725,20 @@ namespace ZUI {
                         // 递归打印子元素动画状态（简化版，只打印一层）
                         wchar_t msg[256];
                         swprintf(msg, 256, L"  Sub-page has animation: %s\n", typeid(*page).name());
-                        OutputDebugStringW(msg);
+                        ZUI_DEBUG_LOG_W(msg);
                         // 如果有 layout，继续检查
                         if (auto* layout = dynamic_cast<LayoutHost*>(page.get())) {
                             if (auto* inner = layout->GetLayout().get()) {
                                 if (inner->HasActiveAnimation()) {
                                     swprintf(msg, 256, L"    Layout has animation: %s\n", typeid(*inner).name());
-                                    OutputDebugStringW(msg);
+                                    ZUI_DEBUG_LOG_W(msg);
                                 }
                             }
                         }
                     }
                 }
             }
+#endif
 
             if (animating_) {
                 animProgress_ += deltaTime / animDuration_;
@@ -1650,14 +1758,16 @@ namespace ZUI {
                     pages_[toIndex_]->RequestRepaint();
                 RequestRepaint(); // 页面容器也需要重绘
             }
-            // 更新当前页面动画（若动画未结束，也更新源页面和目标页面）
-            if (currentIndex_ >= 0 && currentIndex_ < (int)pages_.size())
-                pages_[currentIndex_]->UpdateAnimation(deltaTime);
+            // 更新页面动画：动画中只更新源/目标页，否则只更新当前页。
+            // 注意：动画期间 currentIndex_ == fromIndex_，若三条路径都走会导致同一页每帧被更新两次、速度翻倍。
             if (animating_) {
                 if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size())
                     pages_[fromIndex_]->UpdateAnimation(deltaTime);
                 if (toIndex_ >= 0 && toIndex_ < (int)pages_.size())
                     pages_[toIndex_]->UpdateAnimation(deltaTime);
+            }
+            else if (currentIndex_ >= 0 && currentIndex_ < (int)pages_.size()) {
+                pages_[currentIndex_]->UpdateAnimation(deltaTime);
             }
 
             if (!animating_ && animProgress_ >= 1.0f) {
@@ -2347,6 +2457,7 @@ namespace ZUI {
             layoutInvalidated_(false) {}
 
         ~Window() {
+            if (timerPeriodRaised_) { timeEndPeriod(1); timerPeriodRaised_ = false; }
             DiscardDeviceResources();
             if (d2dFactory_) d2dFactory_->Release();
         }
@@ -2406,6 +2517,9 @@ namespace ZUI {
 
             dpi_ = GetDpiForWindow(hwnd_);
             if (dpi_ == 0) dpi_ = 96;
+
+            // 提高系统定时器精度到 1ms，降低 WM_TIMER(16ms) 抖动，使动画节奏更稳定
+            if (!timerPeriodRaised_) { timeBeginPeriod(1); timerPeriodRaised_ = true; }
 
             if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2dFactory_))) return false;
             if (FAILED(CreateDeviceResources())) return false;
@@ -2527,6 +2641,7 @@ namespace ZUI {
             }
         }
 
+#ifdef ZUI_DEBUG
         void PrintActiveAnimations(UIElement* elem, int depth) {
             if (!elem) return;
             if (elem->HasActiveAnimation()) {
@@ -2540,18 +2655,19 @@ namespace ZUI {
                     wchar_t buf[512];
                     swprintf(buf, 512, L"%s%s (0x%p) [PageHost - check manually]\n",
                         indent.c_str(), wtype, (void*)elem);
-                    OutputDebugStringW(buf);
+                    ZUI_DEBUG_LOG_W(buf);
                 }
                 else {
                     wchar_t buf[512];
                     swprintf(buf, 512, L"%s%s (0x%p)\n", indent.c_str(), wtype, (void*)elem);
-                    OutputDebugStringW(buf);
+                    ZUI_DEBUG_LOG_W(buf);
                 }
             }
             for (auto* child : elem->GetChildren()) {
                 PrintActiveAnimations(child, depth + 1);
             }
         }
+#endif
 
         LRESULT HandleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             switch (message) {
@@ -2683,6 +2799,7 @@ namespace ZUI {
             case WM_DISPLAYCHANGE: InvalidateRect(hwnd_, nullptr, FALSE); UpdateTimerState(); return 0;
             case WM_TIMER:
                 if (wParam == 1) {
+#ifdef ZUI_DEBUG
                     // ---- 调试输出开始 ----
                     bool hasLayout = layoutInvalidated_;
                     size_t pendingCount = pendingRepaint_.size();
@@ -2691,15 +2808,17 @@ namespace ZUI {
                     wchar_t buf[256];
                     swprintf(buf, 256, L"[Timer] layout=%d, pending=%zu, anim=%d\n",
                         hasLayout, pendingCount, hasAnim ? 1 : 0);
-                    OutputDebugStringW(buf);
+                    ZUI_DEBUG_LOG_W(buf);
 
                     // 如果动画存在，打印详细元素树
                     if (hasAnim && rootElement_) {
-                        OutputDebugStringW(L"--- Active Animation Elements ---\n");
+                        ZUI_DEBUG_LOG_W(L"--- Active Animation Elements ---\n");
                         PrintActiveAnimations(rootElement_.get(), 0);
-                        OutputDebugStringW(L"--- End ---\n");
+                        ZUI_DEBUG_LOG_W(L"--- End ---\n");
                     }
                     // ---- 调试输出结束 ----
+#endif
+                    UpdateTooltip();
                     if (HasRenderWork()) {          // 关键：先判断是否有工作
                         InvalidateRect(hwnd_, nullptr, FALSE);
                     }
@@ -2730,7 +2849,10 @@ namespace ZUI {
                 if (focusedElement_) focusedElement_->OnBlur();
                 ImmAssociateContext(hwnd_, NULL);
                 return 0;
-            case WM_KEYDOWN: if (focusedElement_) focusedElement_->OnKeyDown(wParam, lParam); return 0;
+            case WM_KEYDOWN:
+                if (wParam == VK_TAB) { MoveFocusByTab((GetKeyState(VK_SHIFT) & 0x8000) != 0); return 0; }
+                if (focusedElement_ && focusedElement_->IsEffectivelyEnabled()) focusedElement_->OnKeyDown(wParam, lParam);
+                return 0;
             case WM_KEYUP: if (focusedElement_) focusedElement_->OnKeyUp(wParam, lParam); return 0;
             case WM_CHAR: if (focusedElement_) focusedElement_->OnChar(static_cast<wchar_t>(wParam)); return 0;
             case WM_MOUSEWHEEL: {
@@ -2782,25 +2904,76 @@ namespace ZUI {
                     KillTimer(hwnd_, 1);
                     timerRunning_ = false;
                 }
+                if (timerPeriodRaised_) { timeEndPeriod(1); timerPeriodRaised_ = false; }
                 PostQuitMessage(0);
                 return 0;
             }
             return DefWindowProc(hwnd_, message, wParam, lParam);
         }
 
+        void UpdateTooltip() {
+            bool candidate = currentHovered_ && currentHovered_->IsEffectivelyEnabled()
+                && currentHovered_->IsVisible() && !currentHovered_->GetToolTip().empty();
+            if (!candidate) {
+                if (tooltipTarget_) { tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f; }
+                return;
+            }
+            if (!tooltipTarget_) {
+                if (GetTickCount() - hoverStartTick_ >= 500) {
+                    tooltipTarget_ = currentHovered_;
+                    tooltipAnchorPt_ = D2D1::Point2F(mouseX_, mouseY_);
+                    tooltipProgress_ = 0.0f;
+                }
+                return;
+            }
+            if (tooltipTarget_ != currentHovered_) {
+                tooltipTarget_ = nullptr;
+                tooltipProgress_ = 0.0f;
+                return;
+            }
+            if (tooltipProgress_ < 1.0f) {
+                tooltipProgress_ += 0.12f;
+                if (tooltipProgress_ > 1.0f) tooltipProgress_ = 1.0f;
+            }
+        }
         bool HasRenderWork() const {
-            return layoutInvalidated_ || !pendingRepaint_.empty() ||
-                (rootElement_ && rootElement_->HasActiveAnimation());
+            if (layoutInvalidated_ || focusDirty_ || !pendingRepaint_.empty() || (rootElement_ && rootElement_->HasActiveAnimation())) return true;
+            if (tooltipTarget_ || tooltipProgress_ > 0.0f) return true;
+            if (currentHovered_ && currentHovered_->IsEffectivelyEnabled() && !currentHovered_->GetToolTip().empty()) return true;
+            return false;
         }
 
         void Compose(UIElement* elem, ID2D1RenderTarget* rt) {
+            ComposeImpl(elem, rt);
+        }
+        // 带裁剪剔除的合成：clip 为累计裁剪矩形（DIP 绝对坐标），完全在裁剪外的子树直接跳过
+        void ComposeImpl(UIElement* elem, ID2D1RenderTarget* rt,
+                         const D2D1_RECT_F& clip = D2D1::RectF(-FLT_MAX, -FLT_MAX, FLT_MAX, FLT_MAX),
+                         bool hasClip = false) {
             if (!elem || !elem->IsVisible()) return;
+
+            if (hasClip) {
+                Rect er = elem->GetArrangedRect();
+                if (er.x >= clip.right || er.x + er.width <= clip.left ||
+                    er.y >= clip.bottom || er.y + er.height <= clip.top)
+                    return;   // 完全在裁剪区外，跳过整棵子树
+            }
 
             // 应用裁剪（如果有）
             bool clipPushed = false;
-            if (auto clip = elem->GetClipRect()) {
-                rt->PushAxisAlignedClip(*clip, D2D1_ANTIALIAS_MODE_ALIASED);
+            D2D1_RECT_F effClip = clip;
+            bool effHasClip = hasClip;
+            if (auto c = elem->GetClipRect()) {
+                rt->PushAxisAlignedClip(*c, D2D1_ANTIALIAS_MODE_ALIASED);
                 clipPushed = true;
+                if (effHasClip) {
+                    effClip = D2D1::RectF(max(effClip.left, c->left), max(effClip.top, c->top),
+                        min(effClip.right, c->right), min(effClip.bottom, c->bottom));
+                }
+                else {
+                    effClip = *c;
+                    effHasClip = true;
+                }
             }
 
             // 判断是否使用缓存
@@ -2824,6 +2997,8 @@ namespace ZUI {
                             Snap(elem->cacheOriginY_ - elem->GetArrangedRect().y)
                         );
                         cacheRT->SetTransform(newTransform);
+
+                        if (elem->HasShadow()) DrawShadow(cacheRT, elem);
 
                         elem->Draw(cacheRT);
 
@@ -2885,17 +3060,139 @@ namespace ZUI {
                     D2D1::Matrix3x2F oldTransform;
                     rt->GetTransform(&oldTransform);
                     rt->SetTransform(oldTransform * childTransform);
-                    Compose(child, rt);
+                    ComposeImpl(child, rt, effClip, effHasClip);
                     rt->SetTransform(oldTransform);
                 }
                 else {
-                    Compose(child, rt);
+                    ComposeImpl(child, rt, effClip, effHasClip);
                 }
             }
 
             if (clipPushed) {
                 rt->PopAxisAlignedClip();
             }
+        }
+
+        // 高斯 CDF 分层的软阴影：让累积 alpha 逼近 targetA*(1-Φ(d/σ))，接近 DWM 质感
+        void DrawSoftShadow(ID2D1RenderTarget* rt, const D2D1_RECT_F& rect, float radius,
+                            float ox, float oy, float blur, D2D1_COLOR_F col, int steps, float alphaScale = 1.0f) {
+            if (steps < 2) steps = 2;
+            if (steps > 63) steps = 63;
+            if (blur <= 0.0f) blur = 0.001f;
+            col.a *= alphaScale;
+            ComPtr<ID2D1SolidColorBrush> brush;
+            rt->CreateSolidColorBrush(col, brush.GetAddressOf());
+            if (!brush) return;
+
+            float targetA = min(col.a * 2.0f, 0.98f);   // col.a 视为“边缘可见 alpha”
+            float sigma = blur * 0.5f;                  // blur 约等于 2σ
+            float extent = sigma * 3.0f;                // 3σ 覆盖约 99.7%
+
+            auto Phi = [](float x) { return 0.5f * (1.0f + erff(x * 0.70710678f)); };
+            std::array<float, 64> S{};
+            std::array<float, 64> alphas{};
+            for (int k = steps - 1; k >= 0; --k) {
+                float t = (float)k / (float)(steps - 1);
+                float phi = Phi(3.0f * t);
+                S[k] = -logf(max(1e-6f, 1.0f - targetA * (1.0f - phi)));
+            }
+            for (int k = 0; k < steps; ++k) alphas[k] = 1.0f - expf(-(S[k] - S[k + 1]));
+
+            for (int k = steps - 1; k >= 0; --k) {
+                float t = (float)k / (float)(steps - 1);
+                float grow = extent * t;
+                D2D1_COLOR_F c = col; c.a = alphas[k];
+                brush->SetColor(c);
+                D2D1_RECT_F rr = D2D1::RectF(rect.left + ox - grow, rect.top + oy - grow,
+                    rect.right + ox + grow, rect.bottom + oy + grow);
+                rt->FillRoundedRectangle(D2D1::RoundedRect(rr, radius + grow, radius + grow), brush.Get());
+            }
+        }
+
+        void DrawShadow(ID2D1RenderTarget* rt, UIElement* elem) {
+            float radius = elem->GetShadowCornerRadius();
+            if (radius < 0.0f) radius = 8.0f;
+            DrawSoftShadow(rt, elem->GetArrangedRect().ToD2D(), radius,
+                elem->GetShadowOffsetX(), elem->GetShadowOffsetY(),
+                elem->GetShadowBlur(), elem->GetShadowColor(), 40);
+        }
+
+        void DrawFocusAndTooltip(ID2D1RenderTarget* rt) {
+            if (showFocusRing_ && focusedElement_ && focusedElement_->IsVisible() && focusedElement_->IsEffectivelyEnabled()) {
+                Rect fr = focusedElement_->GetArrangedRect();
+                ComPtr<ID2D1SolidColorBrush> fb;
+                rt->CreateSolidColorBrush(D2D1::ColorF(0.0f, 0.47f, 0.84f, 0.9f), fb.GetAddressOf());
+                if (fb) rt->DrawRoundedRectangle(D2D1::RoundedRect(fr.ToD2D(), 4, 4), fb.Get(), 2.0f);
+            }
+            if (tooltipTarget_ && tooltipProgress_ > 0.001f) {
+                std::wstring tip = tooltipTarget_->GetToolTip();
+                if (!tip.empty()) DrawToolTip(rt, tip, tooltipAnchorPt_, tooltipProgress_);
+            }
+        }
+        void DrawToolTip(ID2D1RenderTarget* rt, const std::wstring& text, const D2D1_POINT_2F& anchorPt, float alpha) {
+            auto fmt = FontManager::Instance().GetFormat(FontManager::Instance().GetGlobalFont());
+            IDWriteFactory* factory = FontManager::Instance().GetFactory();
+            if (!fmt || !factory) return;
+            alpha = clamp(alpha, 0.0f, 1.0f);
+            const float maxTextWidth = 320.0f;
+            ComPtr<IDWriteTextLayout> layout;
+            // maxHeight=0 表示不约束高度，避免段落对齐导致文字被画到布局中部
+            factory->CreateTextLayout(text.c_str(), (UINT32)text.length(), fmt, maxTextWidth, 0.0f, &layout);
+            if (layout) {
+                layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+                layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+                layout->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
+            }
+            DWRITE_TEXT_METRICS tm{};
+            if (layout) layout->GetMetrics(&tm);
+            float pad = 8.0f;
+            float tw = (tm.width > 0.0f ? tm.width : 20.0f);
+            float th = (tm.height > 0.0f ? tm.height : 16.0f);
+            if (th > 400.0f) th = 400.0f;
+            float w = tw + pad * 2.0f, h = th + pad * 2.0f;
+            D2D1_SIZE_F sz = rt->GetSize();
+            // 固定在“显示时的鼠标位置”上方，带固定偏移（不跟随鼠标移动）
+            float x = anchorPt.x - w / 2.0f;
+            float y = anchorPt.y - h - 14.0f;
+            if (x < 4.0f) x = 4.0f;
+            if (x + w > sz.width - 4.0f) x = sz.width - w - 4.0f;
+            if (y < 4.0f) y = anchorPt.y + 18.0f;      // 上方空间不足则放到鼠标下方
+            if (y + h > sz.height - 4.0f) y = sz.height - h - 4.0f;
+            if (x < 4.0f) x = 4.0f;
+            D2D1_RECT_F rr = D2D1::RectF(x, y, x + w, y + h);
+            // 柔和阴影（与元素阴影同一套高斯 CDF 分层，ToolTip 每帧绘制用较少层数）
+            DrawSoftShadow(rt, rr, 6.0f, 0.5f, 2.0f, 5.0f, D2D1::ColorF(0, 0, 0, 0.30f), 20, alpha);
+            ComPtr<ID2D1SolidColorBrush> bg, fg;
+            rt->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.98f * alpha), bg.GetAddressOf());
+            rt->CreateSolidColorBrush(D2D1::ColorF(0.10f, 0.10f, 0.10f, alpha), fg.GetAddressOf());
+            if (bg) rt->FillRoundedRectangle(D2D1::RoundedRect(rr, 6, 6), bg.Get());
+            if (layout && fg) rt->DrawTextLayout(D2D1::Point2F(x + pad, y + pad), layout.Get(), fg.Get());
+        }
+        void CollectFocusable(UIElement* elem, std::vector<UIElement*>& out) {
+            if (!elem || !elem->IsVisible() || !elem->IsEffectivelyEnabled()) return;
+            if (elem->IsFocusable()) out.push_back(elem);
+            for (auto* c : elem->GetChildren()) CollectFocusable(c, out);
+        }
+        void SetFocusElement(UIElement* e, bool showRing = false) {
+            showFocusRing_ = showRing;
+            if (focusedElement_ == e) { focusDirty_ = true; return; }
+            if (focusedElement_) focusedElement_->OnBlur();
+            focusedElement_ = e;
+            if (focusedElement_) focusedElement_->OnFocus();
+            UpdateIMEAssociation();
+            focusDirty_ = true;
+        }
+        void MoveFocusByTab(bool backward) {
+            std::vector<UIElement*> list;
+            CollectFocusable(rootElement_.get(), list);
+            if (list.empty()) return;
+            int cur = -1;
+            for (int i = 0; i < (int)list.size(); ++i) if (list[i] == focusedElement_) { cur = i; break; }
+            int n = (int)list.size();
+            int next;
+            if (cur < 0) next = backward ? n - 1 : 0;
+            else next = ((cur + (backward ? -1 : 1)) % n + n) % n;
+            SetFocusElement(list[next], true);
         }
 
         void EnsureCache(UIElement* elem) {
@@ -2906,7 +3203,7 @@ namespace ZUI {
                 return;
             }
 
-            float bleed = elem->GetBleed();
+            float bleed = elem->GetBleed() + elem->GetShadowExtent();
             float w = r.width + bleed * 2;
             float h = r.height + bleed * 2;
 
@@ -2989,6 +3286,11 @@ namespace ZUI {
             auto now = std::chrono::steady_clock::now();
             float deltaTime = std::chrono::duration<float>(now - lastTime_).count();
             lastTime_ = now;
+            // 钳制 deltaTime：空闲/最小化/断点恢复后首帧可能得到很大的 dt，
+            // 会让线性累加型动画（Button hover、PageHost 切页、CheckBox 等）一帧跳到终点。
+            // 上限取 ~2 帧（0.033s），最坏也只表现为一次轻微卡顿。
+            if (deltaTime > 0.033f) deltaTime = 0.033f;
+            if (deltaTime < 0.0f) deltaTime = 0.0f;
 
             // 2. 布局检查
             if (layoutInvalidated_ || layoutNeeded_ || (rootElement_ && rootElement_->IsLayoutDirty())) {
@@ -3014,18 +3316,18 @@ namespace ZUI {
             }
 
             // 自动收集活跃动画元素（确保动画期间每帧重绘这些元素）
-            std::unordered_set<UIElement*> currentActive;
-            CollectActiveAnimations(rootElement_.get(), currentActive);
-            for (auto* elem : currentActive) {
+            activeAnimScratch_.clear();
+            CollectActiveAnimations(rootElement_.get(), activeAnimScratch_);
+            for (auto* elem : activeAnimScratch_) {
                 pendingRepaint_.insert(elem);
             }
             // 上一帧活跃但当前不活跃的元素也加入，确保动画结束状态正确
             for (auto* elem : lastActiveAnimElements_) {
-                if (currentActive.find(elem) == currentActive.end()) {
+                if (activeAnimScratch_.find(elem) == activeAnimScratch_.end()) {
                     pendingRepaint_.insert(elem);
                 }
             }
-            lastActiveAnimElements_ = std::move(currentActive);
+            lastActiveAnimElements_ = activeAnimScratch_;   // 复用成员缓冲与容量
 
             // 4. 合成绘制
             SetGlobalDpiScale(dpi_ / 96.0f);
@@ -3033,10 +3335,14 @@ namespace ZUI {
             renderTarget_->Clear(backgroundColor_.ToD2D());
 
             if (rootElement_) {
-                Compose(rootElement_.get(), renderTarget_);
+                D2D1_SIZE_F rsz = renderTarget_->GetSize();
+                ComposeImpl(rootElement_.get(), renderTarget_, D2D1::RectF(0, 0, rsz.width, rsz.height), true);
             }
 
             UIZSignals::DrawOverlay(renderTarget_);
+
+            DrawFocusAndTooltip(renderTarget_);
+            focusDirty_ = false;
 
             HRESULT hr = renderTarget_->EndDraw();
             if (hr == D2DERR_RECREATE_TARGET) {
@@ -3054,12 +3360,23 @@ namespace ZUI {
                     CollectVisibleCachedElements(rootElement_.get(), pendingRepaint_);
                 }
             }
+            else {
+                // 本帧所有可见元素都已重新绘制，清空待重绘集合，避免空闲时残留 pending
+                pendingRepaint_.clear();
+            }
 
             EndPaint(hwnd_, &ps);
         }
 
         // 以下为原有事件处理函数，保留不变
         void OnMouseMove(float x, float y) {
+            // 只有真实位移才重置悬停计时并关闭提示；重复的 WM_MOUSEMOVE（坐标未变）忽略
+            bool realMove = fabs(x - mouseX_) > 0.5f || fabs(y - mouseY_) > 0.5f;
+            mouseX_ = x; mouseY_ = y;
+            if (realMove) {
+                hoverStartTick_ = GetTickCount();
+                if (tooltipTarget_ || tooltipProgress_ > 0.0f) { tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f; }
+            }
             if (!rootElement_) return;
             if (mouseCaptureElement_) {
                 mouseCaptureElement_->OnMouseMove(x, y);
@@ -3076,9 +3393,11 @@ namespace ZUI {
 
         void OnMouseLeave() {
             if (currentHovered_) { currentHovered_->OnMouseLeave(); currentHovered_ = nullptr; }
+            tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f;
         }
 
         void OnMouseDown(float x, float y) {
+            tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f;
             if (mouseCaptureElement_) {
                 if (pressedElement_) {
                     pressedElement_ = nullptr;
@@ -3097,11 +3416,7 @@ namespace ZUI {
                 pressedElement_ = hit;
 
                 if (hit->IsFocusable()) {
-                    if (focusedElement_ != hit) {
-                        if (focusedElement_) focusedElement_->OnBlur();
-                        focusedElement_ = hit;
-                        focusedElement_->OnFocus();
-                    }
+                    SetFocusElement(hit, false);
                 }
                 else {
                     if (focusedElement_) { focusedElement_->OnBlur(); focusedElement_ = nullptr; }
@@ -3134,6 +3449,7 @@ namespace ZUI {
         void OnContextMenu(float x, float y) {
             if (!rootElement_) return;
             UIElement* hit = rootElement_->HitTest(x, y);
+            if (hit && hit->OnContextMenu(x, y)) return;   // 控件已处理右键
             std::shared_ptr<Menu> menu;
             if (hit && hit->GetContextMenu()) {
                 menu = hit->GetContextMenu();
@@ -3155,10 +3471,12 @@ namespace ZUI {
         void UpdateHover(float x, float y) {
             if (!rootElement_) return;
             UIElement* hit = rootElement_->HitTest(x, y);
+            if (hit && !hit->IsEffectivelyEnabled()) hit = nullptr;
             if (hit != currentHovered_) {
                 if (currentHovered_) currentHovered_->OnMouseLeave();
                 if (hit) hit->OnMouseEnter();
                 currentHovered_ = hit;
+                hoverStartTick_ = GetTickCount();
             }
             if (hit) hit->OnMouseMove(x, y);
         }
@@ -3171,6 +3489,7 @@ namespace ZUI {
         }
 
         void OnMouseWheel(float x, float y, float deltaX, float deltaY) {
+            tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f;
             if (!rootElement_) return;
             UIElement* elem = currentHovered_;
             if (!elem) elem = rootElement_->HitTest(x, y);
@@ -3348,6 +3667,13 @@ namespace ZUI {
         UIElement* currentHovered_;
         UIElement* pressedElement_;
         UIElement* focusedElement_;
+        float mouseX_ = 0.0f, mouseY_ = 0.0f;
+        DWORD hoverStartTick_ = 0;
+        UIElement* tooltipTarget_ = nullptr;
+        float tooltipProgress_ = 0.0f;
+        D2D1_POINT_2F tooltipAnchorPt_ = {};
+        bool focusDirty_ = false;
+        bool showFocusRing_ = false;
         UINT dpi_;
         COLORREF captionColor_, textColor_, borderColor_;
         bool hasCustomMinSize_;
@@ -3378,8 +3704,10 @@ namespace ZUI {
         Connection layoutInvalidatedConn_;
         // 用于记录上一帧活跃动画元素
         std::unordered_set<UIElement*> lastActiveAnimElements_;
+        std::unordered_set<UIElement*> activeAnimScratch_;
 
         bool timerRunning_ = false;
+        bool timerPeriodRaised_ = false;
     };
 
 } // namespace ZUI

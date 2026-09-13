@@ -51,6 +51,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     navList->AddItem(L"列表视图");
     navList->AddItem(L"表格视图");
     navList->AddItem(L"树形视图");
+    navList->AddItem(L"树形增强");
     navList->SetSelectedIndex(0);
     mainRow->AddChild(navList);
 
@@ -105,11 +106,65 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         combo1->AddItem(L"选项 B");
         combo1->AddItem(L"选项 C");
         auto lblCombo = std::make_shared<Label>(L"当前选择：选项 A");
-        combo1->Connect(combo1->SelectionChanged, [lblCombo, combo1](int index) {
-            lblCombo->SetText(L"当前选择：" + combo1->GetSelectedText());
+        combo1->Connect(combo1->SelectionChanged, [lblCombo, c = combo1.get()](int index) {
+            lblCombo->SetText(L"当前选择：" + c->GetSelectedText());
             });
         grid1->AddChild(combo1, 4, 0);
         grid1->AddChild(lblCombo, 4, 1);
+
+        // 独立勾选框控件（含勾选动画）
+        auto chk1 = std::make_shared<CheckBox>(true);
+        chk1->SetSize(20.0f);
+        auto chk2 = std::make_shared<CheckBox>(false);
+        chk2->SetSize(20.0f);
+        auto chkLabel = std::make_shared<Label>(L"勾选框：已选");
+        chk1->Connect(chk1->Toggled, [chkLabel](bool on) {
+            chkLabel->SetText(on ? L"勾选框：已选" : L"勾选框：未选");
+            });
+        grid1->AddChild(chk1, 5, 0);
+        grid1->AddChild(chk2, 5, 1);
+        grid1->AddChild(chkLabel, 6, 0, 1, 2);
+
+        // 新特性：禁用态 / ToolTip / 阴影卡片 / 可切换按钮
+        auto btnDisabled = std::make_shared<Button>(L"禁用按钮");
+        btnDisabled->SetEnabled(false);
+        btnDisabled->SetToolTip(L"该按钮已被禁用");
+        auto btnToggle = std::make_shared<Button>(L"可切换按钮");
+        btnToggle->SetCheckable(true);
+        btnToggle->SetToolTip(L"可切换按钮：点击切换选中状态");
+        btnToggle->Connect(btnToggle->Toggled, [](bool on) {});
+        auto cardShadow = std::make_shared<Card>();
+        cardShadow->SetShadow(true);
+        cardShadow->SetShadowColor(Color::FromArgb(120, 0, 0, 0));
+        cardShadow->SetShadowBlur(12.0f);
+        cardShadow->SetShadowOffset(0.0f, 3.0f);
+        cardShadow->SetShadowCornerRadius(8.0f);
+        cardShadow->SetPadding(8.0f);
+        if (auto cardGrid = cardShadow->GetLayoutAs<GridLayout>()) {
+            cardGrid->AddChild(std::make_shared<Label>(L"带阴影的卡片"), 0, 0);
+        }
+        grid1->AddChild(btnDisabled, 7, 0);
+        grid1->AddChild(btnToggle, 7, 1);
+        grid1->AddChild(cardShadow, 8, 0, 1, 2);
+
+        // 新特性：控件细节
+        chk1->SetHoverBoxColor(Color::FromArgb(255, 0, 120, 215));
+        chk2->SetLabel(L"选项二");
+        progress1->SetShowText(true);
+        slider1->SetStep(0.1f);
+        slider1->SetSnapToStep(true);
+        combo1->SetPlaceholder(L"请选择");
+        combo1->SetMaxVisibleItems(5);
+        combo1->SetItemDisabled(1, true);
+        combo1->Connect(combo1->DropDownOpened, []() {});
+
+        // 可编辑 + 输入过滤的下拉框
+        auto comboEdit = std::make_shared<ComboBox>();
+        comboEdit->SetItems({ L"Apple", L"Banana", L"Cherry", L"Avocado", L"Blueberry" });
+        comboEdit->SetEditable(true);
+        comboEdit->SetFilterEnabled(true);
+        comboEdit->SetPlaceholder(L"输入过滤...");
+        grid1->AddChild(comboEdit, 9, 0, 1, 2);
     }
 
     // ---------- 页面2：输入与滚动 ----------
@@ -161,6 +216,34 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
         scrollView->SetContent(scrollContent);
         grid2->AddChild(scrollView, 3, 0, 1, 2);
+
+        // 新特性：只读 / 输入过滤 / 回车 / 密码显隐 / 占位色
+        auto filterBox = std::make_shared<TextBox>();
+        filterBox->SetPlaceholder(L"仅数字");
+        filterBox->SetInputFilter([](wchar_t c) { return c >= L'0' && c <= L'9'; });
+        filterBox->Connect(filterBox->ReturnPressed, [fb = filterBox.get()]() {
+            MessageBoxW(nullptr, fb->GetText().c_str(), L"回车", MB_OK);
+            });
+        auto readonlyBox = std::make_shared<TextBox>();
+        readonlyBox->SetText(L"只读内容");
+        readonlyBox->SetReadOnly(true);
+        auto revealBox = std::make_shared<TextBox>();
+        revealBox->SetPlaceholder(L"密码(可显)");
+        revealBox->SetPasswordMode(true);
+        revealBox->SetRevealPassword(true);
+        auto phColorBox = std::make_shared<TextBox>();
+        phColorBox->SetPlaceholder(L"彩色占位");
+        phColorBox->SetPlaceholderColor(Color::FromArgb(255, 200, 80, 80));
+        grid2->AddChild(filterBox, 4, 0);
+        grid2->AddChild(readonlyBox, 4, 1);
+        grid2->AddChild(revealBox, 5, 0);
+        grid2->AddChild(phColorBox, 5, 1);
+
+        // 新特性：滚动条可见性 / 内边距 / 实例颜色 / 滚动事件
+        scrollView->SetVerticalScrollBarVisibility(ScrollViewer::ScrollBarVisibility::Always);
+        scrollView->SetContentMargin(Thickness(8, 8, 8, 8));
+        scrollView->SetScrollBarColors(Color::FromArgb(40, 0, 0, 0), Color::FromArgb(120, 0, 0, 0), Color::FromArgb(200, 0, 0, 0));
+        scrollView->Connect(scrollView->ScrollChanged, [](float x, float y) {});
     }
 
     // ---------- 页面3：嵌套与联动 ----------
@@ -227,8 +310,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             comboB->AddItem(L"蓝色");
             auto displayLabel = std::make_shared<Label>(L"当前颜色：红色");
             displayLabel->SetTextColor(Color::FromArgb(255, 255, 0, 0));
-            comboB->Connect(comboB->SelectionChanged, [displayLabel, comboB](int index) {
-                std::wstring colorName = comboB->GetSelectedText();
+            comboB->Connect(comboB->SelectionChanged, [displayLabel, c = comboB.get()](int index) {
+                std::wstring colorName = c->GetSelectedText();
                 displayLabel->SetText(L"当前颜色：" + colorName);
                 if (colorName == L"红色")
                     displayLabel->SetTextColor(Color::FromArgb(255, 255, 0, 0));
@@ -377,10 +460,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         auto listView = std::make_shared<ListView>();
         listView->SetHeight(250);
         listView->SetWidth(300);
+        listView->SetCheckable(true);          // 演示：列表勾选框
+        listView->SetSelectionMode(ListView::SelectionMode::Extended);
         for (int i = 1; i <= 50; i++) {
             listView->AddItem(L"列表项 " + std::to_wstring(i));
         }
         listView->SetSelectedIndex(0);
+
+        // 新特性：单项禁用 / 单独文字色 / ToolTip / 排序指示
+        listView->SetItemDisabled(2, true);
+        listView->SetItemTextColor(3, Color::FromArgb(255, 200, 60, 60));
+        listView->SetItemToolTip(1, L"这是第 2 项的提示");
+        listView->SetSortComparator([](const std::wstring& a, const std::wstring& b) { return a < b; });
+        listView->SetShowSortIndicator(true);
+        // 提示：点击列表后直接键入字母可首字母定位（type-ahead）
 
         auto lblListInfo = std::make_shared<Label>(L"当前选中：列表项 1");
         listView->Connect(listView->SelectionChanged, [lblListInfo](int index) {
@@ -400,8 +493,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         auto listButtons = std::make_shared<RowBox>();
         listButtons->SetSpacing(10);
+        auto btnSortList = std::make_shared<Button>(L"排序");
+        btnSortList->Connect(btnSortList->Clicked, [listView]() {
+            static bool asc = true;
+            listView->Sort(asc);
+            asc = !asc;
+            });
         listButtons->AddChild(btnAddItem);
         listButtons->AddChild(btnClearList);
+        listButtons->AddChild(btnSortList);
+        auto btnNoneMode = std::make_shared<Button>(L"无选择模式");
+        btnNoneMode->Connect(btnNoneMode->Clicked, [listView]() { listView->SetSelectionMode(ListView::SelectionMode::None); });
+        listButtons->AddChild(btnNoneMode);
 
         grid4->AddChild(listView, 1, 0);
         grid4->AddChild(lblListInfo, 1, 1);
@@ -422,6 +525,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         auto tableView = std::make_shared<TableView>();
         tableView->SetWidth(600);
         tableView->SetHeight(250);
+        tableView->SetCheckable(true);          // 演示：表格行勾选框
         tableView->SetRowCount(20);
         tableView->SetColumnCount(4);
         tableView->SetHorizontalHeaderLabels({ L"姓名", L"年龄", L"城市", L"备注" });
@@ -440,6 +544,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         tableView->SetSelectionMode(TableView::SelectionMode::Row);
         tableView->SetCurrentCell(0, 0);
 
+        // 新特性：列排序 / 排序指示 / 单元格颜色 / 单元格提示
+        tableView->SetColumnComparator(1, [](const std::wstring& a, const std::wstring& b) { return a < b; });
+        tableView->SetShowSortIndicator(true);
+        tableView->SetCellTextColor(0, 2, Color::FromArgb(255, 0, 120, 0));
+        tableView->SetCellToolTip(0, 0, L"第一行的提示");
+        // 新特性：列对齐 / 每行高度 / 行禁用
+        tableView->SetColumnAlignment(1, TextHAlign::Center);
+        tableView->SetColumnAlignment(2, TextHAlign::Center);
+        tableView->SetRowHeightAt(3, 44.0f);
+        tableView->SetRowDisabled(5, true);
+
         auto lblTableInfo = std::make_shared<Label>(L"点击单元格查看信息");
         tableView->Connect(tableView->CellClicked, [lblTableInfo](int row, int col) {
             lblTableInfo->SetText(L"选中：行 " + std::to_wstring(row) + L", 列 " + std::to_wstring(col));
@@ -457,6 +572,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         modeButtons->AddChild(btnRowMode);
         modeButtons->AddChild(btnColMode);
         modeButtons->AddChild(btnCellMode);
+        auto btnSortTable = std::make_shared<Button>(L"按年龄排序");
+        btnSortTable->Connect(btnSortTable->Clicked, [tableView]() {
+            static bool asc = true;
+            tableView->SortByColumn(1, asc);
+            asc = !asc;
+            });
+        modeButtons->AddChild(btnSortTable);
+        auto btnHideCol = std::make_shared<Button>(L"隐藏备注列");
+        btnHideCol->Connect(btnHideCol->Clicked, [tableView, b = btnHideCol.get()]() {
+            bool vis = tableView->IsColumnVisible(3);
+            tableView->SetColumnVisible(3, !vis);
+            b->SetText(!vis ? L"隐藏备注列" : L"显示备注列");
+            });
+        modeButtons->AddChild(btnHideCol);
 
         grid5->AddChild(tableView, 1, 0, 1, 2);
         grid5->AddChild(lblTableInfo, 2, 0, 1, 2);
@@ -496,6 +625,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         treeView->ExpandNode(root1, true);
         treeView->ExpandNode(child1_2, true);
 
+        // 新特性：默认展开深度 / 节点路径 / 过滤搜索
+        treeView->SetDefaultExpandDepth(2);
+        child1_2->tooltip = L"这是一个可展开的文件夹节点";
+
         auto lblTreeInfo = std::make_shared<Label>(L"点击节点查看信息");
         treeView->Connect(treeView->SelectionChanged, [lblTreeInfo](std::shared_ptr<TreeNode> node) {
             if (node) {
@@ -506,10 +639,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 lblTreeInfo->SetText(L"无选中节点");
             }
             });
-        treeView->Connect(treeView->NodeClicked, [lblTreeInfo](std::shared_ptr<TreeNode> node) {
+        treeView->Connect(treeView->NodeClicked, [lblTreeInfo, tv = treeView.get()](std::shared_ptr<TreeNode> node) {
             if (node) {
-                std::wstring text = node->columns.size() > 0 ? node->columns[0] : L"";
-                lblTreeInfo->SetText(L"点击节点：" + text);
+                lblTreeInfo->SetText(L"路径：" + tv->GetNodePath(node));
             }
             });
 
@@ -528,11 +660,137 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         treeButtons->SetSpacing(10);
         treeButtons->AddChild(btnExpandAll);
         treeButtons->AddChild(btnCollapseAll);
+        auto btnSearchTree = std::make_shared<Button>(L"搜索 1-2");
+        auto btnClearTree = std::make_shared<Button>(L"清除过滤");
+        btnSearchTree->Connect(btnSearchTree->Clicked, [treeView]() { treeView->Search(L"1-2"); });
+        btnClearTree->Connect(btnClearTree->Clicked, [treeView]() { treeView->ClearFilter(); });
+        treeButtons->AddChild(btnSearchTree);
+        treeButtons->AddChild(btnClearTree);
 
         grid6->AddChild(treeView, 1, 0, 1, 2);
         grid6->AddChild(lblTreeInfo, 2, 0, 1, 2);
         grid6->AddChild(treeButtons, 3, 0, 1, 2);
         treeView->SetUseCache(false);
+    }
+
+    // ---------- 页面7：树形视图增强 ----------
+    auto page7 = std::make_shared<Page>();
+    auto grid7 = page7->GetLayoutAs<GridLayout>();
+    if (grid7) {
+        grid7->SetSpacing(10, 10);
+
+        auto title7 = std::make_shared<Label>(L"树形视图增强（勾选 / 多选 / 图标 / 排序）");
+        title7->SetTextColor(Color::FromArgb(255, 40, 40, 40));
+        grid7->AddChild(title7, 0, 0, 1, 2);
+
+        auto tree = std::make_shared<TreeView>();
+        tree->SetWidth(560);
+        tree->SetHeight(320);
+        tree->SetColumnCount(3);
+        tree->SetHeaderLabels({ L"名称", L"大小", L"类型" });
+        tree->SetColumnWidth(0, 260);
+        tree->SetColumnWidth(1, 100);
+        tree->SetColumnWidth(2, 120);
+        tree->SetSelectionMode(TreeView::SelectionMode::Extended);
+        tree->SetAlternatingRowColors(true);
+        tree->SetCheckable(true);
+        tree->SetUseCache(false);
+
+        auto proj = tree->AddRoot(std::vector<std::wstring>{ L"我的项目", L"", L"文件夹" });
+        proj->icon = L"\u25A0";
+        proj->checkable = true; proj->checkState = TreeNode::CheckState::PartiallyChecked;
+        auto src = tree->AddChild(proj, std::vector<std::wstring>{ L"src", L"", L"文件夹" });
+        src->icon = L"\u25A0"; src->checkable = true; src->checkState = TreeNode::CheckState::PartiallyChecked;
+        auto mainCpp = tree->AddChild(src, std::vector<std::wstring>{ L"main.cpp", L"12 KB", L"源文件" });
+        mainCpp->icon = L"\u2022"; mainCpp->checkable = true; mainCpp->checkState = TreeNode::CheckState::Checked;
+        auto uiCpp = tree->AddChild(src, std::vector<std::wstring>{ L"ui.cpp", L"8 KB", L"源文件" });
+        uiCpp->icon = L"\u2022"; uiCpp->checkable = true; uiCpp->checkState = TreeNode::CheckState::Unchecked;
+        auto docs = tree->AddChild(proj, std::vector<std::wstring>{ L"docs", L"", L"文件夹" });
+        docs->icon = L"\u25A0"; docs->checkable = true; docs->checkState = TreeNode::CheckState::Unchecked;
+        tree->AddChild(docs, std::vector<std::wstring>{ L"README.md", L"4 KB", L"文本" })->icon = L"\u2022";
+        tree->AddChild(docs, std::vector<std::wstring>{ L"API.md", L"20 KB", L"文本" })->icon = L"\u2022";
+        auto buildDir = tree->AddRoot(std::vector<std::wstring>{ L"build", L"", L"文件夹" });
+        buildDir->icon = L"\u25A0";
+        tree->AddChild(buildDir, std::vector<std::wstring>{ L"ZUI.exe", L"600 KB", L"程序" })->icon = L"\u2022";
+        tree->ExpandAll();
+        tree->SetSelectedNode(proj);
+
+        auto info = std::make_shared<Label>(L"选中 1 个节点");
+        tree->Connect(tree->SelectionChangedMulti, [info](std::vector<std::shared_ptr<TreeNode>> nodes) {
+            info->SetText(L"选中 " + std::to_wstring(nodes.size()) + L" 个节点");
+            });
+        tree->Connect(tree->ItemCheckStateChanged, [info](std::shared_ptr<TreeNode> node, TreeNode::CheckState st) {
+            info->SetText(node->columns[0] + (st == TreeNode::CheckState::Checked ? L" 已勾选" :
+                (st == TreeNode::CheckState::PartiallyChecked ? L" 部分勾选" : L" 取消勾选")));
+            });
+        tree->Connect(tree->ItemDoubleClicked, [](std::shared_ptr<TreeNode> node) {
+            MessageBoxW(nullptr, node->columns[0].c_str(), L"双击节点", MB_OK);
+            });
+
+        grid7->AddChild(tree, 1, 0);
+
+        auto btns = std::make_shared<ColumnBox>();
+        btns->SetSpacing(8);
+        auto bExpand = std::make_shared<Button>(L"展开全部");
+        auto bCollapse = std::make_shared<Button>(L"折叠全部");
+        auto bAdd = std::make_shared<Button>(L"添加节点");
+        auto bDel = std::make_shared<Button>(L"删除选中");
+        auto bSort = std::make_shared<Button>(L"按名称排序");
+        auto bAll = std::make_shared<Button>(L"全选");
+        auto bCheckMode = std::make_shared<Button>(L"勾选:联动");
+        auto bMarquee = std::make_shared<Button>(L"框选:开");
+        auto bSync = std::make_shared<Button>(L"框选同步勾选:关");
+        bExpand->Connect(bExpand->Clicked, [tree]() { tree->ExpandAll(); });
+        bCollapse->Connect(bCollapse->Clicked, [tree]() { tree->CollapseAll(); });
+        bAdd->Connect(bAdd->Clicked, [tree]() {
+            auto sel = tree->GetSelectedNode();
+            if (sel) {
+                auto n = tree->AddChild(sel, std::vector<std::wstring>{ L"新节点", L"-", L"新建" });
+                n->icon = L"\u2022";
+                tree->ExpandNode(sel, true);
+            }
+            else {
+                auto n = tree->AddRoot(std::vector<std::wstring>{ L"新节点", L"-", L"根" });
+                n->icon = L"\u25A0";
+            }
+            });
+        bDel->Connect(bDel->Clicked, [tree]() {
+            auto nodes = tree->GetSelectedNodes();
+            for (auto& n : nodes) tree->RemoveNode(n);
+            });
+        bSort->Connect(bSort->Clicked, [tree]() {
+            tree->SortChildren(nullptr, true, [](const std::shared_ptr<TreeNode>& a, const std::shared_ptr<TreeNode>& b) {
+                return a->columns[0] < b->columns[0];
+                });
+            });
+        bAll->Connect(bAll->Clicked, [tree]() { tree->SelectAll(); });
+        bCheckMode->Connect(bCheckMode->Clicked, [tree, b = bCheckMode.get()]() {
+            bool indep = (tree->GetCheckMode() == TreeView::CheckMode::Independent);
+            tree->SetCheckMode(indep ? TreeView::CheckMode::Linked : TreeView::CheckMode::Independent);
+            b->SetText(indep ? L"勾选:联动" : L"勾选:独立");
+            });
+        bMarquee->Connect(bMarquee->Clicked, [tree, b = bMarquee.get()]() {
+            bool on = tree->IsMarqueeEnabled();
+            tree->SetMarqueeEnabled(!on);
+            b->SetText(!on ? L"框选:开" : L"框选:关");
+            });
+        bSync->Connect(bSync->Clicked, [tree, b = bSync.get()]() {
+            bool on = tree->IsMarqueeCheckSync();
+            tree->SetMarqueeCheckSync(!on);
+            b->SetText(!on ? L"框选同步勾选:开" : L"框选同步勾选:关");
+            });
+
+        btns->AddChild(bExpand);
+        btns->AddChild(bCollapse);
+        btns->AddChild(bAdd);
+        btns->AddChild(bDel);
+        btns->AddChild(bSort);
+        btns->AddChild(bAll);
+        btns->AddChild(bCheckMode);
+        btns->AddChild(bMarquee);
+        btns->AddChild(bSync);
+        grid7->AddChild(btns, 1, 1);
+        grid7->AddChild(info, 2, 0, 1, 2);
     }
 
     // 所有页面加入 PageHost
@@ -542,6 +800,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     mainHost->AddPage(page4);
     mainHost->AddPage(page5);
     mainHost->AddPage(page6);
+    mainHost->AddPage(page7);
 
     // 主页面导航：记录当前索引，根据相对位置设置上下方向
     auto currentMainIndex = std::make_shared<int>(0);
