@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>基础控件 · ZUI API 参考</title>
+    <title>应用与多窗口 · ZUI API 参考</title>
     <style>
 
 :root {
@@ -197,931 +197,131 @@ pre { line-height: 125%; }
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class=""><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class="active"><a href="API.10.html"><span class="chapter-index">10</span>基础控件</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>数据视图</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>附录</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="辅助函数"><div class="toc-row"><a href="#辅助函数" data-target="辅助函数">辅助函数</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="label"><div class="toc-row"><a href="#label" data-target="label">Label</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="button"><div class="toc-row"><a href="#button" data-target="button">Button</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="textbox"><div class="toc-row"><a href="#textbox" data-target="textbox">TextBox</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="combobox"><div class="toc-row"><a href="#combobox" data-target="combobox">ComboBox</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="toggleswitch"><div class="toc-row"><a href="#toggleswitch" data-target="toggleswitch">ToggleSwitch</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="checkbox"><div class="toc-row"><a href="#checkbox" data-target="checkbox">CheckBox</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="scrollviewer"><div class="toc-row"><a href="#scrollviewer" data-target="scrollviewer">ScrollViewer</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="progressbar"><div class="toc-row"><a href="#progressbar" data-target="progressbar">ProgressBar</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="slider"><div class="toc-row"><a href="#slider" data-target="slider">Slider</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class=""><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class="active"><a href="API.10.html"><span class="chapter-index">10</span>应用与多窗口</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>基础控件</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>数据视图</a></li><li class=""><a href="API.13.html"><span class="chapter-index">13</span>附录</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">本页总览</div><ul class="toc-list"><li class="toc-item" data-toc="application"><div class="toc-row"><a href="#application" data-target="application">Application</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="多窗口的独立性与兼容"><div class="toc-row"><a href="#多窗口的独立性与兼容" data-target="多窗口的独立性与兼容">多窗口的独立性与兼容</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="多窗口常见坑"><div class="toc-row"><a href="#多窗口常见坑" data-target="多窗口常见坑">多窗口常见坑</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>## 辅助函数
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>## Application
+
+`Application` 是进程 / UI 线程级的应用对象，管理一个共享消息循环与所有顶层窗口。它与窗口的生命周期解耦：`Application` 只是内部单例的句柄，构造 / 析构它**不会**销毁已创建的窗口（因此不会出现“app 先析构、窗口悬垂”这类问题）。
 
 ```cpp
-enum class TextHAlign { Left, Center, Right };
-
-inline void DrawTextWithEllipsis(ID2D1RenderTarget* rt,
-    const std::wstring&amp; text, const D2D1_RECT_F&amp; rect,
-    const D2D1_COLOR_F&amp; color, const FontSpec&amp; spec,
-    ComPtr&lt;ID2D1SolidColorBrush&gt;&amp; textBrush,
-    IDWriteTextFormat* textFormat = nullptr, bool forceNoWrap = false,
-    TextHAlign align = TextHAlign::Left);
-```
-
-- 单行绘制并按需截断加省略号；`align` 控制水平对齐（用于表格列对齐等）。
-
-## Label
-
-```cpp
-enum class TextOverflow { Wrap, Ellipsis };
-
-class Label : public UIElement {
-    Label(const std::wstring&amp; text = L"Label");
-
-    void SetText(const std::wstring&amp; text);
-    std::wstring GetText() const;
-    void SetTextColor(Color color);
-    void SetTextOverflow(TextOverflow mode);
-    TextOverflow GetTextOverflow() const;
-    void SetAlignment(HAlign hAlign, VAlign vAlign);   // HAlign/VAlign 见下
-    HAlign GetHorizontalAlignment() const;
-    VAlign GetVerticalAlignment() const;
-
-    void SetPadding(const Thickness&amp;);   // 也可传 float 表示四边相同
-    void SetLineSpacing(float);
-    void SetMaxLines(int);               // 超出以省略号结尾
-    Size GetDesiredSize() const;         // 当前内容期望尺寸
-
-    static void SetDefaultTextColor(Color);
-    static void SetDefaultFontSize(float);
-    static void SetDefaultOverflow(TextOverflow);
-    static void SetDefaultAlignment(HAlign, VAlign);
+class Application {
+    std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title);
+    void AddWindow(const std::shared_ptr&lt;Window&gt;&amp; w);
+    int Run();
+    void Quit(int code = 0);
+    void CloseAllWindows();
+    size_t WindowCount() const;
+    static Application&amp; Instance();
 };
 ```
 
-- 默认：黑色文字、`Ellipsis`、左对齐、垂直居中、字号 `16`。
-- `SetMaxLines` 只在 `Wrap` 模式下有意义；`Ellipsis` 本身就是单行。
-- 禁用时文字自动变为灰色（`DefaultDisabledColor`）。
-
-## Button
+**推荐用法（Qt 风格）**：
 
 ```cpp
-class Button : public UIElement {
-    ZSignal&lt;&gt; Clicked;
-    ZSignal&lt;bool&gt; Toggled;               // 仅 SetCheckable(true) 后有意义
-
-    Button(const std::wstring&amp; text = L"Button");
-    void SetText(const std::wstring&amp; text);
-    std::wstring GetText() const;
-    void SetColors(Color normal, Color hover, Color pressed);
-    void SetTextColor(Color color);
-    void SetCornerRadius(float radius);
-    void SetHoverAnimationSpeed(float speed);
-
-    void SetCheckable(bool);             // 可切换按钮
-    void SetChecked(bool);
-    bool IsChecked() const;              // 依赖 SetCheckable(true) 才有意义
-    void SetTextAlignment(...);          // 文字对齐
-    void SetPadding(...);                // 内边距
-    void SetAutoRepeat(bool);            // 按住自动重复触发 Clicked
-
-    static void SetDefaultColors(Color, Color, Color);
-    static void SetDefaultSize(float width, float height);
-};
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    ZUI::Application app;
+    auto w1 = app.CreateWindow(1000, 700, L"主窗口");
+    auto w2 = app.CreateWindow(640, 480, L"工具窗口");
+    // 各自搭 UI：w1-&gt;GetRootColumnBox()-&gt;AddChild(...)
+    return app.Run();                    // 单一消息循环，所有窗口共用
+}
 ```
 
-- 默认尺寸 `120×36`，圆角 `4`，蓝底白字（常态 `0,120,212`）。
-- 鼠标在按钮内按下、抬起时触发 `Clicked`（在别处抬起不触发）。
-- 键盘：获得焦点后按 `Enter` 或 `Space` 触发 `Clicked`。
-- 禁用时不响应事件并绘制为灰色。
-- 可切换按钮：`SetCheckable(true)` 后点击切换选中态并触发 `Toggled(bool)`。
+**行为与要点**：
 
-## TextBox
+- `CreateWindow` 创建窗口并登记进应用；返回的 `shared_ptr&lt;Window&gt;` **必须由你持有**，否则 `shared_ptr` 析构会让窗口立即被销毁。
+- `Run()` 只运行**一个**消息循环；同线程创建的所有窗口消息都由它分发。
+- 在 `Run()` 之后（消息循环运行期间）调用 `CreateWindow` 也能正常显示新窗口。
+- 关闭任意窗口不影响其它窗口；**最后一个窗口关闭时**循环自动退出。也可用 `Quit()` 主动退出。
+- 单进程应只有一个 UI 线程在跑窗口（与 Win32 一致）。
 
-```cpp
-class TextBox : public UIElement {
-    ZSignal&lt;const std::wstring&amp;&gt; TextChanged;
-    ZSignal&lt;&gt; ReturnPressed;
+## 多窗口的独立性与兼容
 
-    TextBox();
-    std::wstring GetText() const;
-    void SetText(const std::wstring&amp; text);
-    void SetPlaceholder(const std::wstring&amp; placeholder);
-    void SetPlaceholderColor(Color);
-    void SetPasswordMode(bool mode);
-    void SetRevealPassword(bool reveal);     // 密码模式下临时明文显示
-    bool IsPasswordRevealed() const;
-    void SetMaxLength(int maxLength);        // -1 不限
-    int  GetMaxLength() const;
+- **重绘 / 布局按窗口路由**：每个元素记录所属窗口（`UIElement::GetWindow()`）；`RequestRepaint()` / `InvalidateLayout()` 只作用于所属窗口，窗口之间不会互相触发重绘。
+- **DPI 每窗口**：当前 DPI 缩放是**线程本地**的，渲染每个窗口前会设置该窗口自己的缩放，所以混合 DPI 的多窗口也能正确 `Snap`。
+- **激活 / 失活按窗口**：`Window` 提供实例信号 `Activated` / `Deactivated` / `Closed`；全局 `UIZSignals::WindowDeactivated` 现在带 `Window*` 参数、`GlobalMouseDown` 带 `Window*`。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。
+- **共享资源**：`ID2D1Factory` 与系统计时器精度（`timeBeginPeriod`）由应用核心统一管理，多窗口共享。
+- **向后兼容**：单窗口写法仍然有效——`Window win; win.Create(...); win.Run();`；`Run()` 会转发到应用级消息循环。
 
-    void SetReadOnly(bool);
+## 多窗口常见坑
 
-    void SetInputFilter(std::function&lt;bool(wchar_t)&gt;);  // 返回 true 才接受该字符
-
-    bool IsFocused() const;
-    void Focus();
-    void Blur();
-
-    // 选区 / 编辑（公开）
-    int GetSelectionStart() const;
-    int GetSelectionEnd() const;
-    int GetCursorPosition() const;
-    void SetSelection(int start, int end);
-    void SelectAll();
-    void Undo(); void Redo();
-    void Copy(); void Cut(); void Paste();
-
-    void SetTextColor(Color); SetBackgroundColor(Color); SetBorderColor(Color);
-    void SetSelectionColor(Color); SetHoverBackgroundColor(Color); SetHoverBorderColor(Color);
-    void SetCursorBlinkInterval(float);
-};
-```
-
-- 默认尺寸 `160×30`，字号 `14`，光标闪烁 `0.5s`。
-- 支持 `Ctrl+C/X/V/A/Z/Y`、方向键、`Home/End`、`Shift+方向键` 选区、鼠标拖选，以及 IME 组合输入。
-- **选区累积**：按住 Shift 连按方向键会逐字符累积高亮（内部用独立锚点，不会每按一次塌缩成一个字符）。
-- `SetInputFilter` 是唯一字符级过滤入口，例如“仅数字”：`[](wchar_t c){ return c &gt;= L'0' &amp;&amp; c &lt;= L'1'; }` 风格。
-- `SetReadOnly(true)` 后仍可选择/复制，但不能编辑。
-- `TextChanged` 在每次文本变化时触发；`ReturnPressed` 在按回车时触发。
-
-## ComboBox
-
-```cpp
-class ComboBox : public UIElement {
-    ZSignal&lt;int&gt; SelectionChanged;
-    ZSignal&lt;&gt; DropDownOpened;
-    ZSignal&lt;&gt; DropDownClosed;
-
-    ComboBox();
-    void AddItem(const std::wstring&amp; item);
-    void SetItems(const std::vector&lt;std::wstring&gt;&amp; items);
-    void InsertItem(int index, const std::wstring&amp; item);
-    void RemoveItemAt(int index);
-    void RemoveItem(const std::wstring&amp; item);
-    void ClearItems();
-    int GetItemCount() const;
-    std::wstring GetItemAt(int index) const;
-    const std::vector&lt;std::wstring&gt;&amp; GetItems() const;
-
-    void SetSelectedIndex(int index);
-    int GetSelectedIndex() const;
-    std::wstring GetSelectedText() const;
-    bool IsExpanded() const;
-    void Collapse();
-    void Expand();
-    void SetOpen(bool);
-
-    void SetPlaceholder(const std::wstring&amp;);
-
-    void SetItemDisabled(int index, bool disabled = true);
-    bool IsItemDisabled(int index) const;
-
-    void SetMaxVisibleItems(int count);      // 0 表示不限制
-
-    // 可编辑 + 输入过滤
-    void SetEditable(bool);
-    bool IsEditable() const;
-    void SetFilterEnabled(bool);
-    bool IsFilterEnabled() const;
-    void SetEditText(const std::wstring&amp;);
-    std::wstring GetEditText() const;
-
-    // 样式：SetNormalBgColor / SetHoverBgColor / SetBorderColor / SetIndicatorColor / SetListItemHeight 等
-};
-```
-
-- 默认尺寸 `160×30`，列表项高 `24`，指示条宽 `3`、高占比 `0.6`。
-- 展开时列表绘制在 `DrawOverlay` 浮层上，所以可以超出自身边界。
-- `SetMaxVisibleItems(n)` 限制下拉最多显示 `n` 行，超出部分滚动。
-- **可编辑 + 过滤**：`SetEditable(true)` 后可输入；`SetFilterEnabled(true)` 时输入内容会即时筛选下拉项（大小写不敏感的子串匹配）；`GetSelectedIndex()` 对应**筛选后**的列表。带闪烁光标，点击可定位光标位置（当前版本不支持文本区间选区）。
-- `SetItemDisabled` 的禁用项不可被选择，键盘上下键会跳过。
-
-## ToggleSwitch
-
-```cpp
-class ToggleSwitch : public UIElement {
-    ZSignal&lt;bool&gt; Toggled;
-
-    ToggleSwitch(bool initialState = false);
-    void SetOn(bool on);
-    bool IsOn() const;
-    void SetColors(Color on, Color off, Color knob);
-    void SetSize(float width, float height);
-    void SetIndeterminate(bool indeterminate);   // 不确定态（半选观感）
-    void SetLabel(const std::wstring&amp;);
-    void SetLabelColor(Color);
-    void SetAnimationSpeed(float speed);
-};
-```
-
-- 默认尺寸 `50×24`，开 `0,120,212`、关 `200,200,200`、滑块白。
-- 键盘：获得焦点后 `Space`/`Enter` 切换。
-
-## CheckBox
-
-```cpp
-enum class State { Unchecked, PartiallyChecked, Checked };
-
-class CheckBox : public UIElement {
-    ZSignal&lt;bool&gt; Toggled;
-    ZSignal&lt;State&gt; StateChanged;
-
-    CheckBox(bool checked = false);
-    void SetChecked(bool); bool IsChecked() const;
-    State GetState() const; void SetState(State);
-    void Toggle();
-
-    void SetTriState(bool);
-    void SetSize(float);
-    void SetCornerRadius(float);
-    void SetBoxColor(Color); void SetBorderColor(Color); void SetCheckColor(Color);
-    void SetHoverBoxColor(Color);
-    void SetAnimationSpeed(float);
-    void SetLabel(const std::wstring&amp;); void SetLabelColor(Color);
-
-    // 静态绘制（供列表/表格行复选框复用）
-    static void DrawBox(ID2D1RenderTarget*, const D2D1_RECT_F&amp; rect, float fill,
-                        State state, D2D1_COLOR_F boxColor, D2D1_COLOR_F checkColor,
-                        D2D1_COLOR_F borderColor, float cornerRadius,
-                        ComPtr&lt;ID2D1SolidColorBrush&gt;&amp; brush, bool enabled = true);
-};
-```
-
-- 勾选有进度动画；悬停有淡蓝光晕渐变动画。
-- `SetTriState(true)` 后 `Toggle()` 在 未选 → 半选 → 全选 之间循环。
-- 键盘 `Space`/`Enter` 切换；禁用时置灰。
-- `DrawBox` 是静态函数，`ListView`/`TableView`/`TreeView` 的行勾选框复用它，因此观感一致。
-
-## ScrollViewer
-
-```cpp
-enum class ScrollBarVisibility { Auto, Always, Hidden };
-
-class ScrollViewer : public UIElement {
-    ZSignal&lt;float, float&gt; ScrollChanged;     // (offsetX, offsetY)
-
-    ScrollViewer();
-    void SetContent(std::shared_ptr&lt;UIElement&gt; content);
-    std::shared_ptr&lt;UIElement&gt; GetContent() const;
-
-    void SetVerticalScrollEnabled(bool enabled);
-    void SetHorizontalScrollEnabled(bool enabled);
-    void SetVerticalScrollBarVisibility(ScrollBarVisibility);
-    void SetHorizontalScrollBarVisibility(ScrollBarVisibility);
-    ScrollBarVisibility GetVerticalScrollBarVisibility() const;
-    ScrollBarVisibility GetHorizontalScrollBarVisibility() const;
-
-    void SetScrollBarWidth(float width);
-    void SetScrollWheelStep(float step);
-    void SetAnimationSpeed(float speed);
-    void SetContentMargin(const Thickness&amp;);
-    Thickness GetContentMargin() const;
-    void SetScrollBarColors(Color track, Color thumb, Color hoverThumb);
-    float GetScrollOffsetX() const;
-    float GetScrollOffsetY() const;
-
-    void ScrollTo(float offsetX, float offsetY, bool animated = true);
-    void ScrollBy(float deltaX, float deltaY, bool animated = true);
-};
-```
-
-- 滚动条宽 `8`、最小长度 `20`、滚轮步长 `30`。
-- `Auto`：内容超出才显示；`Always`：始终显示；`Hidden`：不显示滚动条（仍可用滚轮/代码滚动）。
-- `ScrollChanged(x,y)` 在偏移变化时触发（含动画过程中）。
-- `SetContentMargin` 给内容加内边距。
-- 内部 `ScrollBar` 类一般无需直接使用。
-
-## ProgressBar
-
-```cpp
-class ProgressBar : public UIElement {
-    ZSignal&lt;float&gt; ValueChanged;
-
-    ProgressBar();
-    void SetValue(float value);        // [0,1]，会关闭不确定模式
-    float GetValue() const;
-    void SetRange(float min, float max);
-    float GetMin() const; float GetMax() const;
-    void SetRangeValue(float value);   // 在 [min,max] 内取值
-    float GetRangeValue() const;
-    void SetShowText(bool); bool IsShowText() const;
-    void SetTextColor(Color);
-    void SetIndeterminate(bool); bool IsIndeterminate() const;
-    void SetTrackColor(Color); void SetFillColor(Color); void SetBorderColor(Color);
-    void SetIndeterminateBlockWidth(float); void SetIndeterminateSpeed(float);
-    // ... 其余默认值/颜色 setter
-};
-```
-
-- 默认尺寸 `200×20`，不确定块宽 `40`、速度 `100`。
-- `SetValue` 归一化到 `[0,1]`；`SetRangeValue` 用 `[min,max]`。
-- `SetShowText(true)` 在进度条上显示百分比文本；禁用时填充色置灰。
-
-## Slider
-
-```cpp
-class Slider : public UIElement {
-    ZSignal&lt;float&gt; ValueChanged;
-    ZSignal&lt;&gt; SliderReleased;           // 拖拽结束（或键盘调整结束）
-
-    Slider();
-    void SetRange(float min, float max);
-    void SetValue(float value);
-    float GetValue() const;
-    void SetStep(float step);
-    float GetStep() const;
-    void SetSnapToStep(bool); bool IsSnapToStep() const;
-    void SetTrackColor(Color); void SetFillColor(Color);
-    void SetThumbColor(Color); void SetHoverThumbColor(Color);
-    void SetThumbSize(float); void SetTrackHeight(float);
-};
-```
-
-- 默认尺寸 `160×24`，默认范围 `[0,100]`，轨道高 `4`，滑块直径 `14`。
-- 方向键按 `step` 调整；`Home/End` 到范围两端。
-- `SetSnapToStep(true)` 会把实时值吸附到 step 的整数倍。</pre></div></div>
-<div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 10 章 · 基础控件</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">第 10 章</span><h1>基础控件</h1><p class="chapter-summary">Label、Button、TextBox、ComboBox、ToggleSwitch、CheckBox、ScrollViewer、ProgressBar、Slider</p></header><h2 id="辅助函数">辅助函数</h2>
+- `CreateWindow` 返回的 `shared_ptr` 不要丢；丢了窗口即被销毁（可像示例那样放进容器长期持有）。
+- 需要窗口归属的全局信号（`GlobalMouseDown`、`WindowDeactivated`）都带上了 `Window*`；订阅时用 `GetWindow()` 过滤，只处理本窗口。
+- 所有窗口必须在同一 UI 线程创建与运行。</pre></div></div>
+<div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 10 章 · 应用与多窗口</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">第 10 章</span><h1>应用与多窗口</h1><p class="chapter-summary">Application 与多窗口</p></header><h2 id="application">Application</h2>
+<p><code>Application</code> 是进程 / UI 线程级的应用对象，管理一个共享消息循环与所有顶层窗口。它与窗口的生命周期解耦：<code>Application</code> 只是内部单例的句柄，构造 / 析构它<strong>不会</strong>销毁已创建的窗口（因此不会出现“app 先析构、窗口悬垂”这类问题）。</p>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-724ae3b8', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-531b1634', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
-<div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">TextHAlign</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Left</span><span class="p">,</span><span class="w"> </span><span class="n">Center</span><span class="p">,</span><span class="w"> </span><span class="n">Right</span><span class="w"> </span><span class="p">};</span>
-
-<span class="kr">inline</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">DrawTextWithEllipsis</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="w"> </span><span class="n">rt</span><span class="p">,</span>
-<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">D2D1_RECT_F</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rect</span><span class="p">,</span>
-<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">D2D1_COLOR_F</span><span class="o">&amp;</span><span class="w"> </span><span class="n">color</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">FontSpec</span><span class="o">&amp;</span><span class="w"> </span><span class="n">spec</span><span class="p">,</span>
-<span class="w">    </span><span class="n">ComPtr</span><span class="o">&lt;</span><span class="n">ID2D1SolidColorBrush</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">textBrush</span><span class="p">,</span>
-<span class="w">    </span><span class="n">IDWriteTextFormat</span><span class="o">*</span><span class="w"> </span><span class="n">textFormat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">forceNoWrap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">,</span>
-<span class="w">    </span><span class="n">TextHAlign</span><span class="w"> </span><span class="n">align</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TextHAlign</span><span class="o">::</span><span class="n">Left</span><span class="p">);</span>
-</pre></div>
-<pre id="code-724ae3b8" style="display: none;">enum class TextHAlign { Left, Center, Right };
-
-inline void DrawTextWithEllipsis(ID2D1RenderTarget* rt,
-    const std::wstring&amp; text, const D2D1_RECT_F&amp; rect,
-    const D2D1_COLOR_F&amp; color, const FontSpec&amp; spec,
-    ComPtr&lt;ID2D1SolidColorBrush&gt;&amp; textBrush,
-    IDWriteTextFormat* textFormat = nullptr, bool forceNoWrap = false,
-    TextHAlign align = TextHAlign::Left);</pre>
-</div>
-<ul>
-<li>单行绘制并按需截断加省略号；<code>align</code> 控制水平对齐（用于表格列对齐等）。</li>
-</ul>
-<h2 id="label">Label</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-432c7e56', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">TextOverflow</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Wrap</span><span class="p">,</span><span class="w"> </span><span class="n">Ellipsis</span><span class="w"> </span><span class="p">};</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">Label</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">Label</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sa">L</span><span class="s">"Label"</span><span class="p">);</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetText</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetText</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTextColor</span><span class="p">(</span><span class="n">Color</span><span class="w"> </span><span class="n">color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTextOverflow</span><span class="p">(</span><span class="n">TextOverflow</span><span class="w"> </span><span class="n">mode</span><span class="p">);</span>
-<span class="w">    </span><span class="n">TextOverflow</span><span class="w"> </span><span class="nf">GetTextOverflow</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAlignment</span><span class="p">(</span><span class="n">HAlign</span><span class="w"> </span><span class="n">hAlign</span><span class="p">,</span><span class="w"> </span><span class="n">VAlign</span><span class="w"> </span><span class="n">vAlign</span><span class="p">);</span><span class="w">   </span><span class="c1">// HAlign/VAlign 见下</span>
-<span class="w">    </span><span class="n">HAlign</span><span class="w"> </span><span class="nf">GetHorizontalAlignment</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="n">VAlign</span><span class="w"> </span><span class="nf">GetVerticalAlignment</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPadding</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Thickness</span><span class="o">&amp;</span><span class="p">);</span><span class="w">   </span><span class="c1">// 也可传 float 表示四边相同</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetLineSpacing</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaxLines</span><span class="p">(</span><span class="kt">int</span><span class="p">);</span><span class="w">               </span><span class="c1">// 超出以省略号结尾</span>
-<span class="w">    </span><span class="n">Size</span><span class="w"> </span><span class="nf">GetDesiredSize</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">         </span><span class="c1">// 当前内容期望尺寸</span>
-
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDefaultTextColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDefaultFontSize</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDefaultOverflow</span><span class="p">(</span><span class="n">TextOverflow</span><span class="p">);</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDefaultAlignment</span><span class="p">(</span><span class="n">HAlign</span><span class="p">,</span><span class="w"> </span><span class="n">VAlign</span><span class="p">);</span>
+<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Application</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Window</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CreateWindow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddWindow</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Window</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">w</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">Run</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Quit</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">CloseAllWindows</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="nf">WindowCount</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Application</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">Instance</span><span class="p">();</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-432c7e56" style="display: none;">enum class TextOverflow { Wrap, Ellipsis };
-
-class Label : public UIElement {
-    Label(const std::wstring&amp; text = L"Label");
-
-    void SetText(const std::wstring&amp; text);
-    std::wstring GetText() const;
-    void SetTextColor(Color color);
-    void SetTextOverflow(TextOverflow mode);
-    TextOverflow GetTextOverflow() const;
-    void SetAlignment(HAlign hAlign, VAlign vAlign);   // HAlign/VAlign 见下
-    HAlign GetHorizontalAlignment() const;
-    VAlign GetVerticalAlignment() const;
-
-    void SetPadding(const Thickness&amp;);   // 也可传 float 表示四边相同
-    void SetLineSpacing(float);
-    void SetMaxLines(int);               // 超出以省略号结尾
-    Size GetDesiredSize() const;         // 当前内容期望尺寸
-
-    static void SetDefaultTextColor(Color);
-    static void SetDefaultFontSize(float);
-    static void SetDefaultOverflow(TextOverflow);
-    static void SetDefaultAlignment(HAlign, VAlign);
+<pre id="code-531b1634" style="display: none;">class Application {
+    std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title);
+    void AddWindow(const std::shared_ptr&lt;Window&gt;&amp; w);
+    int Run();
+    void Quit(int code = 0);
+    void CloseAllWindows();
+    size_t WindowCount() const;
+    static Application&amp; Instance();
 };</pre>
 </div>
-<ul>
-<li>默认：黑色文字、<code>Ellipsis</code>、左对齐、垂直居中、字号 <code>16</code>。</li>
-<li><code>SetMaxLines</code> 只在 <code>Wrap</code> 模式下有意义；<code>Ellipsis</code> 本身就是单行。</li>
-<li>禁用时文字自动变为灰色（<code>DefaultDisabledColor</code>）。</li>
-</ul>
-<h2 id="button">Button</h2>
+<p><strong>推荐用法（Qt 风格）</strong>：</p>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-6b10a73c', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-614d2fa2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Button</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">Clicked</span><span class="p">;</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Toggled</span><span class="p">;</span><span class="w">               </span><span class="c1">// 仅 SetCheckable(true) 后有意义</span>
-
-<span class="w">    </span><span class="n">Button</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sa">L</span><span class="s">"Button"</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetText</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetText</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColors</span><span class="p">(</span><span class="n">Color</span><span class="w"> </span><span class="n">normal</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">hover</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">pressed</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTextColor</span><span class="p">(</span><span class="n">Color</span><span class="w"> </span><span class="n">color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCornerRadius</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">radius</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverAnimationSpeed</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">speed</span><span class="p">);</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCheckable</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">             </span><span class="c1">// 可切换按钮</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetChecked</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsChecked</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">              </span><span class="c1">// 依赖 SetCheckable(true) 才有意义</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTextAlignment</span><span class="p">(...);</span><span class="w">          </span><span class="c1">// 文字对齐</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPadding</span><span class="p">(...);</span><span class="w">                </span><span class="c1">// 内边距</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAutoRepeat</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">            </span><span class="c1">// 按住自动重复触发 Clicked</span>
-
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDefaultColors</span><span class="p">(</span><span class="n">Color</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDefaultSize</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">height</span><span class="p">);</span>
-<span class="p">};</span>
+<div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="n">WINAPI</span><span class="w"> </span><span class="nf">WinMain</span><span class="p">(</span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">LPSTR</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ZUI</span><span class="o">::</span><span class="n">Application</span><span class="w"> </span><span class="n">app</span><span class="p">;</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">w1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">CreateWindow</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"主窗口"</span><span class="p">);</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">w2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">CreateWindow</span><span class="p">(</span><span class="mi">640</span><span class="p">,</span><span class="w"> </span><span class="mi">480</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"工具窗口"</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 各自搭 UI：w1-&gt;GetRootColumnBox()-&gt;AddChild(...)</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span><span class="w">                    </span><span class="c1">// 单一消息循环，所有窗口共用</span>
+<span class="p">}</span>
 </pre></div>
-<pre id="code-6b10a73c" style="display: none;">class Button : public UIElement {
-    ZSignal&lt;&gt; Clicked;
-    ZSignal&lt;bool&gt; Toggled;               // 仅 SetCheckable(true) 后有意义
-
-    Button(const std::wstring&amp; text = L"Button");
-    void SetText(const std::wstring&amp; text);
-    std::wstring GetText() const;
-    void SetColors(Color normal, Color hover, Color pressed);
-    void SetTextColor(Color color);
-    void SetCornerRadius(float radius);
-    void SetHoverAnimationSpeed(float speed);
-
-    void SetCheckable(bool);             // 可切换按钮
-    void SetChecked(bool);
-    bool IsChecked() const;              // 依赖 SetCheckable(true) 才有意义
-    void SetTextAlignment(...);          // 文字对齐
-    void SetPadding(...);                // 内边距
-    void SetAutoRepeat(bool);            // 按住自动重复触发 Clicked
-
-    static void SetDefaultColors(Color, Color, Color);
-    static void SetDefaultSize(float width, float height);
-};</pre>
+<pre id="code-614d2fa2" style="display: none;">int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    ZUI::Application app;
+    auto w1 = app.CreateWindow(1000, 700, L"主窗口");
+    auto w2 = app.CreateWindow(640, 480, L"工具窗口");
+    // 各自搭 UI：w1-&gt;GetRootColumnBox()-&gt;AddChild(...)
+    return app.Run();                    // 单一消息循环，所有窗口共用
+}</pre>
 </div>
+<p><strong>行为与要点</strong>：</p>
 <ul>
-<li>默认尺寸 <code>120×36</code>，圆角 <code>4</code>，蓝底白字（常态 <code>0,120,212</code>）。</li>
-<li>鼠标在按钮内按下、抬起时触发 <code>Clicked</code>（在别处抬起不触发）。</li>
-<li>键盘：获得焦点后按 <code>Enter</code> 或 <code>Space</code> 触发 <code>Clicked</code>。</li>
-<li>禁用时不响应事件并绘制为灰色。</li>
-<li>可切换按钮：<code>SetCheckable(true)</code> 后点击切换选中态并触发 <code>Toggled(bool)</code>。</li>
+<li><code>CreateWindow</code> 创建窗口并登记进应用；返回的 <code>shared_ptr&lt;Window&gt;</code> <strong>必须由你持有</strong>，否则 <code>shared_ptr</code> 析构会让窗口立即被销毁。</li>
+<li><code>Run()</code> 只运行<strong>一个</strong>消息循环；同线程创建的所有窗口消息都由它分发。</li>
+<li>在 <code>Run()</code> 之后（消息循环运行期间）调用 <code>CreateWindow</code> 也能正常显示新窗口。</li>
+<li>关闭任意窗口不影响其它窗口；<strong>最后一个窗口关闭时</strong>循环自动退出。也可用 <code>Quit()</code> 主动退出。</li>
+<li>单进程应只有一个 UI 线程在跑窗口（与 Win32 一致）。</li>
 </ul>
-<h2 id="textbox">TextBox</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-f220c975', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TextBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;&gt;</span><span class="w"> </span><span class="n">TextChanged</span><span class="p">;</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">ReturnPressed</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">TextBox</span><span class="p">();</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetText</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetText</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPlaceholder</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">placeholder</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPlaceholderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPasswordMode</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">mode</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRevealPassword</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">reveal</span><span class="p">);</span><span class="w">     </span><span class="c1">// 密码模式下临时明文显示</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsPasswordRevealed</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaxLength</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">maxLength</span><span class="p">);</span><span class="w">        </span><span class="c1">// -1 不限</span>
-<span class="w">    </span><span class="kt">int</span><span class="w">  </span><span class="nf">GetMaxLength</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetReadOnly</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetInputFilter</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">bool</span><span class="p">(</span><span class="kt">wchar_t</span><span class="p">)</span><span class="o">&gt;</span><span class="p">);</span><span class="w">  </span><span class="c1">// 返回 true 才接受该字符</span>
-
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsFocused</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Focus</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Blur</span><span class="p">();</span>
-
-<span class="w">    </span><span class="c1">// 选区 / 编辑（公开）</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetSelectionStart</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetSelectionEnd</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetCursorPosition</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelection</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">end</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SelectAll</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Undo</span><span class="p">();</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Redo</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Copy</span><span class="p">();</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Cut</span><span class="p">();</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Paste</span><span class="p">();</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTextColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="n">SetBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="n">SetBorderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectionColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="n">SetHoverBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="n">SetHoverBorderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCursorBlinkInterval</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="p">};</span>
-</pre></div>
-<pre id="code-f220c975" style="display: none;">class TextBox : public UIElement {
-    ZSignal&lt;const std::wstring&amp;&gt; TextChanged;
-    ZSignal&lt;&gt; ReturnPressed;
-
-    TextBox();
-    std::wstring GetText() const;
-    void SetText(const std::wstring&amp; text);
-    void SetPlaceholder(const std::wstring&amp; placeholder);
-    void SetPlaceholderColor(Color);
-    void SetPasswordMode(bool mode);
-    void SetRevealPassword(bool reveal);     // 密码模式下临时明文显示
-    bool IsPasswordRevealed() const;
-    void SetMaxLength(int maxLength);        // -1 不限
-    int  GetMaxLength() const;
-
-    void SetReadOnly(bool);
-
-    void SetInputFilter(std::function&lt;bool(wchar_t)&gt;);  // 返回 true 才接受该字符
-
-    bool IsFocused() const;
-    void Focus();
-    void Blur();
-
-    // 选区 / 编辑（公开）
-    int GetSelectionStart() const;
-    int GetSelectionEnd() const;
-    int GetCursorPosition() const;
-    void SetSelection(int start, int end);
-    void SelectAll();
-    void Undo(); void Redo();
-    void Copy(); void Cut(); void Paste();
-
-    void SetTextColor(Color); SetBackgroundColor(Color); SetBorderColor(Color);
-    void SetSelectionColor(Color); SetHoverBackgroundColor(Color); SetHoverBorderColor(Color);
-    void SetCursorBlinkInterval(float);
-};</pre>
-</div>
+<h2 id="多窗口的独立性与兼容">多窗口的独立性与兼容</h2>
 <ul>
-<li>默认尺寸 <code>160×30</code>，字号 <code>14</code>，光标闪烁 <code>0.5s</code>。</li>
-<li>支持 <code>Ctrl+C/X/V/A/Z/Y</code>、方向键、<code>Home/End</code>、<code>Shift+方向键</code> 选区、鼠标拖选，以及 IME 组合输入。</li>
-<li><strong>选区累积</strong>：按住 Shift 连按方向键会逐字符累积高亮（内部用独立锚点，不会每按一次塌缩成一个字符）。</li>
-<li><code>SetInputFilter</code> 是唯一字符级过滤入口，例如“仅数字”：<code>[](wchar_t c){ return c &gt;= L'0' &amp;&amp; c &lt;= L'1'; }</code> 风格。</li>
-<li><code>SetReadOnly(true)</code> 后仍可选择/复制，但不能编辑。</li>
-<li><code>TextChanged</code> 在每次文本变化时触发；<code>ReturnPressed</code> 在按回车时触发。</li>
+<li><strong>重绘 / 布局按窗口路由</strong>：每个元素记录所属窗口（<code>UIElement::GetWindow()</code>）；<code>RequestRepaint()</code> / <code>InvalidateLayout()</code> 只作用于所属窗口，窗口之间不会互相触发重绘。</li>
+<li><strong>DPI 每窗口</strong>：当前 DPI 缩放是<strong>线程本地</strong>的，渲染每个窗口前会设置该窗口自己的缩放，所以混合 DPI 的多窗口也能正确 <code>Snap</code>。</li>
+<li><strong>激活 / 失活按窗口</strong>：<code>Window</code> 提供实例信号 <code>Activated</code> / <code>Deactivated</code> / <code>Closed</code>；全局 <code>UIZSignals::WindowDeactivated</code> 现在带 <code>Window*</code> 参数、<code>GlobalMouseDown</code> 带 <code>Window*</code>。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。</li>
+<li><strong>共享资源</strong>：<code>ID2D1Factory</code> 与系统计时器精度（<code>timeBeginPeriod</code>）由应用核心统一管理，多窗口共享。</li>
+<li><strong>向后兼容</strong>：单窗口写法仍然有效——<code>Window win; win.Create(...); win.Run();</code>；<code>Run()</code> 会转发到应用级消息循环。</li>
 </ul>
-<h2 id="combobox">ComboBox</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-7bdc4e64', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ComboBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">SelectionChanged</span><span class="p">;</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">DropDownOpened</span><span class="p">;</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">DropDownClosed</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">ComboBox</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddItem</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">item</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItems</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">items</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">InsertItem</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">item</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveItemAt</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">RemoveItem</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">item</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearItems</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetItemCount</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetItemAt</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">GetItems</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSelectedIndex</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">GetSelectedIndex</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetSelectedText</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsExpanded</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Collapse</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Expand</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOpen</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPlaceholder</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetItemDisabled</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsItemDisabled</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">index</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaxVisibleItems</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="p">);</span><span class="w">      </span><span class="c1">// 0 表示不限制</span>
-
-<span class="w">    </span><span class="c1">// 可编辑 + 输入过滤</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetEditable</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsEditable</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetFilterEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsFilterEnabled</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetEditText</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetEditText</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="c1">// 样式：SetNormalBgColor / SetHoverBgColor / SetBorderColor / SetIndicatorColor / SetListItemHeight 等</span>
-<span class="p">};</span>
-</pre></div>
-<pre id="code-7bdc4e64" style="display: none;">class ComboBox : public UIElement {
-    ZSignal&lt;int&gt; SelectionChanged;
-    ZSignal&lt;&gt; DropDownOpened;
-    ZSignal&lt;&gt; DropDownClosed;
-
-    ComboBox();
-    void AddItem(const std::wstring&amp; item);
-    void SetItems(const std::vector&lt;std::wstring&gt;&amp; items);
-    void InsertItem(int index, const std::wstring&amp; item);
-    void RemoveItemAt(int index);
-    void RemoveItem(const std::wstring&amp; item);
-    void ClearItems();
-    int GetItemCount() const;
-    std::wstring GetItemAt(int index) const;
-    const std::vector&lt;std::wstring&gt;&amp; GetItems() const;
-
-    void SetSelectedIndex(int index);
-    int GetSelectedIndex() const;
-    std::wstring GetSelectedText() const;
-    bool IsExpanded() const;
-    void Collapse();
-    void Expand();
-    void SetOpen(bool);
-
-    void SetPlaceholder(const std::wstring&amp;);
-
-    void SetItemDisabled(int index, bool disabled = true);
-    bool IsItemDisabled(int index) const;
-
-    void SetMaxVisibleItems(int count);      // 0 表示不限制
-
-    // 可编辑 + 输入过滤
-    void SetEditable(bool);
-    bool IsEditable() const;
-    void SetFilterEnabled(bool);
-    bool IsFilterEnabled() const;
-    void SetEditText(const std::wstring&amp;);
-    std::wstring GetEditText() const;
-
-    // 样式：SetNormalBgColor / SetHoverBgColor / SetBorderColor / SetIndicatorColor / SetListItemHeight 等
-};</pre>
-</div>
+<h2 id="多窗口常见坑">多窗口常见坑</h2>
 <ul>
-<li>默认尺寸 <code>160×30</code>，列表项高 <code>24</code>，指示条宽 <code>3</code>、高占比 <code>0.6</code>。</li>
-<li>展开时列表绘制在 <code>DrawOverlay</code> 浮层上，所以可以超出自身边界。</li>
-<li><code>SetMaxVisibleItems(n)</code> 限制下拉最多显示 <code>n</code> 行，超出部分滚动。</li>
-<li><strong>可编辑 + 过滤</strong>：<code>SetEditable(true)</code> 后可输入；<code>SetFilterEnabled(true)</code> 时输入内容会即时筛选下拉项（大小写不敏感的子串匹配）；<code>GetSelectedIndex()</code> 对应<strong>筛选后</strong>的列表。带闪烁光标，点击可定位光标位置（当前版本不支持文本区间选区）。</li>
-<li><code>SetItemDisabled</code> 的禁用项不可被选择，键盘上下键会跳过。</li>
+<li><code>CreateWindow</code> 返回的 <code>shared_ptr</code> 不要丢；丢了窗口即被销毁（可像示例那样放进容器长期持有）。</li>
+<li>需要窗口归属的全局信号（<code>GlobalMouseDown</code>、<code>WindowDeactivated</code>）都带上了 <code>Window*</code>；订阅时用 <code>GetWindow()</code> 过滤，只处理本窗口。</li>
+<li>所有窗口必须在同一 UI 线程创建与运行。</li>
 </ul>
-<h2 id="toggleswitch">ToggleSwitch</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-2e103477', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ToggleSwitch</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Toggled</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">ToggleSwitch</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">initialState</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOn</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsOn</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetColors</span><span class="p">(</span><span class="n">Color</span><span class="w"> </span><span class="n">on</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">off</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">knob</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSize</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">height</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndeterminate</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">indeterminate</span><span class="p">);</span><span class="w">   </span><span class="c1">// 不确定态（半选观感）</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetLabel</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetLabelColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAnimationSpeed</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">speed</span><span class="p">);</span>
-<span class="p">};</span>
-</pre></div>
-<pre id="code-2e103477" style="display: none;">class ToggleSwitch : public UIElement {
-    ZSignal&lt;bool&gt; Toggled;
-
-    ToggleSwitch(bool initialState = false);
-    void SetOn(bool on);
-    bool IsOn() const;
-    void SetColors(Color on, Color off, Color knob);
-    void SetSize(float width, float height);
-    void SetIndeterminate(bool indeterminate);   // 不确定态（半选观感）
-    void SetLabel(const std::wstring&amp;);
-    void SetLabelColor(Color);
-    void SetAnimationSpeed(float speed);
-};</pre>
-</div>
-<ul>
-<li>默认尺寸 <code>50×24</code>，开 <code>0,120,212</code>、关 <code>200,200,200</code>、滑块白。</li>
-<li>键盘：获得焦点后 <code>Space</code>/<code>Enter</code> 切换。</li>
-</ul>
-<h2 id="checkbox">CheckBox</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-b271e934', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">State</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Unchecked</span><span class="p">,</span><span class="w"> </span><span class="n">PartiallyChecked</span><span class="p">,</span><span class="w"> </span><span class="n">Checked</span><span class="w"> </span><span class="p">};</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">CheckBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Toggled</span><span class="p">;</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">State</span><span class="o">&gt;</span><span class="w"> </span><span class="n">StateChanged</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">CheckBox</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">checked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetChecked</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsChecked</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="n">State</span><span class="w"> </span><span class="nf">GetState</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetState</span><span class="p">(</span><span class="n">State</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Toggle</span><span class="p">();</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTriState</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSize</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCornerRadius</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBoxColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBorderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCheckColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverBoxColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAnimationSpeed</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetLabel</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetLabelColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-
-<span class="w">    </span><span class="c1">// 静态绘制（供列表/表格行复选框复用）</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">DrawBox</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">D2D1_RECT_F</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rect</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">fill</span><span class="p">,</span>
-<span class="w">                        </span><span class="n">State</span><span class="w"> </span><span class="n">state</span><span class="p">,</span><span class="w"> </span><span class="n">D2D1_COLOR_F</span><span class="w"> </span><span class="n">boxColor</span><span class="p">,</span><span class="w"> </span><span class="n">D2D1_COLOR_F</span><span class="w"> </span><span class="n">checkColor</span><span class="p">,</span>
-<span class="w">                        </span><span class="n">D2D1_COLOR_F</span><span class="w"> </span><span class="n">borderColor</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">cornerRadius</span><span class="p">,</span>
-<span class="w">                        </span><span class="n">ComPtr</span><span class="o">&lt;</span><span class="n">ID2D1SolidColorBrush</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">brush</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
-<span class="p">};</span>
-</pre></div>
-<pre id="code-b271e934" style="display: none;">enum class State { Unchecked, PartiallyChecked, Checked };
-
-class CheckBox : public UIElement {
-    ZSignal&lt;bool&gt; Toggled;
-    ZSignal&lt;State&gt; StateChanged;
-
-    CheckBox(bool checked = false);
-    void SetChecked(bool); bool IsChecked() const;
-    State GetState() const; void SetState(State);
-    void Toggle();
-
-    void SetTriState(bool);
-    void SetSize(float);
-    void SetCornerRadius(float);
-    void SetBoxColor(Color); void SetBorderColor(Color); void SetCheckColor(Color);
-    void SetHoverBoxColor(Color);
-    void SetAnimationSpeed(float);
-    void SetLabel(const std::wstring&amp;); void SetLabelColor(Color);
-
-    // 静态绘制（供列表/表格行复选框复用）
-    static void DrawBox(ID2D1RenderTarget*, const D2D1_RECT_F&amp; rect, float fill,
-                        State state, D2D1_COLOR_F boxColor, D2D1_COLOR_F checkColor,
-                        D2D1_COLOR_F borderColor, float cornerRadius,
-                        ComPtr&lt;ID2D1SolidColorBrush&gt;&amp; brush, bool enabled = true);
-};</pre>
-</div>
-<ul>
-<li>勾选有进度动画；悬停有淡蓝光晕渐变动画。</li>
-<li><code>SetTriState(true)</code> 后 <code>Toggle()</code> 在 未选 → 半选 → 全选 之间循环。</li>
-<li>键盘 <code>Space</code>/<code>Enter</code> 切换；禁用时置灰。</li>
-<li><code>DrawBox</code> 是静态函数，<code>ListView</code>/<code>TableView</code>/<code>TreeView</code> 的行勾选框复用它，因此观感一致。</li>
-</ul>
-<h2 id="scrollviewer">ScrollViewer</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-900066f3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ScrollBarVisibility</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Auto</span><span class="p">,</span><span class="w"> </span><span class="n">Always</span><span class="p">,</span><span class="w"> </span><span class="n">Hidden</span><span class="w"> </span><span class="p">};</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">ScrollViewer</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ScrollChanged</span><span class="p">;</span><span class="w">     </span><span class="c1">// (offsetX, offsetY)</span>
-
-<span class="w">    </span><span class="n">ScrollViewer</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetContent</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">content</span><span class="p">);</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetContent</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetVerticalScrollEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">enabled</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHorizontalScrollEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">enabled</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetVerticalScrollBarVisibility</span><span class="p">(</span><span class="n">ScrollBarVisibility</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHorizontalScrollBarVisibility</span><span class="p">(</span><span class="n">ScrollBarVisibility</span><span class="p">);</span>
-<span class="w">    </span><span class="n">ScrollBarVisibility</span><span class="w"> </span><span class="nf">GetVerticalScrollBarVisibility</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="n">ScrollBarVisibility</span><span class="w"> </span><span class="nf">GetHorizontalScrollBarVisibility</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetScrollBarWidth</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">width</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetScrollWheelStep</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">step</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAnimationSpeed</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">speed</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetContentMargin</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Thickness</span><span class="o">&amp;</span><span class="p">);</span>
-<span class="w">    </span><span class="n">Thickness</span><span class="w"> </span><span class="nf">GetContentMargin</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetScrollBarColors</span><span class="p">(</span><span class="n">Color</span><span class="w"> </span><span class="n">track</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">thumb</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">hoverThumb</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetScrollOffsetX</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetScrollOffsetY</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ScrollTo</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">offsetX</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">offsetY</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">animated</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ScrollBy</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">deltaX</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">deltaY</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">animated</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
-<span class="p">};</span>
-</pre></div>
-<pre id="code-900066f3" style="display: none;">enum class ScrollBarVisibility { Auto, Always, Hidden };
-
-class ScrollViewer : public UIElement {
-    ZSignal&lt;float, float&gt; ScrollChanged;     // (offsetX, offsetY)
-
-    ScrollViewer();
-    void SetContent(std::shared_ptr&lt;UIElement&gt; content);
-    std::shared_ptr&lt;UIElement&gt; GetContent() const;
-
-    void SetVerticalScrollEnabled(bool enabled);
-    void SetHorizontalScrollEnabled(bool enabled);
-    void SetVerticalScrollBarVisibility(ScrollBarVisibility);
-    void SetHorizontalScrollBarVisibility(ScrollBarVisibility);
-    ScrollBarVisibility GetVerticalScrollBarVisibility() const;
-    ScrollBarVisibility GetHorizontalScrollBarVisibility() const;
-
-    void SetScrollBarWidth(float width);
-    void SetScrollWheelStep(float step);
-    void SetAnimationSpeed(float speed);
-    void SetContentMargin(const Thickness&amp;);
-    Thickness GetContentMargin() const;
-    void SetScrollBarColors(Color track, Color thumb, Color hoverThumb);
-    float GetScrollOffsetX() const;
-    float GetScrollOffsetY() const;
-
-    void ScrollTo(float offsetX, float offsetY, bool animated = true);
-    void ScrollBy(float deltaX, float deltaY, bool animated = true);
-};</pre>
-</div>
-<ul>
-<li>滚动条宽 <code>8</code>、最小长度 <code>20</code>、滚轮步长 <code>30</code>。</li>
-<li><code>Auto</code>：内容超出才显示；<code>Always</code>：始终显示；<code>Hidden</code>：不显示滚动条（仍可用滚轮/代码滚动）。</li>
-<li><code>ScrollChanged(x,y)</code> 在偏移变化时触发（含动画过程中）。</li>
-<li><code>SetContentMargin</code> 给内容加内边距。</li>
-<li>内部 <code>ScrollBar</code> 类一般无需直接使用。</li>
-</ul>
-<h2 id="progressbar">ProgressBar</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-6b8e8c22', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ProgressBar</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ValueChanged</span><span class="p">;</span>
-
-<span class="w">    </span><span class="n">ProgressBar</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetValue</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">value</span><span class="p">);</span><span class="w">        </span><span class="c1">// [0,1]，会关闭不确定模式</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetValue</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRange</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">min</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">max</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetMin</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetMax</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRangeValue</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">value</span><span class="p">);</span><span class="w">   </span><span class="c1">// 在 [min,max] 内取值</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetRangeValue</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetShowText</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsShowText</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTextColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndeterminate</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsIndeterminate</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTrackColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetFillColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBorderColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndeterminateBlockWidth</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIndeterminateSpeed</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="w">    </span><span class="c1">// ... 其余默认值/颜色 setter</span>
-<span class="p">};</span>
-</pre></div>
-<pre id="code-6b8e8c22" style="display: none;">class ProgressBar : public UIElement {
-    ZSignal&lt;float&gt; ValueChanged;
-
-    ProgressBar();
-    void SetValue(float value);        // [0,1]，会关闭不确定模式
-    float GetValue() const;
-    void SetRange(float min, float max);
-    float GetMin() const; float GetMax() const;
-    void SetRangeValue(float value);   // 在 [min,max] 内取值
-    float GetRangeValue() const;
-    void SetShowText(bool); bool IsShowText() const;
-    void SetTextColor(Color);
-    void SetIndeterminate(bool); bool IsIndeterminate() const;
-    void SetTrackColor(Color); void SetFillColor(Color); void SetBorderColor(Color);
-    void SetIndeterminateBlockWidth(float); void SetIndeterminateSpeed(float);
-    // ... 其余默认值/颜色 setter
-};</pre>
-</div>
-<ul>
-<li>默认尺寸 <code>200×20</code>，不确定块宽 <code>40</code>、速度 <code>100</code>。</li>
-<li><code>SetValue</code> 归一化到 <code>[0,1]</code>；<code>SetRangeValue</code> 用 <code>[min,max]</code>。</li>
-<li><code>SetShowText(true)</code> 在进度条上显示百分比文本；禁用时填充色置灰。</li>
-</ul>
-<h2 id="slider">Slider</h2>
-<div class="code-container">
-<div class="code-header">
-<span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-d0c3b937', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
-</div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Slider</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ValueChanged</span><span class="p">;</span>
-<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">SliderReleased</span><span class="p">;</span><span class="w">           </span><span class="c1">// 拖拽结束（或键盘调整结束）</span>
-
-<span class="w">    </span><span class="n">Slider</span><span class="p">();</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRange</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">min</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">max</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetValue</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetValue</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetStep</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">step</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetStep</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSnapToStep</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsSnapToStep</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTrackColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetFillColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetThumbColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverThumbColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetThumbSize</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTrackHeight</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
-<span class="p">};</span>
-</pre></div>
-<pre id="code-d0c3b937" style="display: none;">class Slider : public UIElement {
-    ZSignal&lt;float&gt; ValueChanged;
-    ZSignal&lt;&gt; SliderReleased;           // 拖拽结束（或键盘调整结束）
-
-    Slider();
-    void SetRange(float min, float max);
-    void SetValue(float value);
-    float GetValue() const;
-    void SetStep(float step);
-    float GetStep() const;
-    void SetSnapToStep(bool); bool IsSnapToStep() const;
-    void SetTrackColor(Color); void SetFillColor(Color);
-    void SetThumbColor(Color); void SetHoverThumbColor(Color);
-    void SetThumbSize(float); void SetTrackHeight(float);
-};</pre>
-</div>
-<ul>
-<li>默认尺寸 <code>160×24</code>，默认范围 <code>[0,100]</code>，轨道高 <code>4</code>，滑块直径 <code>14</code>。</li>
-<li>方向键按 <code>step</code> 调整；<code>Home/End</code> 到范围两端。</li>
-<li><code>SetSnapToStep(true)</code> 会把实时值吸附到 step 的整数倍。</li>
-</ul>
-<nav class="chapter-nav"><a class="prev" href="API.9.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">窗口 Window</span><span class="nav-desc">创建、背景、标题栏与根布局</span></a><a class="next" href="API.11.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">数据视图</span><span class="nav-desc">ListView、TableView、TreeNode、TreeView</span></a></nav>
+<nav class="chapter-nav"><a class="prev" href="API.9.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">窗口 Window</span><span class="nav-desc">创建、背景、标题栏与根布局</span></a><a class="next" href="API.11.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">基础控件</span><span class="nav-desc">Label、Button、TextBox、ComboBox、ToggleSwitch、CheckBox、ScrollViewer、ProgressBar、Slider</span></a></nav>
         </main>
     </div>
 
