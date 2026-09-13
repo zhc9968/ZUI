@@ -13,40 +13,14 @@ ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D
 
 ## Features
 
-###block_list_start
-###block_item_start
-**Direct2D custom drawing**
-Hardware-accelerated rendering, Acrylic background, rounded corners, and shadows for a modern look.
-###block_item_end
-###block_item_start
-**Complete layout system**
-`ColumnBox` / `RowBox` / `GridLayout`, supporting spacing, stretch weight, fill, alignment, and row/column spanning.
-###block_item_end
-###block_item_start
-**Signals and slots**
-Built-in `ZSignal` / `Connection`, supporting `Connect` with automatic lifetime management, plus three dispatch strategies: current thread / new thread / UI thread.
-###block_item_end
-###block_item_start
-**Rich controls**
-Labels, buttons, text boxes, combo boxes, toggle switches, scroll containers, progress bars, sliders, and three data views: list / table / tree.
-###block_item_end
-###block_item_start
-**Complete animation and transitions**
-Hover, expand, indicator bar, and page switching (`PageHost`) all have built-in animations, and scrolling supports smooth scrolling.
-###block_item_end
-###block_item_start
-**High-DPI adaptation**
-Automatically aware of DPI; `Snap()` snaps drawing to physical pixels to avoid blurriness.
-###block_item_end
-###block_item_start
-**IME compatibility**
-Text boxes support Chinese IME composition input and candidate window positioning.
-###block_item_end
-###block_item_start
-**Offscreen caching**
-Elements can automatically cache their drawing results to reduce repeated drawing overhead.
-###block_item_end
-###block_list_end
+- **Direct2D custom drawing**: hardware-accelerated rendering, Acrylic background, rounded corners, and shadows for a modern look.
+- **Complete layout system**: `ColumnBox` / `RowBox` / `GridLayout`, supporting spacing, stretch weight, fill, alignment, and row/column spanning.
+- **Signals and slots**: built-in `ZSignal` / `Connection`, supporting `Connect` with automatic lifetime management, plus three dispatch strategies: current thread / new thread / UI thread.
+- **Rich controls**: labels, buttons, text boxes, combo boxes, toggle switches, scroll containers, progress bars, sliders, and three data views: list / table / tree.
+- **Complete animation and transitions**: hover, expand, indicator bar, and page switching (`PageHost`) all have built-in animations, and scrolling supports smooth scrolling.
+- **High-DPI adaptation**: automatically aware of DPI; `Snap()` snaps drawing to physical pixels to avoid blurriness.
+- **IME compatibility**: text boxes support Chinese IME composition input and candidate window positioning.
+- **Offscreen caching**: elements can automatically cache their drawing results to reduce repeated drawing overhead.
 
 ## Requirements
 
@@ -71,9 +45,7 @@ Command-line build (requires MSBuild on PATH):
 msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
 ```
 
-###block_orange_start
-`ZUI.cpp` is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own `WinMain`.
-###block_orange_end
+> `ZUI.cpp` is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own `WinMain`.
 
 ## Project structure
 

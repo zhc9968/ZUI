@@ -13,40 +13,14 @@ ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Dire
 
 ## 特性
 
-###block_list_start
-###block_item_start
-**Direct2D 自绘**
-硬件加速渲染，亚克力（Acrylic）背景、圆角、阴影，观感现代。
-###block_item_end
-###block_item_start
-**完整布局系统**
-`ColumnBox` / `RowBox` / `GridLayout`，支持间距、拉伸权重、填充、对齐与跨行跨列。
-###block_item_end
-###block_item_start
-**信号槽**
-内置 `ZSignal` / `Connection`，支持 `Connect` 自动管理生命周期，以及当前线程 / 新线程 / UI 线程三种分发策略。
-###block_item_end
-###block_item_start
-**丰富控件**
-标签、按钮、文本框、下拉框、开关、滚动容器、进度条、滑块，以及列表 / 表格 / 树三种数据视图。
-###block_item_end
-###block_item_start
-**完整动画与转场**
-悬停、展开、指示条、页面切换（`PageHost`）都有内置动画，滚动支持平滑滚动。
-###block_item_end
-###block_item_start
-**高 DPI 适配**
-自动感知 DPI，`Snap()` 把绘制吸附到物理像素，避免模糊。
-###block_item_end
-###block_item_start
-**IME 兼容**
-文本框支持中文输入法组合输入与候选框定位。
-###block_item_end
-###block_item_start
-**离屏缓存**
-元素可自动缓存绘制结果，减少重复绘制开销。
-###block_item_end
-###block_list_end
+- **Direct2D 自绘**：硬件加速渲染，亚克力（Acrylic）背景、圆角、阴影，观感现代。
+- **完整布局系统**：`ColumnBox` / `RowBox` / `GridLayout`，支持间距、拉伸权重、填充、对齐与跨行跨列。
+- **信号槽**：内置 `ZSignal` / `Connection`，支持 `Connect` 自动管理生命周期，以及当前线程 / 新线程 / UI 线程三种分发策略。
+- **丰富控件**：标签、按钮、文本框、下拉框、开关、滚动容器、进度条、滑块，以及列表 / 表格 / 树三种数据视图。
+- **完整动画与转场**：悬停、展开、指示条、页面切换（`PageHost`）都有内置动画，滚动支持平滑滚动。
+- **高 DPI 适配**：自动感知 DPI，`Snap()` 把绘制吸附到物理像素，避免模糊。
+- **IME 兼容**：文本框支持中文输入法组合输入与候选框定位。
+- **离屏缓存**：元素可自动缓存绘制结果，减少重复绘制开销。
 
 ## 环境要求
 
@@ -71,9 +45,7 @@ ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Dire
 msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
 ```
 
-###block_orange_start
-`ZUI.cpp` 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 `WinMain`。
-###block_orange_end
+> `ZUI.cpp` 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 `WinMain`。
 
 ## 项目结构
 
