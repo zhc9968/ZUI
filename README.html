@@ -215,40 +215,14 @@ ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Dire
 
 ## 特性
 
-###block_list_start
-###block_item_start
-**Direct2D 自绘**
-硬件加速渲染，亚克力（Acrylic）背景、圆角、阴影，观感现代。
-###block_item_end
-###block_item_start
-**完整布局系统**
-`ColumnBox` / `RowBox` / `GridLayout`，支持间距、拉伸权重、填充、对齐与跨行跨列。
-###block_item_end
-###block_item_start
-**信号槽**
-内置 `ZSignal` / `Connection`，支持 `Connect` 自动管理生命周期，以及当前线程 / 新线程 / UI 线程三种分发策略。
-###block_item_end
-###block_item_start
-**丰富控件**
-标签、按钮、文本框、下拉框、开关、滚动容器、进度条、滑块，以及列表 / 表格 / 树三种数据视图。
-###block_item_end
-###block_item_start
-**完整动画与转场**
-悬停、展开、指示条、页面切换（`PageHost`）都有内置动画，滚动支持平滑滚动。
-###block_item_end
-###block_item_start
-**高 DPI 适配**
-自动感知 DPI，`Snap()` 把绘制吸附到物理像素，避免模糊。
-###block_item_end
-###block_item_start
-**IME 兼容**
-文本框支持中文输入法组合输入与候选框定位。
-###block_item_end
-###block_item_start
-**离屏缓存**
-元素可自动缓存绘制结果，减少重复绘制开销。
-###block_item_end
-###block_list_end
+- **Direct2D 自绘**：硬件加速渲染，亚克力（Acrylic）背景、圆角、阴影，观感现代。
+- **完整布局系统**：`ColumnBox` / `RowBox` / `GridLayout`，支持间距、拉伸权重、填充、对齐与跨行跨列。
+- **信号槽**：内置 `ZSignal` / `Connection`，支持 `Connect` 自动管理生命周期，以及当前线程 / 新线程 / UI 线程三种分发策略。
+- **丰富控件**：标签、按钮、文本框、下拉框、开关、滚动容器、进度条、滑块，以及列表 / 表格 / 树三种数据视图。
+- **完整动画与转场**：悬停、展开、指示条、页面切换（`PageHost`）都有内置动画，滚动支持平滑滚动。
+- **高 DPI 适配**：自动感知 DPI，`Snap()` 把绘制吸附到物理像素，避免模糊。
+- **IME 兼容**：文本框支持中文输入法组合输入与候选框定位。
+- **离屏缓存**：元素可自动缓存绘制结果，减少重复绘制开销。
 
 ## 环境要求
 
@@ -273,9 +247,7 @@ ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Dire
 msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
 ```
 
-###block_orange_start
-`ZUI.cpp` 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 `WinMain`。
-###block_orange_end
+&gt; `ZUI.cpp` 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 `WinMain`。
 
 ## 项目结构
 
@@ -360,40 +332,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <li>API 参考：<a href="https://zhc9968.github.io/ZUI/docs/API.html">https://zhc9968.github.io/ZUI/docs/API.html</a></li>
 </ul>
 <h2 id="特性">特性</h2>
-<div class="feature-list">
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>Direct2D 自绘</strong>
-硬件加速渲染，亚克力（Acrylic）背景、圆角、阴影，观感现代。</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>完整布局系统</strong>
-<code>ColumnBox</code> / <code>RowBox</code> / <code>GridLayout</code>，支持间距、拉伸权重、填充、对齐与跨行跨列。</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>信号槽</strong>
-内置 <code>ZSignal</code> / <code>Connection</code>，支持 <code>Connect</code> 自动管理生命周期，以及当前线程 / 新线程 / UI 线程三种分发策略。</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>丰富控件</strong>
-标签、按钮、文本框、下拉框、开关、滚动容器、进度条、滑块，以及列表 / 表格 / 树三种数据视图。</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>完整动画与转场</strong>
-悬停、展开、指示条、页面切换（<code>PageHost</code>）都有内置动画，滚动支持平滑滚动。</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>高 DPI 适配</strong>
-自动感知 DPI，<code>Snap()</code> 把绘制吸附到物理像素，避免模糊。</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>IME 兼容</strong>
-文本框支持中文输入法组合输入与候选框定位。</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>离屏缓存</strong>
-元素可自动缓存绘制结果，减少重复绘制开销。</p>
-</div>
-</div>
+<ul>
+<li><strong>Direct2D 自绘</strong>：硬件加速渲染，亚克力（Acrylic）背景、圆角、阴影，观感现代。</li>
+<li><strong>完整布局系统</strong>：<code>ColumnBox</code> / <code>RowBox</code> / <code>GridLayout</code>，支持间距、拉伸权重、填充、对齐与跨行跨列。</li>
+<li><strong>信号槽</strong>：内置 <code>ZSignal</code> / <code>Connection</code>，支持 <code>Connect</code> 自动管理生命周期，以及当前线程 / 新线程 / UI 线程三种分发策略。</li>
+<li><strong>丰富控件</strong>：标签、按钮、文本框、下拉框、开关、滚动容器、进度条、滑块，以及列表 / 表格 / 树三种数据视图。</li>
+<li><strong>完整动画与转场</strong>：悬停、展开、指示条、页面切换（<code>PageHost</code>）都有内置动画，滚动支持平滑滚动。</li>
+<li><strong>高 DPI 适配</strong>：自动感知 DPI，<code>Snap()</code> 把绘制吸附到物理像素，避免模糊。</li>
+<li><strong>IME 兼容</strong>：文本框支持中文输入法组合输入与候选框定位。</li>
+<li><strong>离屏缓存</strong>：元素可自动缓存绘制结果，减少重复绘制开销。</li>
+</ul>
 <h2 id="环境要求">环境要求</h2>
 <table>
 <thead>
@@ -436,20 +384,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">bash</span>
-<button class="copy-btn" onclick="copyCode('code-cd143ccb', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-58667905', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span>msbuild<span class="w"> </span>ZUI.slnx<span class="w"> </span>/p:Configuration<span class="o">=</span>Release<span class="w"> </span>/p:Platform<span class="o">=</span>x64
 </pre></div>
-<pre id="code-cd143ccb" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
+<pre id="code-58667905" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
 </div>
-<div class="orange">
+<blockquote>
 <p><code>ZUI.cpp</code> 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 <code>WinMain</code>。</p>
-</div>
+</blockquote>
 <h2 id="项目结构">项目结构</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">text</span>
-<button class="copy-btn" onclick="copyCode('code-595f2c12', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-d0d6d91b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span>ZUI/
 ├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
@@ -461,7 +409,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 └── docs/
     └── API.md         # 完整 API 文档
 </pre></div>
-<pre id="code-595f2c12" style="display: none;">ZUI/
+<pre id="code-d0d6d91b" style="display: none;">ZUI/
 ├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
 ├── ZUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # 数据视图：ListView / TableView / TreeView
@@ -475,7 +423,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-42d01070', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-7381ac5f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZUIWidgets.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -511,7 +459,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-42d01070" style="display: none;">#include "ZUIWidgets.h"
+<pre id="code-7381ac5f" style="display: none;">#include "ZUIWidgets.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {

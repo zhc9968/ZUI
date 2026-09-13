@@ -215,40 +215,14 @@ ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D
 
 ## Features
 
-###block_list_start
-###block_item_start
-**Direct2D custom drawing**
-Hardware-accelerated rendering, Acrylic background, rounded corners, and shadows for a modern look.
-###block_item_end
-###block_item_start
-**Complete layout system**
-`ColumnBox` / `RowBox` / `GridLayout`, supporting spacing, stretch weight, fill, alignment, and row/column spanning.
-###block_item_end
-###block_item_start
-**Signals and slots**
-Built-in `ZSignal` / `Connection`, supporting `Connect` with automatic lifetime management, plus three dispatch strategies: current thread / new thread / UI thread.
-###block_item_end
-###block_item_start
-**Rich controls**
-Labels, buttons, text boxes, combo boxes, toggle switches, scroll containers, progress bars, sliders, and three data views: list / table / tree.
-###block_item_end
-###block_item_start
-**Complete animation and transitions**
-Hover, expand, indicator bar, and page switching (`PageHost`) all have built-in animations, and scrolling supports smooth scrolling.
-###block_item_end
-###block_item_start
-**High-DPI adaptation**
-Automatically aware of DPI; `Snap()` snaps drawing to physical pixels to avoid blurriness.
-###block_item_end
-###block_item_start
-**IME compatibility**
-Text boxes support Chinese IME composition input and candidate window positioning.
-###block_item_end
-###block_item_start
-**Offscreen caching**
-Elements can automatically cache their drawing results to reduce repeated drawing overhead.
-###block_item_end
-###block_list_end
+- **Direct2D custom drawing**: hardware-accelerated rendering, Acrylic background, rounded corners, and shadows for a modern look.
+- **Complete layout system**: `ColumnBox` / `RowBox` / `GridLayout`, supporting spacing, stretch weight, fill, alignment, and row/column spanning.
+- **Signals and slots**: built-in `ZSignal` / `Connection`, supporting `Connect` with automatic lifetime management, plus three dispatch strategies: current thread / new thread / UI thread.
+- **Rich controls**: labels, buttons, text boxes, combo boxes, toggle switches, scroll containers, progress bars, sliders, and three data views: list / table / tree.
+- **Complete animation and transitions**: hover, expand, indicator bar, and page switching (`PageHost`) all have built-in animations, and scrolling supports smooth scrolling.
+- **High-DPI adaptation**: automatically aware of DPI; `Snap()` snaps drawing to physical pixels to avoid blurriness.
+- **IME compatibility**: text boxes support Chinese IME composition input and candidate window positioning.
+- **Offscreen caching**: elements can automatically cache their drawing results to reduce repeated drawing overhead.
 
 ## Requirements
 
@@ -273,9 +247,7 @@ Command-line build (requires MSBuild on PATH):
 msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
 ```
 
-###block_orange_start
-`ZUI.cpp` is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own `WinMain`.
-###block_orange_end
+&gt; `ZUI.cpp` is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own `WinMain`.
 
 ## Project structure
 
@@ -360,40 +332,16 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <li>API Reference (English): <a href="https://zhc9968.github.io/ZUI/docs/API.en.html">https://zhc9968.github.io/ZUI/docs/API.en.html</a></li>
 </ul>
 <h2 id="features">Features</h2>
-<div class="feature-list">
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>Direct2D custom drawing</strong>
-Hardware-accelerated rendering, Acrylic background, rounded corners, and shadows for a modern look.</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>Complete layout system</strong>
-<code>ColumnBox</code> / <code>RowBox</code> / <code>GridLayout</code>, supporting spacing, stretch weight, fill, alignment, and row/column spanning.</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>Signals and slots</strong>
-Built-in <code>ZSignal</code> / <code>Connection</code>, supporting <code>Connect</code> with automatic lifetime management, plus three dispatch strategies: current thread / new thread / UI thread.</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>Rich controls</strong>
-Labels, buttons, text boxes, combo boxes, toggle switches, scroll containers, progress bars, sliders, and three data views: list / table / tree.</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>Complete animation and transitions</strong>
-Hover, expand, indicator bar, and page switching (<code>PageHost</code>) all have built-in animations, and scrolling supports smooth scrolling.</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>High-DPI adaptation</strong>
-Automatically aware of DPI; <code>Snap()</code> snaps drawing to physical pixels to avoid blurriness.</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>IME compatibility</strong>
-Text boxes support Chinese IME composition input and candidate window positioning.</p>
-</div>
-<div class="feature-item" onmouseout="resetFeature(this)" onmouseover="animateFeature(this)">
-<p><strong>Offscreen caching</strong>
-Elements can automatically cache their drawing results to reduce repeated drawing overhead.</p>
-</div>
-</div>
+<ul>
+<li><strong>Direct2D custom drawing</strong>: hardware-accelerated rendering, Acrylic background, rounded corners, and shadows for a modern look.</li>
+<li><strong>Complete layout system</strong>: <code>ColumnBox</code> / <code>RowBox</code> / <code>GridLayout</code>, supporting spacing, stretch weight, fill, alignment, and row/column spanning.</li>
+<li><strong>Signals and slots</strong>: built-in <code>ZSignal</code> / <code>Connection</code>, supporting <code>Connect</code> with automatic lifetime management, plus three dispatch strategies: current thread / new thread / UI thread.</li>
+<li><strong>Rich controls</strong>: labels, buttons, text boxes, combo boxes, toggle switches, scroll containers, progress bars, sliders, and three data views: list / table / tree.</li>
+<li><strong>Complete animation and transitions</strong>: hover, expand, indicator bar, and page switching (<code>PageHost</code>) all have built-in animations, and scrolling supports smooth scrolling.</li>
+<li><strong>High-DPI adaptation</strong>: automatically aware of DPI; <code>Snap()</code> snaps drawing to physical pixels to avoid blurriness.</li>
+<li><strong>IME compatibility</strong>: text boxes support Chinese IME composition input and candidate window positioning.</li>
+<li><strong>Offscreen caching</strong>: elements can automatically cache their drawing results to reduce repeated drawing overhead.</li>
+</ul>
 <h2 id="requirements">Requirements</h2>
 <table>
 <thead>
@@ -436,20 +384,20 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">bash</span>
-<button class="copy-btn" onclick="copyCode('code-118bbda9', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-a243faed', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>msbuild<span class="w"> </span>ZUI.slnx<span class="w"> </span>/p:Configuration<span class="o">=</span>Release<span class="w"> </span>/p:Platform<span class="o">=</span>x64
 </pre></div>
-<pre id="code-118bbda9" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
+<pre id="code-a243faed" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
 </div>
-<div class="orange">
+<blockquote>
 <p><code>ZUI.cpp</code> is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own <code>WinMain</code>.</p>
-</div>
+</blockquote>
 <h2 id="project-structure">Project structure</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">text</span>
-<button class="copy-btn" onclick="copyCode('code-9b60f405', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-5d69a4d4', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
@@ -461,7 +409,7 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 └── docs/
     └── API.en.md      # Full API documentation
 </pre></div>
-<pre id="code-9b60f405" style="display: none;">ZUI/
+<pre id="code-5d69a4d4" style="display: none;">ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
 ├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
@@ -475,7 +423,7 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-469aa161', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-c6261073', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZUIWidgets.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -511,7 +459,7 @@ Elements can automatically cache their drawing results to reduce repeated drawin
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-469aa161" style="display: none;">#include "ZUIWidgets.h"
+<pre id="code-c6261073" style="display: none;">#include "ZUIWidgets.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
