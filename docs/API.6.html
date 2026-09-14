@@ -233,7 +233,7 @@ pre { line-height: 125%; }
 | `virtual void Arrange(const Rect&amp; finalRect)` | 排布。默认实现记录 `arrangedRect_`；有子元素的容器要在这里给子元素 `Arrange`。 |
 | `Rect GetArrangedRect() const` | 上一轮排布结果，绘制与命中测试都用它。 |
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | 绘制（**必须实现**）。用 `GetArrangedRect()` 里的绝对坐标绘制。 |
-| `virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const` | 子元素列表（返回引用，容器需维护自己的视图缓冲）。 |
+| `virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const` | 子元素列表（返回引用，容器需维护自己的视图缓冲）。**返回的是元素内部缓冲的引用**：有效期到“该元素的子列表/可见性变化或再次调用其 `GetChildren()`”；遍历期间**不要对同一个元素再次调用 `GetChildren()`**（递归子元素用的是各自的缓冲，安全）。 |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | 是否使用离屏缓存（默认 true）。 |
 | `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | 返回子元素裁剪区（绝对坐标）；返回 `nullopt` 表示不裁剪。 |
 | `void RequestRepaint()` | 请求重绘；底层触发全局 `RepaintRequest`。 |
@@ -327,11 +327,13 @@ pre { line-height: 125%; }
 | 方法 | 说明 |
 | --- | --- |
 | `void SetParent(UIElement*)` / `UIElement* GetParent() const` | 父元素（通常由容器自动设置） |
-| `void SetVisible(bool)` / `bool IsVisible() const` | 可见性；设为 false 会释放缓存 |
+| `Window* GetWindow() const` | 所属窗口；未挂载或窗口已销毁时返回 `nullptr`（内部按窗口 id 查找，不持有裸指针） |
+| `void SetVisible(bool)` / `bool IsVisible() const` | 可见性；设为 false 会释放缓存，并触发 `OnVisibilityChanged(false)` |
+| `virtual void OnVisibilityChanged(bool visible)` | 可见性变化钩子；例如 `ComboBox` 在隐藏时会自动收起下拉弹层 |
 | `void SetContextMenu(std::shared_ptr&lt;Menu&gt;)` / `GetContextMenu()` | 右键菜单 |
 | `virtual bool OnContextMenu(float,float)` | 右键钩子；返回 true 表示已处理，不再弹默认菜单 |
 | `void SetBleed(float)` / `float GetBleed() const` | 缓存出血（默认 `4.0f`） |
-| `template&lt;typename Signal, typename Slot&gt; auto Connect(Signal&amp;, Slot&amp;&amp;)` | 连接信号，自动登记进本元素的 `ConnectionGroup` |
+| `template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)` | 连接信号，自动登记进本元素的 `ConnectionGroup`；**不返回 `Connection`**（连接随元素析构断开；若要手动断开请直接用 `signal.connect(...)`） |
 
 ## 字体接口
 
@@ -460,7 +462,7 @@ private:
 </tr>
 <tr>
 <td><code>virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const</code></td>
-<td>子元素列表（返回引用，容器需维护自己的视图缓冲）。</td>
+<td>子元素列表（返回引用，容器需维护自己的视图缓冲）。<strong>返回的是元素内部缓冲的引用</strong>：有效期到“该元素的子列表/可见性变化或再次调用其 <code>GetChildren()</code>”；遍历期间<strong>不要对同一个元素再次调用 <code>GetChildren()</code></strong>（递归子元素用的是各自的缓冲，安全）。</td>
 </tr>
 <tr>
 <td><code>virtual bool UseCache() const</code> / <code>SetUseCache(bool)</code></td>
@@ -689,8 +691,16 @@ private:
 <td>父元素（通常由容器自动设置）</td>
 </tr>
 <tr>
+<td><code>Window* GetWindow() const</code></td>
+<td>所属窗口；未挂载或窗口已销毁时返回 <code>nullptr</code>（内部按窗口 id 查找，不持有裸指针）</td>
+</tr>
+<tr>
 <td><code>void SetVisible(bool)</code> / <code>bool IsVisible() const</code></td>
-<td>可见性；设为 false 会释放缓存</td>
+<td>可见性；设为 false 会释放缓存，并触发 <code>OnVisibilityChanged(false)</code></td>
+</tr>
+<tr>
+<td><code>virtual void OnVisibilityChanged(bool visible)</code></td>
+<td>可见性变化钩子；例如 <code>ComboBox</code> 在隐藏时会自动收起下拉弹层</td>
 </tr>
 <tr>
 <td><code>void SetContextMenu(std::shared_ptr&lt;Menu&gt;)</code> / <code>GetContextMenu()</code></td>
@@ -705,8 +715,8 @@ private:
 <td>缓存出血（默认 <code>4.0f</code>）</td>
 </tr>
 <tr>
-<td><code>template&lt;typename Signal, typename Slot&gt; auto Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
-<td>连接信号，自动登记进本元素的 <code>ConnectionGroup</code></td>
+<td><code>template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
+<td>连接信号，自动登记进本元素的 <code>ConnectionGroup</code>；<strong>不返回 <code>Connection</code></strong>（连接随元素析构断开；若要手动断开请直接用 <code>signal.connect(...)</code>）</td>
 </tr>
 </tbody>
 </table>
@@ -757,7 +767,7 @@ private:
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-39c21516', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-0401bb1c', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Dot</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
@@ -773,7 +783,7 @@ private:
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">r_</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-39c21516" style="display: none;">class Dot : public UIElement {
+<pre id="code-0401bb1c" style="display: none;">class Dot : public UIElement {
 public:
     Dot(float r) : r_(r) {}
     Size Measure(const Size&amp;) override { return Size(r_ * 2, r_ * 2); }

@@ -226,7 +226,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 | `virtual void Arrange(const Rect&amp; finalRect)` | Arrange; the default records `arrangedRect_`; containers must arrange their children here. |
 | `Rect GetArrangedRect() const` | Result of the last arrange; used by drawing and hit-testing. |
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | **Must implement.** Draw using absolute coordinates from `GetArrangedRect()`. |
-| `virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const` | Child list (by reference; containers maintain their own view buffer). |
+| `virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const` | Child list (by reference; containers keep their own view buffer). **The returned reference points at an internal buffer**: valid until the element's child list/visibility changes or its `GetChildren()` is called again. During traversal **do not call `GetChildren()` on the same element again** (recursing into children uses their own buffers, which is safe). |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | Offscreen cache (default true). |
 | `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | Child clip rect (absolute); `nullopt` means no clip. |
 | `void RequestRepaint()` | Request a repaint (fires the global `RepaintRequest`). |
@@ -320,11 +320,13 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 | Method | Description |
 | --- | --- |
 | `SetParent(UIElement*)` / `GetParent()` | Parent (usually set by the container) |
-| `SetVisible(bool)` / `IsVisible() const` | Visibility; false releases the cache |
+| `Window* GetWindow() const` | Owning window; `nullptr` if not attached or the window was destroyed (looked up by window id, no raw pointer held) |
+| `SetVisible(bool)` / `IsVisible() const` | Visibility; false releases the cache and triggers `OnVisibilityChanged(false)` |
+| `virtual void OnVisibilityChanged(bool visible)` | Visibility hook; e.g. `ComboBox` auto-collapses its popup when hidden |
 | `SetContextMenu(std::shared_ptr&lt;Menu&gt;)` / `GetContextMenu()` | Right-click menu |
 | `virtual bool OnContextMenu(float,float)` | Right-click hook; return true to suppress the default menu |
 | `SetBleed(float)` / `GetBleed() const` | Cache bleed (default `4.0f`) |
-| `template&lt;...&gt; Connect(Signal&amp;, Slot&amp;&amp;)` | Connect a signal, registered in this element's `ConnectionGroup` |
+| `template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)` | Connect a signal, registered in the element's `ConnectionGroup`; **returns no `Connection`** (it disconnects when the element dies; use `signal.connect(...)` if you need to disconnect manually) |
 
 ## Font interface
 
@@ -433,7 +435,7 @@ private:
 </tr>
 <tr>
 <td><code>virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const</code></td>
-<td>Child list (by reference; containers maintain their own view buffer).</td>
+<td>Child list (by reference; containers keep their own view buffer). <strong>The returned reference points at an internal buffer</strong>: valid until the element's child list/visibility changes or its <code>GetChildren()</code> is called again. During traversal <strong>do not call <code>GetChildren()</code> on the same element again</strong> (recursing into children uses their own buffers, which is safe).</td>
 </tr>
 <tr>
 <td><code>virtual bool UseCache() const</code> / <code>SetUseCache(bool)</code></td>
@@ -662,8 +664,16 @@ private:
 <td>Parent (usually set by the container)</td>
 </tr>
 <tr>
+<td><code>Window* GetWindow() const</code></td>
+<td>Owning window; <code>nullptr</code> if not attached or the window was destroyed (looked up by window id, no raw pointer held)</td>
+</tr>
+<tr>
 <td><code>SetVisible(bool)</code> / <code>IsVisible() const</code></td>
-<td>Visibility; false releases the cache</td>
+<td>Visibility; false releases the cache and triggers <code>OnVisibilityChanged(false)</code></td>
+</tr>
+<tr>
+<td><code>virtual void OnVisibilityChanged(bool visible)</code></td>
+<td>Visibility hook; e.g. <code>ComboBox</code> auto-collapses its popup when hidden</td>
 </tr>
 <tr>
 <td><code>SetContextMenu(std::shared_ptr&lt;Menu&gt;)</code> / <code>GetContextMenu()</code></td>
@@ -678,8 +688,8 @@ private:
 <td>Cache bleed (default <code>4.0f</code>)</td>
 </tr>
 <tr>
-<td><code>template&lt;...&gt; Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
-<td>Connect a signal, registered in this element's <code>ConnectionGroup</code></td>
+<td><code>template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
+<td>Connect a signal, registered in the element's <code>ConnectionGroup</code>; <strong>returns no <code>Connection</code></strong> (it disconnects when the element dies; use <code>signal.connect(...)</code> if you need to disconnect manually)</td>
 </tr>
 </tbody>
 </table>
@@ -730,7 +740,7 @@ private:
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-63cd6ecf', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-4ab74c7a', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Dot</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
@@ -746,7 +756,7 @@ private:
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">r_</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-63cd6ecf" style="display: none;">class Dot : public UIElement {
+<pre id="code-4ab74c7a" style="display: none;">class Dot : public UIElement {
 public:
     Dot(float r) : r_(r) {}
     Size Measure(const Size&amp;) override { return Size(r_ * 2, r_ * 2); }
