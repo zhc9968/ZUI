@@ -1339,6 +1339,10 @@ namespace ZUI {
         std::wstring GetSelectedText() const { return selectedIndex_ >= 0 ? items_[selectedIndex_] : L""; }
 
         bool IsExpanded() const { return expanded_; }
+        // 所属页面/元素被隐藏时自动收起下拉（避免隐藏页里的展开弹层继续通过全局 DrawOverlay 绘制）
+        void OnVisibilityChanged(bool visible) override {
+            if (!visible && (expanded_ || expandProgress_ > 0.01f)) CollapseInternal();
+        }
         float GetExpandProgress() const { return expandProgress_; }
         void Collapse() { CollapseInternal(); }
 

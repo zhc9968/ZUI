@@ -152,6 +152,9 @@ Key points:
 - Fixed ComboBoxes holding the thread-wide system mouse capture after expanding (which made other windows unusable): Win32 capture is now held only while the mouse button is down and released on mouse-up (element-level logical capture is unaffected); also handled `WM_CAPTURECHANGED`.
 - Added modal and owned windows: `Window::SetOwner` / `GetOwner`, `Window::RunModal(owner)`, `Application::CreateWindow(..., owner)`; while modal, clicking the disabled owner **flashes** the modal window.
 - Robustness: elements store the owning window as an **id** (instead of a raw pointer); after the window is destroyed `GetWindow()` returns nullptr, removing crashes from dangling window pointers.
+- Fixed `PageHost` calling `ReleaseDeviceResources()` on non-current pages **every frame** after a transition finished (now released once, on the completing frame); non-current pages are made invisible, so expanded controls (ComboBox) auto-collapse.
+- Fixed `UIElement::Connect` returning a moved-from empty `Connection` (now returns nothing); fixed `TreeView::RemoveChildren` not clearing `checkAnim_` (dangling node keys).
+- Added `AGENTS.md` codifying the principle: for any bug, find and fix the root cause first — never mask it with a new mechanism.
 - Backward compatible: `Window win; win.Create(...); win.Run();` still works. `#undef CreateWindow` avoids the Win32 macro clash.
 
 ## Documentation

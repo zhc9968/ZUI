@@ -152,6 +152,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - 修复“ComboBox 展开后一直持有系统鼠标捕获、导致其它窗口无法使用”：Win32 捕获只在按住鼠标期间持有，松开立即释放（元素级逻辑捕获不受影响）；另处理 `WM_CAPTURECHANGED`。
 - 新增模态与 owned 父子窗口：`Window::SetOwner` / `GetOwner`、`Window::RunModal(owner)`、`Application::CreateWindow(..., owner)`；模态期间点击被禁用的父窗口会让模态窗口**闪烁**提示。
 - 稳健性：元素改用**窗口 id** 记录所属窗口（替代裸指针），窗口销毁后 `GetWindow()` 返回 nullptr，消除“悬垂窗口指针”导致的崩溃。
+- 修复 `PageHost` 过渡结束后**每帧重复**对非当前页 `ReleaseDeviceResources()` 的问题（改为仅在过渡完成的那一帧释放一次）；非当前页会被设为不可见，其中的展开控件（ComboBox）随之自动收起。
+- 修复 `UIElement::Connect` 返回被移动过的空 `Connection` 的隐患（改为不返回）；修复 `TreeView::RemoveChildren` 未清理 `checkAnim_` 造成的悬垂节点键。
+- 新增 `AGENTS.md`，固化“任何 bug 先定位根源、从根源修复，不用新机制掩盖”的开发原则。
 - 向后兼容：单窗口 `Window win; win.Create(...); win.Run();` 仍可用。`#undef CreateWindow` 以避免与 Win32 宏冲突。
 
 ## 文档

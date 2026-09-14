@@ -2926,6 +2926,7 @@ namespace ZUI {
         }
         void RemoveChildren(std::shared_ptr<TreeNode> node) {
             if (!node) return;
+            for (auto& c : node->children) EraseCheckAnim(c);   // 先清理勾选动画缓存，避免留下悬垂 TreeNode*
             node->children.clear();
             BuildVisibleList();
             InvalidateLayout();

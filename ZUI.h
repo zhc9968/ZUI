@@ -679,11 +679,13 @@ namespace ZUI {
         }
 
         // ---------- 信号连接自动管理（改进版） ----------
+        // 连接登记进本元素的 ConnectionGroup，随元素析构自动断开。
+        // 不返回 Connection：Connection 是 move-only 句柄，返回它需要把句柄移出 autoConnections_，
+        // 会导致返回一个已失效的空句柄（旧实现的隐患）。如需手动断开，请改用 signal.connect(...) 自行管理。
         template<typename Signal, typename Slot>
-        auto Connect(Signal& signal, Slot&& slot) {
-            auto conn = signal.connect(std::forward<Slot>(slot), ConnectionThread::CurrentThread, connectionGroup_);
-            autoConnections_.push_back(std::move(conn));
-            return conn;
+        void Connect(Signal& signal, Slot&& slot) {
+            autoConnections_.push_back(
+                signal.connect(std::forward<Slot>(slot), ConnectionThread::CurrentThread, connectionGroup_));
         }
 
         // 在 UIElement 类内（public 或 protected）
@@ -731,9 +733,12 @@ namespace ZUI {
                     cacheRT_.Reset();
                     cacheValid_ = false;
                 }
+                OnVisibilityChanged(visible);
                 InvalidateLayout();
             }
         }
+        // 可见性变化钩子：展开类控件（如 ComboBox）应在隐藏时收起自身弹层
+        virtual void OnVisibilityChanged(bool /*visible*/) {}
         bool IsVisible() const { return visible_; }
         void SetContextMenu(std::shared_ptr<Menu> menu) { contextMenu_ = menu; }
         std::shared_ptr<Menu> GetContextMenu() const { return contextMenu_; }
@@ -1777,6 +1782,7 @@ namespace ZUI {
             }
 #endif
 
+            bool justFinished = false;   // 只在“过渡完成的那一帧”为 true，避免每帧重复释放
             if (animating_) {
                 animProgress_ += deltaTime / animDuration_;
                 // 强制收敛：若进度接近 1.0（浮点误差），立即完成动画
@@ -1787,6 +1793,7 @@ namespace ZUI {
                     currentIndex_ = toIndex_;
                     fromIndex_ = -1;
                     toIndex_ = -1;
+                    justFinished = true;
                 }
                 // 动画过程中强制重绘子页面，确保缓存更新
                 if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size())
@@ -1807,10 +1814,18 @@ namespace ZUI {
                 pages_[currentIndex_]->UpdateAnimation(deltaTime);
             }
 
-            if (!animating_ && animProgress_ >= 1.0f) {
-                // 动画结束，释放非当前页面的缓存
+            // 同步页面可见性：非当前、非过渡页设为不可见（可让其中的展开控件自动收起，且不参与绘制）
+            for (size_t i = 0; i < pages_.size(); ++i) {
+                if (!pages_[i]) continue;
+                bool vis = ((int)i == currentIndex_) ||
+                    (animating_ && ((int)i == fromIndex_ || (int)i == toIndex_));
+                pages_[i]->SetVisible(vis);
+            }
+
+            if (justFinished) {
+                // 过渡刚结束的这一帧：释放非当前页面的设备资源（只做一次）
                 for (size_t i = 0; i < pages_.size(); ++i) {
-                    if (i != currentIndex_ && pages_[i]) {
+                    if (i != (size_t)currentIndex_ && pages_[i]) {
                         pages_[i]->ReleaseDeviceResources();
                     }
                 }
