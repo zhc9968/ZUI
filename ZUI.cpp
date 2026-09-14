@@ -843,6 +843,34 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             });
         troot->AddChild(tbtn);
 
+        // 父子（owned）窗口：始终位于本窗口之上，随本窗口最小化
+        auto tchildBtn = std::make_shared<Button>(L"子窗口(owned)");
+        tchildBtn->Connect(tchildBtn->Clicked, [w = toolWin.get()]() {
+            auto c = Application::Instance().CreateWindow(360, 240, L"子窗口 (owned)", w);
+            if (c) {
+                c->GetRootColumnBox()->AddChild(std::make_shared<Label>(L"这是工具窗口的 owned 子窗口"));
+                static std::vector<std::shared_ptr<Window>> keep;
+                keep.push_back(c);
+            }
+            });
+        troot->AddChild(tchildBtn);
+
+        // 模态窗口：禁用所有者，关闭后恢复
+        auto tmodalBtn = std::make_shared<Button>(L"模态窗口");
+        tmodalBtn->Connect(tmodalBtn->Clicked, [w = toolWin.get()]() {
+            auto m = Application::Instance().CreateWindow(320, 200, L"模态窗口");
+            if (!m) return;
+            auto r = m->GetRootColumnBox();
+            r->AddChild(std::make_shared<Label>(L"模态窗口：所有者被禁用，关闭后恢复"));
+            auto ok = std::make_shared<Button>(L"关闭");
+            ok->Connect(ok->Clicked, [mp = m.get()]() { mp->Close(); });
+            r->AddChild(ok);
+            static std::vector<std::shared_ptr<Window>> keep;
+            keep.push_back(m);
+            m->RunModal(w);   // 阻塞直到本窗口关闭（嵌套消息循环）
+            });
+        troot->AddChild(tmodalBtn);
+
         auto tclose = std::make_shared<Button>(L"关闭本窗口");
         tclose->Connect(tclose->Clicked, [w = toolWin.get()]() { w->Close(); });
         troot->AddChild(tclose);

@@ -634,6 +634,10 @@ class Window {
     void SetSize(int width, int height);       // 按 DIP 设置窗口尺寸
     bool IsValid() const;                      // 窗口是否仍然有效（未销毁）
     void Close();                              // 关闭本窗口（其余窗口不受影响）
+
+    void SetOwner(Window* owner);              // 设置所有者：owned 子窗口，始终在所有者之上、随其最小化
+    Window* GetOwner() const;
+    int RunModal(Window* owner = nullptr);     // 模态运行：禁用 owner，嵌套消息循环，关闭后恢复
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -659,6 +663,7 @@ class Window {
 ```cpp
 class Application {
     std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title);
+    std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title, Window* owner); // owned 子窗口
     void AddWindow(const std::shared_ptr<Window>& w);
     int Run();
     void Quit(int code = 0);
@@ -694,6 +699,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **DPI 每窗口**：当前 DPI 缩放是**线程本地**的，渲染每个窗口前会设置该窗口自己的缩放，所以混合 DPI 的多窗口也能正确 `Snap`。
 - **激活 / 失活按窗口**：`Window` 提供实例信号 `Activated` / `Deactivated` / `Closed`；全局 `UIZSignals::WindowDeactivated` 现在带 `Window*` 参数、`GlobalMouseDown` 带 `Window*`。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。
 - **叠加绘制按窗口**：全局 `UIZSignals::DrawOverlay` 现在带 `Window*`（以及渲染目标）参数；订阅者**必须**用 `GetWindow()` 过滤，否则会把 A 窗口的下拉/弹层画到 B 窗口上（这是多窗口下最典型的串扰）。ZUI 自带控件已按此处理。
+- **鼠标捕获**：Win32 `SetCapture` 只用于“按住鼠标”的拖拽，松开立即释放（元素级逻辑捕获不受影响）。修复了“ComboBox 展开后一直持有系统鼠标捕获、导致其它窗口无法使用”的问题。
+- **模态 / 父子窗口**：`Window::SetOwner(owner)` 建立 owned 子窗口（始终在所有者之上、随其最小化）；`Window::RunModal(owner)` 以模态运行（禁用所有者、嵌套消息循环、关闭后恢复）。
 - **共享资源**：`ID2D1Factory` 与系统计时器精度（`timeBeginPeriod`）由应用核心统一管理，多窗口共享。
 - **向后兼容**：单窗口写法仍然有效——`Window win; win.Create(...); win.Run();`；`Run()` 会转发到应用级消息循环。
 

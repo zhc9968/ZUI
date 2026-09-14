@@ -625,6 +625,10 @@ class Window {
     void SetSize(int width, int height);       // resize the window, in DIP
     bool IsValid() const;                      // still valid (not destroyed)
     void Close();                              // close this window (others keep running)
+
+    void SetOwner(Window* owner);              // owned window: stays above the owner, minimizes with it
+    Window* GetOwner() const;
+    int RunModal(Window* owner = nullptr);     // run modally: disables the owner, nested loop, restores on close
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -650,6 +654,7 @@ class Window {
 ```cpp
 class Application {
     std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title);
+    std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title, Window* owner); // owned child
     void AddWindow(const std::shared_ptr<Window>& w);
     int Run();
     void Quit(int code = 0);
@@ -685,6 +690,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **Per-window DPI**: the current DPI scale is **thread-local** and set per window before drawing, so mixed-DPI windows snap correctly.
 - **Per-window activation**: `Window` exposes instance signals `Activated` / `Deactivated` / `Closed`; global `UIZSignals::WindowDeactivated` now carries a `Window*`, and `GlobalMouseDown` carries a `Window*`. Controls such as ComboBox only react to their own window's events.
 - **Per-window overlay drawing**: global `UIZSignals::DrawOverlay` now carries a `Window*` (plus the render target); subscribers **must** filter with `GetWindow()`, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZUI's own controls already do this.
+- **Mouse capture**: Win32 `SetCapture` is used only while the mouse button is held (dragging) and is released on mouse-up (element-level logical capture is unaffected). This fixes ComboBoxes holding the thread-wide capture after expanding, which made other windows unusable.
+- **Modal / owned windows**: `Window::SetOwner(owner)` creates an owned child (stays above and minimizes with the owner); `Window::RunModal(owner)` runs a window modally (disables the owner, nested loop, restores on close).
 - **Shared resources**: the `ID2D1Factory` and the system timer period (`timeBeginPeriod`) are managed by the application core and shared by all windows.
 - **Backward compatible**: the single-window style still works — `Window win; win.Create(...); win.Run();` (`Run()` forwards to the app-level loop).
 

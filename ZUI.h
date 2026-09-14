@@ -2676,7 +2676,39 @@ namespace ZUI {
         }
         bool IsValid() const { return hwnd_ != nullptr; }
 
+        // 父子（owned）窗口：设置所有者后，本窗口会始终位于所有者之上，并随所有者最小化。
+        void SetOwner(Window* owner) {
+            owner_ = owner;
+            if (hwnd_) SetWindowLongPtr(hwnd_, GWLP_HWNDPARENT, (LONG_PTR)(owner ? owner->hwnd_ : nullptr));
+        }
+        Window* GetOwner() const { return owner_; }
+
         void Run() { core_->Run(); }
+
+        // 以“模态”方式运行本窗口：禁用 owner（未指定则用 SetOwner 设置的所有者，再否则禁用当前活动窗口），
+        // 运行一个嵌套消息循环，直到本窗口关闭；返回后恢复 owner。
+        int RunModal(Window* owner = nullptr) {
+            if (!hwnd_) return 0;
+            Window* ow = owner ? owner : owner_;
+            HWND ownerHwnd = ow ? ow->hwnd_ : nullptr;
+            if (!ownerHwnd) ownerHwnd = GetActiveWindow();
+            if (ownerHwnd == hwnd_) ownerHwnd = nullptr;   // 不要禁用自己
+            if (ownerHwnd) EnableWindow(ownerHwnd, FALSE);
+
+            int modalExit = 0;
+            MSG msg;
+            while (IsWindow(hwnd_) && GetMessage(&msg, nullptr, 0, 0)) {
+                if (msg.message == WM_QUIT) { PostQuitMessage((int)msg.wParam); break; }
+                if (hwnd_ && IsDialogMessage(hwnd_, &msg)) continue;   // Tab/方向键等对话框导航
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+            if (ownerHwnd && IsWindow(ownerHwnd)) {
+                EnableWindow(ownerHwnd, TRUE);
+                SetForegroundWindow(ownerHwnd);
+            }
+            return modalExit;
+        }
 
         // 关闭本窗口（其余窗口不受影响；全部关闭后消息循环才会退出）
         void Close() { if (hwnd_) DestroyWindow(hwnd_); }
@@ -2984,6 +3016,10 @@ namespace ZUI {
                 break;
             case WM_SHOWWINDOW:
                 UpdateTimerState();
+                return 0;
+            case WM_CAPTURECHANGED:
+                // 捕获被系统/其他窗口夺走时，清理拖拽按下状态，避免松手后残留
+                pressedElement_ = nullptr;
                 return 0;
             case WM_DESTROY:
                 if (timerRunning_) {
@@ -3517,21 +3553,16 @@ namespace ZUI {
         }
 
         void OnMouseUp(float x, float y) {
-            if (mouseCaptureElement_) {
-                mouseCaptureElement_->OnMouseUp(x, y);
-                if (!mouseCaptureElement_) {
-                    ReleaseCapture();
-                    pressedElement_ = nullptr;
-                }
-                UpdateHover(x, y);
-                return;
-            }
-
-            if (pressedElement_) {
-                pressedElement_->OnMouseUp(x, y);
-                pressedElement_ = nullptr;
-                ReleaseCapture();
-            }
+            // 注意：Win32 捕获(SetCapture)只在“按住鼠标”期间需要；
+            // 元素级捕获(mouseCaptureElement_，如 ComboBox 展开、拖拽)与它无关，松开鼠标必须释放 Win32 捕获，
+            // 否则整个线程的鼠标都会被本窗口截走，其他窗口无法交互。
+            UIElement* a = pressedElement_;
+            UIElement* b = mouseCaptureElement_;
+            if (a) a->OnMouseUp(x, y);
+            if (b && b != a) b->OnMouseUp(x, y);
+            pressedElement_ = nullptr;
+            if (GetCapture() == hwnd_) ReleaseCapture();
+            UpdateHover(x, y);
         }
 
         void OnContextMenu(float x, float y) {
@@ -3777,6 +3808,7 @@ namespace ZUI {
         std::shared_ptr<Menu> windowContextMenu_;
         std::unique_ptr<MenuWindow> activeMenuRoot_;
         UIElement* mouseCaptureElement_ = nullptr;
+        Window* owner_ = nullptr;
         bool imePosUpdating_ = false;
         HIMC defaultIMC_ = nullptr;
 
@@ -3815,6 +3847,12 @@ namespace ZUI {
         std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title) {
             auto w = std::make_shared<Window>();
             if (!w->Create(width, height, title)) return nullptr;
+            return w;
+        }
+        // 带所有者的窗口（父子/owned）
+        std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title, Window* owner) {
+            auto w = CreateWindow(width, height, title);
+            if (w) w->SetOwner(owner);
             return w;
         }
         // 把已有窗口登记进应用（一般由 Create 自动完成）
