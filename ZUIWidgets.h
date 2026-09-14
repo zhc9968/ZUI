@@ -2601,7 +2601,7 @@ namespace ZUI {
         }
 
         void AttachWindowRecursive(Window* w) override {
-            window_ = w;
+            windowId_ = WindowIdOf(w);
             if (content_) content_->AttachWindowRecursive(w);
             if (vScrollBar_) vScrollBar_->AttachWindowRecursive(w);
             if (hScrollBar_) hScrollBar_->AttachWindowRecursive(w);

@@ -713,14 +713,17 @@ namespace ZUI {
             parent_ = parent;
             // 挂到已属于某窗口的父级时，立即把自己的子树也归属到该窗口；
             // 若父级尚未挂载，则等父级挂载时由 AttachWindowRecursive 统一传播。
-            AttachWindowRecursive(parent ? parent->window_ : nullptr);
+            AttachWindowRecursive(parent ? parent->GetWindow() : nullptr);
         }
         UIElement* GetParent() const { return parent_; }
 
-        // 所属窗口（挂载到窗口的树后由框架设置；未挂载时为 nullptr）
-        Window* GetWindow() const { return window_; }
+        // 所属窗口（挂载到窗口的树后由框架设置；未挂载或窗口已销毁时返回 nullptr）
+        // 说明：内部用“窗口 id”而非裸指针保存归属，窗口销毁后查找返回 nullptr，
+        //       从根本上避免“元素持有已销毁窗口指针”导致的悬垂崩溃。
+        Window* GetWindow() const;
+        static int WindowIdOf(Window* w);
         // 把“所属窗口”沿子树传播；容器需重写以递归自己的子元素
-        virtual void AttachWindowRecursive(Window* w) { window_ = w; }
+        virtual void AttachWindowRecursive(Window* w) { windowId_ = WindowIdOf(w); }
         void SetVisible(bool visible) {
             if (visible_ != visible) {
                 visible_ = visible;
@@ -878,7 +881,7 @@ namespace ZUI {
         std::vector<Connection> autoConnections_;
 
         bool useCache_; // 默认 true，可被重写
-        Window* window_ = nullptr;  // 所属窗口（非拥有，由框架在挂载时设置）
+        int windowId_ = 0;  // 所属窗口 id（0 表示未挂载）；用 id 而非裸指针，避免窗口销毁后悬垂
         mutable std::vector<UIElement*> childrenView_; // GetChildren 复用的视图缓冲，避免每帧分配
 
         // ---------- 字体相关成员 ----------
@@ -956,7 +959,7 @@ namespace ZUI {
         }
 
         void AttachWindowRecursive(Window* w) override {
-            window_ = w;
+            windowId_ = WindowIdOf(w);
             for (auto& child : children_) child->AttachWindowRecursive(w);
         }
 
@@ -1048,7 +1051,7 @@ namespace ZUI {
         }
 
         void AttachWindowRecursive(Window* w) override {
-            window_ = w;
+            windowId_ = WindowIdOf(w);
             for (auto& child : children_) child->AttachWindowRecursive(w);
         }
 
@@ -1312,7 +1315,7 @@ namespace ZUI {
         }
 
         void AttachWindowRecursive(Window* w) override {
-            window_ = w;
+            windowId_ = WindowIdOf(w);
             for (auto& item : items_) if (item.element) item.element->AttachWindowRecursive(w);
         }
 
@@ -1380,7 +1383,7 @@ namespace ZUI {
         }
 
         void AttachWindowRecursive(Window* w) override {
-            window_ = w;
+            windowId_ = WindowIdOf(w);
             if (layout_) layout_->AttachWindowRecursive(w);
         }
 
@@ -1708,7 +1711,7 @@ namespace ZUI {
         }
 
         void AttachWindowRecursive(Window* w) override {
-            window_ = w;
+            windowId_ = WindowIdOf(w);
             for (auto& p : pages_) if (p) p->AttachWindowRecursive(w);
         }
 
@@ -2491,7 +2494,27 @@ namespace ZUI {
             }
             void RemoveWindow(Window* w) {
                 windows_.erase(std::remove(windows_.begin(), windows_.end(), w), windows_.end());
+                for (auto it = windowsById_.begin(); it != windowsById_.end(); ) {
+                    if (it->second == w) it = windowsById_.erase(it); else ++it;
+                }
                 if (windows_.empty()) Quit(0);   // 最后一个窗口关闭才退出
+            }
+            // 分配窗口 id 并登记（元素只保存 id，窗口销毁后查找返回 nullptr，杜绝悬垂）
+            int RegisterWindow(Window* w) {
+                int id = nextWindowId_++;
+                windowsById_[id] = w;
+                AddWindow(w);
+                return id;
+            }
+            void UnregisterWindow(int id, Window* w) {
+                windowsById_.erase(id);
+                windows_.erase(std::remove(windows_.begin(), windows_.end(), w), windows_.end());
+                if (windows_.empty()) Quit(0);
+            }
+            Window* GetWindowById(int id) const {
+                if (id == 0) return nullptr;
+                auto it = windowsById_.find(id);
+                return it == windowsById_.end() ? nullptr : it->second;
             }
             int WindowCount() const { return (int)windows_.size(); }
             const std::vector<Window*>& Windows() const { return windows_; }
@@ -2519,6 +2542,8 @@ namespace ZUI {
             ~AppCore() { timeEndPeriod(1); }
             ComPtr<ID2D1Factory> d2dFactory_;
             std::vector<Window*> windows_;
+            std::unordered_map<int, Window*> windowsById_;
+            int nextWindowId_ = 1;
             bool running_ = false;
             int exitCode_ = 0;
         };
@@ -2608,7 +2633,7 @@ namespace ZUI {
             if (!d2dFactory_) return false;
             if (FAILED(CreateDeviceResources())) return false;
 
-            core_->AddWindow(this);
+            id_ = core_->RegisterWindow(this);
 
             ApplyBackdrop();
             ApplyTitleBarColors();
@@ -2675,6 +2700,7 @@ namespace ZUI {
             SetWindowPos(hwnd_, nullptr, 0, 0, MulDiv(width, dpi_, 96), MulDiv(height, dpi_, 96), SWP_NOMOVE | SWP_NOZORDER);
         }
         bool IsValid() const { return hwnd_ != nullptr; }
+        int GetId() const { return id_; }
 
         // 父子（owned）窗口：设置所有者后，本窗口会始终位于所有者之上，并随所有者最小化。
         void SetOwner(Window* owner) {
@@ -2687,6 +2713,24 @@ namespace ZUI {
 
         // 以“模态”方式运行本窗口：禁用 owner（未指定则用 SetOwner 设置的所有者，再否则禁用当前活动窗口），
         // 运行一个嵌套消息循环，直到本窗口关闭；返回后恢复 owner。
+        // 模态期间的低级鼠标钩子：点击被禁用的父窗口时，让模态窗口闪烁提示（并吞掉该点击）
+        static inline HWND s_modalHwnd = nullptr;
+        static LRESULT CALLBACK ModalMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
+            if (nCode == HC_ACTION && s_modalHwnd &&
+                (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN || wParam == WM_MBUTTONDOWN)) {
+                MSLLHOOKSTRUCT* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
+                HWND target = WindowFromPoint(ms->pt);
+                if (target && target != s_modalHwnd && !IsChild(s_modalHwnd, target)) {
+                    FLASHWINFO fi = {};
+                    fi.cbSize = sizeof(fi); fi.hwnd = s_modalHwnd;
+                    fi.dwFlags = FLASHW_ALL; fi.uCount = 3; fi.dwTimeout = 0;
+                    FlashWindowEx(&fi);
+                    return 1;
+                }
+            }
+            return CallNextHookEx(nullptr, nCode, wParam, lParam);
+        }
+
         int RunModal(Window* owner = nullptr) {
             if (!hwnd_) return 0;
             Window* ow = owner ? owner : owner_;
@@ -2694,6 +2738,9 @@ namespace ZUI {
             if (!ownerHwnd) ownerHwnd = GetActiveWindow();
             if (ownerHwnd == hwnd_) ownerHwnd = nullptr;   // 不要禁用自己
             if (ownerHwnd) EnableWindow(ownerHwnd, FALSE);
+
+            s_modalHwnd = hwnd_;
+            HHOOK hook = SetWindowsHookExW(WH_MOUSE_LL, &Window::ModalMouseProc, nullptr, 0);
 
             int modalExit = 0;
             MSG msg;
@@ -2703,6 +2750,9 @@ namespace ZUI {
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
+            if (hook) UnhookWindowsHookEx(hook);
+            s_modalHwnd = nullptr;
+
             if (ownerHwnd && IsWindow(ownerHwnd)) {
                 EnableWindow(ownerHwnd, TRUE);
                 SetForegroundWindow(ownerHwnd);
@@ -3029,7 +3079,7 @@ namespace ZUI {
                 if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);  // 清除整棵树的窗口指针，避免外部持有元素时悬垂
                 hwnd_ = nullptr;
                 Closed();
-                if (core_) core_->RemoveWindow(this);
+                if (core_ && id_) { core_->UnregisterWindow(id_, this); id_ = 0; }
                 return 0;
             }
             return DefWindowProc(hwnd_, message, wParam, lParam);
@@ -3781,6 +3831,7 @@ namespace ZUI {
 
         HWND hwnd_;
         detail::AppCore* core_ = nullptr;
+        int id_ = 0;
         ID2D1Factory* d2dFactory_;
         ID2D1HwndRenderTarget* renderTarget_;
         std::shared_ptr<Layout> rootElement_;
@@ -3827,15 +3878,19 @@ namespace ZUI {
     };
 
     // ---------- UIElement 路由实现（需 Window 完整类型） ----------
+    inline int UIElement::WindowIdOf(Window* w) { return w ? w->GetId() : 0; }
+    inline Window* UIElement::GetWindow() const {
+        return detail::AppCore::Instance().GetWindowById(windowId_);
+    }
     inline void UIElement::RequestRepaint() {
-        if (window_) window_->MarkRepaint(this);
-        else UIZSignals::RepaintRequest(window_, this);
+        if (Window* w = GetWindow()) w->MarkRepaint(this);
+        else UIZSignals::RepaintRequest(nullptr, this);
     }
     inline void UIElement::InvalidateLayout() {
         layoutDirty_ = true;
         ZUI_DEBUG_LOG_A((std::string("InvalidateLayout called by: ") + typeid(*this).name() + "\n").c_str());
-        if (window_) window_->MarkLayoutInvalidated();
-        else UIZSignals::LayoutInvalidated(window_);
+        if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
+        else UIZSignals::LayoutInvalidated(nullptr);
     }
 
     // ---------- 应用（Qt 风格：app.CreateWindow(...) -> app.Run()） ----------
