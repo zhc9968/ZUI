@@ -57,6 +57,7 @@ ZUI/
 ├── ZUI.cpp            # Demo program entry point (WinMain)
 ├── ZUI.slnx           # Solution
 ├── ZUI.vcxproj        # Project file
+├── AGENTS.md          # Development principles (incl. "find the root cause before fixing any bug")
 └── docs/
     └── API.en.md      # Full API documentation
 ```

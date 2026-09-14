@@ -299,7 +299,7 @@ The base class of all visual elements. A custom control derives from it and impl
 | `virtual void Arrange(const Rect& finalRect)` | Arrange; the default records `arrangedRect_`; containers must arrange their children here. |
 | `Rect GetArrangedRect() const` | Result of the last arrange; used by drawing and hit-testing. |
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | **Must implement.** Draw using absolute coordinates from `GetArrangedRect()`. |
-| `virtual const std::vector<UIElement*>& GetChildren() const` | Child list (by reference; containers maintain their own view buffer). |
+| `virtual const std::vector<UIElement*>& GetChildren() const` | Child list (by reference; containers keep their own view buffer). **The returned reference points at an internal buffer**: valid until the element's child list/visibility changes or its `GetChildren()` is called again. During traversal **do not call `GetChildren()` on the same element again** (recursing into children uses their own buffers, which is safe). |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | Offscreen cache (default true). |
 | `virtual std::optional<D2D1_RECT_F> GetClipRect() const` | Child clip rect (absolute); `nullopt` means no clip. |
 | `void RequestRepaint()` | Request a repaint (fires the global `RepaintRequest`). |
@@ -393,11 +393,13 @@ The base class of all visual elements. A custom control derives from it and impl
 | Method | Description |
 | --- | --- |
 | `SetParent(UIElement*)` / `GetParent()` | Parent (usually set by the container) |
-| `SetVisible(bool)` / `IsVisible() const` | Visibility; false releases the cache |
+| `Window* GetWindow() const` | Owning window; `nullptr` if not attached or the window was destroyed (looked up by window id, no raw pointer held) |
+| `SetVisible(bool)` / `IsVisible() const` | Visibility; false releases the cache and triggers `OnVisibilityChanged(false)` |
+| `virtual void OnVisibilityChanged(bool visible)` | Visibility hook; e.g. `ComboBox` auto-collapses its popup when hidden |
 | `SetContextMenu(std::shared_ptr<Menu>)` / `GetContextMenu()` | Right-click menu |
 | `virtual bool OnContextMenu(float,float)` | Right-click hook; return true to suppress the default menu |
 | `SetBleed(float)` / `GetBleed() const` | Cache bleed (default `4.0f`) |
-| `template<...> Connect(Signal&, Slot&&)` | Connect a signal, registered in this element's `ConnectionGroup` |
+| `template<typename Signal, typename Slot> void Connect(Signal&, Slot&&)` | Connect a signal, registered in the element's `ConnectionGroup`; **returns no `Connection`** (it disconnects when the element dies; use `signal.connect(...)` if you need to disconnect manually) |
 
 ## Font interface
 
@@ -624,6 +626,7 @@ class Window {
     void SetPosition(int x, int y);            // move the window, in DIP (useful for multiple windows)
     void SetSize(int width, int height);       // resize the window, in DIP
     bool IsValid() const;                      // still valid (not destroyed)
+    int GetId() const;                         // unique window id (elements store ownership by id, avoiding dangling)
     void Close();                              // close this window (others keep running)
 
     void SetOwner(Window* owner);              // owned window: stays above the owner, minimizes with it

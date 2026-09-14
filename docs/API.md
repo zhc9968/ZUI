@@ -307,7 +307,7 @@ struct FontSpec {
 | `virtual void Arrange(const Rect& finalRect)` | 排布。默认实现记录 `arrangedRect_`；有子元素的容器要在这里给子元素 `Arrange`。 |
 | `Rect GetArrangedRect() const` | 上一轮排布结果，绘制与命中测试都用它。 |
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | 绘制（**必须实现**）。用 `GetArrangedRect()` 里的绝对坐标绘制。 |
-| `virtual const std::vector<UIElement*>& GetChildren() const` | 子元素列表（返回引用，容器需维护自己的视图缓冲）。 |
+| `virtual const std::vector<UIElement*>& GetChildren() const` | 子元素列表（返回引用，容器需维护自己的视图缓冲）。**返回的是元素内部缓冲的引用**：有效期到“该元素的子列表/可见性变化或再次调用其 `GetChildren()`”；遍历期间**不要对同一个元素再次调用 `GetChildren()`**（递归子元素用的是各自的缓冲，安全）。 |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | 是否使用离屏缓存（默认 true）。 |
 | `virtual std::optional<D2D1_RECT_F> GetClipRect() const` | 返回子元素裁剪区（绝对坐标）；返回 `nullopt` 表示不裁剪。 |
 | `void RequestRepaint()` | 请求重绘；底层触发全局 `RepaintRequest`。 |
@@ -401,11 +401,13 @@ struct FontSpec {
 | 方法 | 说明 |
 | --- | --- |
 | `void SetParent(UIElement*)` / `UIElement* GetParent() const` | 父元素（通常由容器自动设置） |
-| `void SetVisible(bool)` / `bool IsVisible() const` | 可见性；设为 false 会释放缓存 |
+| `Window* GetWindow() const` | 所属窗口；未挂载或窗口已销毁时返回 `nullptr`（内部按窗口 id 查找，不持有裸指针） |
+| `void SetVisible(bool)` / `bool IsVisible() const` | 可见性；设为 false 会释放缓存，并触发 `OnVisibilityChanged(false)` |
+| `virtual void OnVisibilityChanged(bool visible)` | 可见性变化钩子；例如 `ComboBox` 在隐藏时会自动收起下拉弹层 |
 | `void SetContextMenu(std::shared_ptr<Menu>)` / `GetContextMenu()` | 右键菜单 |
 | `virtual bool OnContextMenu(float,float)` | 右键钩子；返回 true 表示已处理，不再弹默认菜单 |
 | `void SetBleed(float)` / `float GetBleed() const` | 缓存出血（默认 `4.0f`） |
-| `template<typename Signal, typename Slot> auto Connect(Signal&, Slot&&)` | 连接信号，自动登记进本元素的 `ConnectionGroup` |
+| `template<typename Signal, typename Slot> void Connect(Signal&, Slot&&)` | 连接信号，自动登记进本元素的 `ConnectionGroup`；**不返回 `Connection`**（连接随元素析构断开；若要手动断开请直接用 `signal.connect(...)`） |
 
 ## 字体接口
 
@@ -633,6 +635,7 @@ class Window {
     void SetPosition(int x, int y);            // 按 DIP 移动窗口（多窗口常用）
     void SetSize(int width, int height);       // 按 DIP 设置窗口尺寸
     bool IsValid() const;                      // 窗口是否仍然有效（未销毁）
+    int GetId() const;                         // 窗口唯一 id（元素按 id 记录归属，避免悬垂）
     void Close();                              // 关闭本窗口（其余窗口不受影响）
 
     void SetOwner(Window* owner);              // 设置所有者：owned 子窗口，始终在所有者之上、随其最小化

@@ -57,6 +57,7 @@ ZUI/
 ├── ZUI.cpp            # 综合演示程序入口（WinMain）
 ├── ZUI.slnx           # 解决方案
 ├── ZUI.vcxproj        # 工程文件
+├── AGENTS.md          # 开发原则（含“任何 bug 先找根源再修”的规则）
 └── docs/
     └── API.md         # 完整 API 文档
 ```
