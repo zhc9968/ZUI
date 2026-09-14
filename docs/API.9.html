@@ -227,6 +227,10 @@ class Window {
     void SetSize(int width, int height);       // 按 DIP 设置窗口尺寸
     bool IsValid() const;                      // 窗口是否仍然有效（未销毁）
     void Close();                              // 关闭本窗口（其余窗口不受影响）
+
+    void SetOwner(Window* owner);              // 设置所有者：owned 子窗口，始终在所有者之上、随其最小化
+    Window* GetOwner() const;
+    int RunModal(Window* owner = nullptr);     // 模态运行：禁用 owner，嵌套消息循环，关闭后恢复
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -246,7 +250,7 @@ class Window {
 <header class="chapter-header"><span class="chapter-eyebrow">第 9 章</span><h1>窗口 Window</h1><p class="chapter-summary">创建、背景、标题栏与根布局</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-cfbd8c06', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-82202ac8', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
@@ -274,11 +278,15 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSize</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">);</span><span class="w">       </span><span class="c1">// 按 DIP 设置窗口尺寸</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsValid</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">                      </span><span class="c1">// 窗口是否仍然有效（未销毁）</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Close</span><span class="p">();</span><span class="w">                              </span><span class="c1">// 关闭本窗口（其余窗口不受影响）</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwner</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">owner</span><span class="p">);</span><span class="w">              </span><span class="c1">// 设置所有者：owned 子窗口，始终在所有者之上、随其最小化</span>
+<span class="w">    </span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="nf">GetOwner</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">RunModal</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span><span class="w">     </span><span class="c1">// 模态运行：禁用 owner，嵌套消息循环，关闭后恢复</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-cfbd8c06" style="display: none;">class Window {
+<pre id="code-82202ac8" style="display: none;">class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
     static Color DefaultBackgroundColor;          // 透明
@@ -304,6 +312,10 @@ class Window {
     void SetSize(int width, int height);       // 按 DIP 设置窗口尺寸
     bool IsValid() const;                      // 窗口是否仍然有效（未销毁）
     void Close();                              // 关闭本窗口（其余窗口不受影响）
+
+    void SetOwner(Window* owner);              // 设置所有者：owned 子窗口，始终在所有者之上、随其最小化
+    Window* GetOwner() const;
+    int RunModal(Window* owner = nullptr);     // 模态运行：禁用 owner，嵌套消息循环，关闭后恢复
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
