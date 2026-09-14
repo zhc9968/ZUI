@@ -24,6 +24,9 @@
     <ClInclude Include="ZUIWidgets.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ZUIImages.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZUI.cpp">

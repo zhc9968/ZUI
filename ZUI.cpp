@@ -52,6 +52,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     navList->AddItem(L"表格视图");
     navList->AddItem(L"树形视图");
     navList->AddItem(L"树形增强");
+    navList->AddItem(L"图像");
     navList->SetSelectedIndex(0);
     mainRow->AddChild(navList);
 
@@ -793,6 +794,39 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         grid7->AddChild(info, 2, 0, 1, 2);
     }
 
+    // ---------- 页面8：图像 ----------
+    auto page8 = std::make_shared<Page>();
+    auto grid8 = page8->GetLayoutAs<GridLayout>();
+    if (grid8) {
+        grid8->SetSpacing(12, 12);
+        auto title8 = std::make_shared<Label>(L"图像（WIC 解码 + Direct2D GPU 绘制/变换）");
+        title8->SetTextColor(Color::FromArgb(255, 40, 40, 40));
+        grid8->AddChild(title8, 0, 0, 1, 4);
+
+        // 内嵌 base64（1x1 PNG），演示从 base64 加载
+        std::shared_ptr<Image> base = Image::FromBase64(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+
+        auto mk = [&](const std::wstring& caption, std::shared_ptr<Image> img) {
+            auto l = std::make_shared<Label>(caption);
+            if (img) { l->SetImage(img); l->SetIconSize(48, 48); }
+            return l;
+            };
+        grid8->AddChild(mk(L"  原图（放大）", base ? base->Scaled(48, 48) : nullptr), 1, 0);
+        grid8->AddChild(mk(L"  旋转 45°", base ? base->Scaled(48, 48)->Rotated(45) : nullptr), 1, 1);
+        grid8->AddChild(mk(L"  水平镜像", base ? base->Scaled(48, 48)->Mirrored(true, false) : nullptr), 1, 2);
+
+        // 嵌套 Label：外层带图标，内层是子 Label（内联横排）
+        auto outer = std::make_shared<Label>(L"嵌套 Label：");
+        auto inner = std::make_shared<Label>(L"我是内层 Label（红色）");
+        inner->SetTextColor(Color::FromArgb(255, 200, 40, 40));
+        outer->AddChild(inner);
+        if (base) { outer->SetImage(base->Scaled(20, 20)); outer->SetIconSize(20, 20); }
+        grid8->AddChild(outer, 2, 0, 1, 4);
+
+        grid8->AddChild(std::make_shared<Label>(L"提示：可从文件/资源/DLL/base64 加载，支持缩放、旋转、镜像、裁剪、编码保存。"), 3, 0, 1, 4);
+    }
+
     // 所有页面加入 PageHost
     mainHost->AddPage(page1);
     mainHost->AddPage(page2);
@@ -801,6 +835,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     mainHost->AddPage(page5);
     mainHost->AddPage(page6);
     mainHost->AddPage(page7);
+    mainHost->AddPage(page8);
 
     // 主页面导航：记录当前索引，根据相对位置设置上下方向
     auto currentMainIndex = std::make_shared<int>(0);

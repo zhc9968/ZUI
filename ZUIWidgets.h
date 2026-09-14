@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "ZUI.h"
+#include "ZUIImages.h"
 
 namespace ZUI {
 
@@ -132,6 +133,38 @@ namespace ZUI {
         int GetMaxLines() const { return maxLines_; }
         Size GetDesiredSize() { return Measure(Size(FLT_MAX, FLT_MAX)); }
 
+        // ---------------- 图标 / 图片 ----------------
+        void SetImage(std::shared_ptr<Image> image) { image_ = std::move(image); InvalidateLayout(); RequestRepaint(); }
+        std::shared_ptr<Image> GetImage() const { return image_; }
+        void SetIconSize(float w, float h) { iconSize_ = Size(w, h); InvalidateLayout(); RequestRepaint(); }
+        Size GetIconSize() const { return iconSize_; }
+        void SetIconSpacing(float s) { iconSpacing_ = max(0.0f, s); InvalidateLayout(); RequestRepaint(); }
+        float GetIconSpacing() const { return iconSpacing_; }
+
+        // ---------------- 嵌套子控件（内联横排：图标 + 文本 + 子控件） ----------------
+        void AddChild(std::shared_ptr<UIElement> child) {
+            if (!child || child.get() == this) return;
+            child->SetParent(this);
+            children_.push_back(std::move(child));
+            InvalidateLayout(); RequestRepaint();
+        }
+        void ClearChildren() {
+            for (auto& c : children_) if (c) c->SetParent(nullptr);
+            children_.clear();
+            InvalidateLayout(); RequestRepaint();
+        }
+        size_t GetChildCount() const { return children_.size(); }
+
+        const std::vector<UIElement*>& GetChildren() const override {
+            childrenView_.clear();
+            for (auto& c : children_) if (c) childrenView_.push_back(c.get());
+            return childrenView_;
+        }
+        void AttachWindowRecursive(Window* w) override {
+            windowId_ = WindowIdOf(w);
+            for (auto& c : children_) if (c) c->AttachWindowRecursive(w);
+        }
+
         static void SetDefaultTextColor(Color color) { DefaultTextColor = color; }
         static void SetDefaultFontSize(float size) { Label::DefaultFontSpec.size = size; }
         static void SetDefaultOverflow(TextOverflow mode) { DefaultOverflow = mode; }
@@ -151,39 +184,99 @@ namespace ZUI {
         Size Measure(const Size& availableSize) override {
             float padW = padding_.left + padding_.right;
             float padH = padding_.top + padding_.bottom;
-            if (text_.empty()) return Size(padW, padH);
 
-            IDWriteFactory* factory = FontManager::Instance().GetFactory();
-            IDWriteTextFormat* fmt = GetFontFormat();
-            if (!factory || !fmt) return Size(padW, padH);
+            // 图标尺寸
+            float iw = 0, ih = 0;
+            if (image_ && !image_->IsNull()) {
+                iw = iconSize_.width > 0 ? iconSize_.width : (float)image_->Width();
+                ih = iconSize_.height > 0 ? iconSize_.height : (float)image_->Height();
+            }
 
-            if (overflow_ == TextOverflow::Wrap && availableSize.width != FLT_MAX && availableSize.width > 0) {
-                ComPtr<IDWriteTextLayout> tempLayout;
-                float availW = max(0.0f, availableSize.width - padW);
-                factory->CreateTextLayout(text_.c_str(), (UINT32)text_.length(), fmt,
-                    availW, 10000.0f, &tempLayout);
-                if (tempLayout) {
-                    tempLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
-                    DWRITE_TEXT_METRICS metrics;
-                    tempLayout->GetMetrics(&metrics);
-                    return Size(min(availW, metrics.width) + padW, metrics.height + padH);
+            // 文本尺寸
+            float textW = 0, textH = 0;
+            if (!text_.empty()) {
+                IDWriteFactory* factory = FontManager::Instance().GetFactory();
+                IDWriteTextFormat* fmt = GetFontFormat();
+                if (factory && fmt) {
+                    if (overflow_ == TextOverflow::Wrap && availableSize.width != FLT_MAX && availableSize.width > 0) {
+                        ComPtr<IDWriteTextLayout> tempLayout;
+                        float availW = max(0.0f, availableSize.width - padW - (iw > 0 ? iw + iconSpacing_ : 0.0f));
+                        factory->CreateTextLayout(text_.c_str(), (UINT32)text_.length(), fmt, availW, 10000.0f, &tempLayout);
+                        if (tempLayout) {
+                            tempLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
+                            DWRITE_TEXT_METRICS metrics;
+                            tempLayout->GetMetrics(&metrics);
+                            textW = min(availW, metrics.width);
+                            textH = metrics.height;
+                        }
+                    }
+                    else {
+                        ComPtr<IDWriteTextLayout> layout;
+                        factory->CreateTextLayout(text_.c_str(), (UINT32)text_.length(), fmt, 10000.0f, 10000.0f, &layout);
+                        if (layout) {
+                            DWRITE_TEXT_METRICS metrics;
+                            layout->GetMetrics(&metrics);
+                            textW = metrics.width;
+                            textH = metrics.height;
+                        }
+                    }
                 }
             }
 
-            // 单行或理想尺寸
-            ComPtr<IDWriteTextLayout> layout;
-            factory->CreateTextLayout(text_.c_str(), (UINT32)text_.length(), fmt,
-                10000.0f, 10000.0f, &layout);
-            if (layout) {
-                DWRITE_TEXT_METRICS metrics;
-                layout->GetMetrics(&metrics);
-                return Size(metrics.width + padW, metrics.height + padH);
+            // 子控件尺寸
+            float cw = 0, ch = 0;
+            childSizes_.clear();
+            for (auto& c : children_) {
+                if (!c) { childSizes_.push_back(Size(0, 0)); continue; }
+                Size s = c->Measure(Size(FLT_MAX, FLT_MAX));
+                childSizes_.push_back(s);
+                cw += s.width;
+                ch = max(ch, s.height);
             }
-            return Size(padW, padH);
+            if (!children_.empty()) cw += iconSpacing_ * (float)children_.size();
+
+            float gapIconText = (iw > 0 && textW > 0) ? iconSpacing_ : 0.0f;
+            float gapTextChild = (textW > 0 && cw > 0) ? iconSpacing_ : ((iw > 0 && cw > 0 && textW <= 0) ? iconSpacing_ : 0.0f);
+
+            measuredIconW_ = iw; measuredIconH_ = ih;
+            measuredTextW_ = textW; measuredTextH_ = textH;
+
+            return Size(padW + iw + gapIconText + textW + gapTextChild + cw,
+                padH + max(max(ih, textH), ch));
+        }
+
+        void Arrange(const Rect& finalRect) override {
+            UIElement::Arrange(finalRect);
+            float x = finalRect.x + padding_.left;
+            float cy = finalRect.y + finalRect.height * 0.5f;
+            iconRect_ = D2D1::RectF(0, 0, 0, 0);
+            if (measuredIconW_ > 0) {
+                float iy = cy - measuredIconH_ * 0.5f;
+                iconRect_ = D2D1::RectF(x, iy, x + measuredIconW_, iy + measuredIconH_);
+                x += measuredIconW_;
+                if (measuredTextW_ > 0 || !children_.empty()) x += iconSpacing_;
+            }
+            textLeft_ = x;
+            x += measuredTextW_;
+            for (size_t i = 0; i < children_.size(); ++i) {
+                auto& c = children_[i];
+                if (!c) continue;
+                x += iconSpacing_;
+                Size s = (i < childSizes_.size()) ? childSizes_[i] : Size(0, 0);
+                c->Arrange(Rect(x, cy - s.height * 0.5f, s.width, s.height));
+                x += s.width;
+            }
         }
 
         void Draw(ID2D1RenderTarget* rt) override {
-            if (!visible_ || text_.empty()) return;
+            if (!visible_) return;
+
+            // 图标（可与文字/子控件共存；即使没有文字也绘制）
+            if (image_ && !image_->IsNull() && iconRect_.right > iconRect_.left) {
+                Image::DrawOptions o;
+                image_->Draw(rt, iconRect_, o);
+            }
+            if (text_.empty()) return;
 
             IDWriteTextFormat* fmt = GetFontFormat();
             if (!fmt) return;
@@ -191,8 +284,10 @@ namespace ZUI {
             if (!factory) return;
 
             D2D1_RECT_F rect = arrangedRect_.ToD2D();
-            rect.left += padding_.left; rect.top += padding_.top;
-            rect.right -= padding_.right; rect.bottom -= padding_.bottom;
+            rect.top = arrangedRect_.y + padding_.top;
+            rect.bottom = arrangedRect_.y + arrangedRect_.height - padding_.bottom;
+            rect.left = (textLeft_ > 0.0f) ? textLeft_ : (arrangedRect_.x + padding_.left);
+            rect.right = arrangedRect_.x + arrangedRect_.width - padding_.right;
             if (rect.right < rect.left) rect.right = rect.left;
             if (rect.bottom < rect.top) rect.bottom = rect.top;
             std::wstring displayText = text_;
@@ -289,6 +384,16 @@ namespace ZUI {
         float lineSpacing_ = 0.0f;
         int maxLines_ = 0;
         ComPtr<ID2D1SolidColorBrush> textBrush_;
+        // 图标 / 子控件
+        std::shared_ptr<Image> image_;
+        Size iconSize_{ 0, 0 };
+        float iconSpacing_ = 6.0f;
+        std::vector<std::shared_ptr<UIElement>> children_;
+        std::vector<Size> childSizes_;
+        float measuredIconW_ = 0, measuredIconH_ = 0;
+        float measuredTextW_ = 0, measuredTextH_ = 0;
+        float textLeft_ = 0;
+        D2D1_RECT_F iconRect_ = D2D1::RectF(0, 0, 0, 0);
     };
 
     // ---------- 按钮（内部使用 Label 渲染文本） ----------

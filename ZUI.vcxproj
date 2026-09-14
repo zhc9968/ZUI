@@ -143,6 +143,7 @@
   <ItemGroup>
     <ClInclude Include="ZDataViewer.h" />
     <ClInclude Include="ZUI.h" />
+    <ClInclude Include="ZUIImages.h" />
     <ClInclude Include="ZUIWidgets.h" />
   </ItemGroup>
   <ItemGroup>
