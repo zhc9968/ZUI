@@ -352,7 +352,11 @@ Key points:
 - Closing one window no longer quits the app; it quits when the **last** window closes. The `ID2D1Factory` and `timeBeginPeriod` are shared by the app core.
 - All window-related global signals now carry a `Window*` (`DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated`, plus capture and repaint fallbacks); subscribers filter with `GetWindow()`. This fixes the cross-talk where window A's popup was drawn onto window B or clicking B wrongly collapsed A. Added `Window::SetPosition/SetSize/IsValid`.
 - Fixed ComboBoxes holding the thread-wide system mouse capture after expanding (which made other windows unusable): Win32 capture is now held only while the mouse button is down and released on mouse-up (element-level logical capture is unaffected); also handled `WM_CAPTURECHANGED`.
-- Added modal and owned windows: `Window::SetOwner` / `GetOwner`, `Window::RunModal(owner)`, `Application::CreateWindow(..., owner)`.
+- Added modal and owned windows: `Window::SetOwner` / `GetOwner`, `Window::RunModal(owner)`, `Application::CreateWindow(..., owner)`; while modal, clicking the disabled owner **flashes** the modal window.
+- Robustness: elements store the owning window as an **id** (instead of a raw pointer); after the window is destroyed `GetWindow()` returns nullptr, removing crashes from dangling window pointers.
+- Fixed `PageHost` calling `ReleaseDeviceResources()` on non-current pages **every frame** after a transition finished (now released once, on the completing frame); non-current pages are made invisible, so expanded controls (ComboBox) auto-collapse.
+- Fixed `UIElement::Connect` returning a moved-from empty `Connection` (now returns nothing); fixed `TreeView::RemoveChildren` not clearing `checkAnim_` (dangling node keys).
+- Added `AGENTS.md` codifying the principle: for any bug, find and fix the root cause first — never mask it with a new mechanism.
 - Backward compatible: `Window win; win.Create(...); win.Run();` still works. `#undef CreateWindow` avoids the Win32 macro clash.
 
 ## Documentation
@@ -431,11 +435,11 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">bash</span>
-<button class="copy-btn" onclick="copyCode('code-602647b1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-abab2fcc', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>msbuild<span class="w"> </span>ZUI.slnx<span class="w"> </span>/p:Configuration<span class="o">=</span>Release<span class="w"> </span>/p:Platform<span class="o">=</span>x64
 </pre></div>
-<pre id="code-602647b1" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
+<pre id="code-abab2fcc" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
 </div>
 <blockquote>
 <p><code>ZUI.cpp</code> is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own <code>WinMain</code>.</p>
@@ -444,7 +448,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">text</span>
-<button class="copy-btn" onclick="copyCode('code-daef8a86', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-2dd2d9a1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
@@ -456,7 +460,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 └── docs/
     └── API.en.md      # Full API documentation
 </pre></div>
-<pre id="code-daef8a86" style="display: none;">ZUI/
+<pre id="code-2dd2d9a1" style="display: none;">ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
 ├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
@@ -470,7 +474,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-fdb15034', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-d2e8abbe', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZUIWidgets.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -506,7 +510,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-fdb15034" style="display: none;">#include "ZUIWidgets.h"
+<pre id="code-d2e8abbe" style="display: none;">#include "ZUIWidgets.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -589,7 +593,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <li>Closing one window no longer quits the app; it quits when the <strong>last</strong> window closes. The <code>ID2D1Factory</code> and <code>timeBeginPeriod</code> are shared by the app core.</li>
 <li>All window-related global signals now carry a <code>Window*</code> (<code>DrawOverlay</code> / <code>GlobalMouseDown</code> / <code>WindowDeactivated</code>, plus capture and repaint fallbacks); subscribers filter with <code>GetWindow()</code>. This fixes the cross-talk where window A's popup was drawn onto window B or clicking B wrongly collapsed A. Added <code>Window::SetPosition/SetSize/IsValid</code>.</li>
 <li>Fixed ComboBoxes holding the thread-wide system mouse capture after expanding (which made other windows unusable): Win32 capture is now held only while the mouse button is down and released on mouse-up (element-level logical capture is unaffected); also handled <code>WM_CAPTURECHANGED</code>.</li>
-<li>Added modal and owned windows: <code>Window::SetOwner</code> / <code>GetOwner</code>, <code>Window::RunModal(owner)</code>, <code>Application::CreateWindow(..., owner)</code>.</li>
+<li>Added modal and owned windows: <code>Window::SetOwner</code> / <code>GetOwner</code>, <code>Window::RunModal(owner)</code>, <code>Application::CreateWindow(..., owner)</code>; while modal, clicking the disabled owner <strong>flashes</strong> the modal window.</li>
+<li>Robustness: elements store the owning window as an <strong>id</strong> (instead of a raw pointer); after the window is destroyed <code>GetWindow()</code> returns nullptr, removing crashes from dangling window pointers.</li>
+<li>Fixed <code>PageHost</code> calling <code>ReleaseDeviceResources()</code> on non-current pages <strong>every frame</strong> after a transition finished (now released once, on the completing frame); non-current pages are made invisible, so expanded controls (ComboBox) auto-collapse.</li>
+<li>Fixed <code>UIElement::Connect</code> returning a moved-from empty <code>Connection</code> (now returns nothing); fixed <code>TreeView::RemoveChildren</code> not clearing <code>checkAnim_</code> (dangling node keys).</li>
+<li>Added <code>AGENTS.md</code> codifying the principle: for any bug, find and fix the root cause first — never mask it with a new mechanism.</li>
 <li>Backward compatible: <code>Window win; win.Create(...); win.Run();</code> still works. <code>#undef CreateWindow</code> avoids the Win32 macro clash.</li>
 </ul>
 <h2 id="documentation">Documentation</h2>

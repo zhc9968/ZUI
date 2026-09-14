@@ -244,7 +244,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **激活 / 失活按窗口**：`Window` 提供实例信号 `Activated` / `Deactivated` / `Closed`；全局 `UIZSignals::WindowDeactivated` 现在带 `Window*` 参数、`GlobalMouseDown` 带 `Window*`。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。
 - **叠加绘制按窗口**：全局 `UIZSignals::DrawOverlay` 现在带 `Window*`（以及渲染目标）参数；订阅者**必须**用 `GetWindow()` 过滤，否则会把 A 窗口的下拉/弹层画到 B 窗口上（这是多窗口下最典型的串扰）。ZUI 自带控件已按此处理。
 - **鼠标捕获**：Win32 `SetCapture` 只用于“按住鼠标”的拖拽，松开立即释放（元素级逻辑捕获不受影响）。修复了“ComboBox 展开后一直持有系统鼠标捕获、导致其它窗口无法使用”的问题。
-- **模态 / 父子窗口**：`Window::SetOwner(owner)` 建立 owned 子窗口（始终在所有者之上、随其最小化）；`Window::RunModal(owner)` 以模态运行（禁用所有者、嵌套消息循环、关闭后恢复）。
+- **模态 / 父子窗口**：`Window::SetOwner(owner)` 建立 owned 子窗口（始终在所有者之上、随其最小化）；`Window::RunModal(owner)` 以模态运行（禁用所有者、嵌套消息循环、关闭后恢复）。模态期间点击被禁用的所有者窗口，模态窗口会**闪烁**提示。
+- **窗口句柄与悬垂**：元素内部用**窗口 id** 记录所属窗口（而不是裸指针），窗口销毁后 `GetWindow()` 返回 `nullptr`，从根本上避免“元素持有已销毁窗口指针”导致的崩溃。
 - **共享资源**：`ID2D1Factory` 与系统计时器精度（`timeBeginPeriod`）由应用核心统一管理，多窗口共享。
 - **向后兼容**：单窗口写法仍然有效——`Window win; win.Create(...); win.Run();`；`Run()` 会转发到应用级消息循环。
 
@@ -259,7 +260,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-edb91b44', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-e9bf0983', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Application</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Window</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CreateWindow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span>
@@ -272,7 +273,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Application</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">Instance</span><span class="p">();</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-edb91b44" style="display: none;">class Application {
+<pre id="code-e9bf0983" style="display: none;">class Application {
     std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title);
     std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title, Window* owner); // owned 子窗口
     void AddWindow(const std::shared_ptr&lt;Window&gt;&amp; w);
@@ -287,7 +288,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-dad89041', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-713270ce', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="n">WINAPI</span><span class="w"> </span><span class="nf">WinMain</span><span class="p">(</span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">LPSTR</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ZUI</span><span class="o">::</span><span class="n">Application</span><span class="w"> </span><span class="n">app</span><span class="p">;</span>
@@ -297,7 +298,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span><span class="w">                    </span><span class="c1">// 单一消息循环，所有窗口共用</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-dad89041" style="display: none;">int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+<pre id="code-713270ce" style="display: none;">int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ZUI::Application app;
     auto w1 = app.CreateWindow(1000, 700, L"主窗口");
     auto w2 = app.CreateWindow(640, 480, L"工具窗口");
@@ -320,7 +321,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <li><strong>激活 / 失活按窗口</strong>：<code>Window</code> 提供实例信号 <code>Activated</code> / <code>Deactivated</code> / <code>Closed</code>；全局 <code>UIZSignals::WindowDeactivated</code> 现在带 <code>Window*</code> 参数、<code>GlobalMouseDown</code> 带 <code>Window*</code>。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。</li>
 <li><strong>叠加绘制按窗口</strong>：全局 <code>UIZSignals::DrawOverlay</code> 现在带 <code>Window*</code>（以及渲染目标）参数；订阅者<strong>必须</strong>用 <code>GetWindow()</code> 过滤，否则会把 A 窗口的下拉/弹层画到 B 窗口上（这是多窗口下最典型的串扰）。ZUI 自带控件已按此处理。</li>
 <li><strong>鼠标捕获</strong>：Win32 <code>SetCapture</code> 只用于“按住鼠标”的拖拽，松开立即释放（元素级逻辑捕获不受影响）。修复了“ComboBox 展开后一直持有系统鼠标捕获、导致其它窗口无法使用”的问题。</li>
-<li><strong>模态 / 父子窗口</strong>：<code>Window::SetOwner(owner)</code> 建立 owned 子窗口（始终在所有者之上、随其最小化）；<code>Window::RunModal(owner)</code> 以模态运行（禁用所有者、嵌套消息循环、关闭后恢复）。</li>
+<li><strong>模态 / 父子窗口</strong>：<code>Window::SetOwner(owner)</code> 建立 owned 子窗口（始终在所有者之上、随其最小化）；<code>Window::RunModal(owner)</code> 以模态运行（禁用所有者、嵌套消息循环、关闭后恢复）。模态期间点击被禁用的所有者窗口，模态窗口会<strong>闪烁</strong>提示。</li>
+<li><strong>窗口句柄与悬垂</strong>：元素内部用<strong>窗口 id</strong> 记录所属窗口（而不是裸指针），窗口销毁后 <code>GetWindow()</code> 返回 <code>nullptr</code>，从根本上避免“元素持有已销毁窗口指针”导致的崩溃。</li>
 <li><strong>共享资源</strong>：<code>ID2D1Factory</code> 与系统计时器精度（<code>timeBeginPeriod</code>）由应用核心统一管理，多窗口共享。</li>
 <li><strong>向后兼容</strong>：单窗口写法仍然有效——<code>Window win; win.Create(...); win.Run();</code>；<code>Run()</code> 会转发到应用级消息循环。</li>
 </ul>

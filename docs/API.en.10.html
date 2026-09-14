@@ -244,7 +244,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **Per-window activation**: `Window` exposes instance signals `Activated` / `Deactivated` / `Closed`; global `UIZSignals::WindowDeactivated` now carries a `Window*`, and `GlobalMouseDown` carries a `Window*`. Controls such as ComboBox only react to their own window's events.
 - **Per-window overlay drawing**: global `UIZSignals::DrawOverlay` now carries a `Window*` (plus the render target); subscribers **must** filter with `GetWindow()`, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZUI's own controls already do this.
 - **Mouse capture**: Win32 `SetCapture` is used only while the mouse button is held (dragging) and is released on mouse-up (element-level logical capture is unaffected). This fixes ComboBoxes holding the thread-wide capture after expanding, which made other windows unusable.
-- **Modal / owned windows**: `Window::SetOwner(owner)` creates an owned child (stays above and minimizes with the owner); `Window::RunModal(owner)` runs a window modally (disables the owner, nested loop, restores on close).
+- **Modal / owned windows**: `Window::SetOwner(owner)` creates an owned child (stays above and minimizes with the owner); `Window::RunModal(owner)` runs a window modally (disables the owner, nested loop, restores on close). While modal, clicking the disabled owner **flashes** the modal window.
+- **Window handle &amp; dangling**: elements store the owning window as an **id** (not a raw pointer); after the window is destroyed `GetWindow()` returns `nullptr`, eliminating crashes from elements holding a dangling window pointer.
 - **Shared resources**: the `ID2D1Factory` and the system timer period (`timeBeginPeriod`) are managed by the application core and shared by all windows.
 - **Backward compatible**: the single-window style still works — `Window win; win.Create(...); win.Run();` (`Run()` forwards to the app-level loop).
 
@@ -259,7 +260,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-93cf0d6f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-cea88a78', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Application</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Window</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CreateWindow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span>
@@ -272,7 +273,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Application</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">Instance</span><span class="p">();</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-93cf0d6f" style="display: none;">class Application {
+<pre id="code-cea88a78" style="display: none;">class Application {
     std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title);
     std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title, Window* owner); // owned child
     void AddWindow(const std::shared_ptr&lt;Window&gt;&amp; w);
@@ -287,7 +288,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-bac8b1d1', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-4cd0c3b4', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="n">WINAPI</span><span class="w"> </span><span class="nf">WinMain</span><span class="p">(</span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">LPSTR</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ZUI</span><span class="o">::</span><span class="n">Application</span><span class="w"> </span><span class="n">app</span><span class="p">;</span>
@@ -297,7 +298,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span><span class="w">                    </span><span class="c1">// one shared message loop</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-bac8b1d1" style="display: none;">int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+<pre id="code-4cd0c3b4" style="display: none;">int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ZUI::Application app;
     auto w1 = app.CreateWindow(1000, 700, L"Main");
     auto w2 = app.CreateWindow(640, 480, L"Tool");
@@ -320,7 +321,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <li><strong>Per-window activation</strong>: <code>Window</code> exposes instance signals <code>Activated</code> / <code>Deactivated</code> / <code>Closed</code>; global <code>UIZSignals::WindowDeactivated</code> now carries a <code>Window*</code>, and <code>GlobalMouseDown</code> carries a <code>Window*</code>. Controls such as ComboBox only react to their own window's events.</li>
 <li><strong>Per-window overlay drawing</strong>: global <code>UIZSignals::DrawOverlay</code> now carries a <code>Window*</code> (plus the render target); subscribers <strong>must</strong> filter with <code>GetWindow()</code>, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZUI's own controls already do this.</li>
 <li><strong>Mouse capture</strong>: Win32 <code>SetCapture</code> is used only while the mouse button is held (dragging) and is released on mouse-up (element-level logical capture is unaffected). This fixes ComboBoxes holding the thread-wide capture after expanding, which made other windows unusable.</li>
-<li><strong>Modal / owned windows</strong>: <code>Window::SetOwner(owner)</code> creates an owned child (stays above and minimizes with the owner); <code>Window::RunModal(owner)</code> runs a window modally (disables the owner, nested loop, restores on close).</li>
+<li><strong>Modal / owned windows</strong>: <code>Window::SetOwner(owner)</code> creates an owned child (stays above and minimizes with the owner); <code>Window::RunModal(owner)</code> runs a window modally (disables the owner, nested loop, restores on close). While modal, clicking the disabled owner <strong>flashes</strong> the modal window.</li>
+<li><strong>Window handle &amp; dangling</strong>: elements store the owning window as an <strong>id</strong> (not a raw pointer); after the window is destroyed <code>GetWindow()</code> returns <code>nullptr</code>, eliminating crashes from elements holding a dangling window pointer.</li>
 <li><strong>Shared resources</strong>: the <code>ID2D1Factory</code> and the system timer period (<code>timeBeginPeriod</code>) are managed by the application core and shared by all windows.</li>
 <li><strong>Backward compatible</strong>: the single-window style still works — <code>Window win; win.Create(...); win.Run();</code> (<code>Run()</code> forwards to the app-level loop).</li>
 </ul>
