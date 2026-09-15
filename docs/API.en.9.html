@@ -197,7 +197,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class="active"><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Appendix</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class="active"><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Appendix</a></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>```cpp
@@ -231,7 +231,34 @@ class Window {
 
     void SetOwner(Window* owner);              // owned window: stays above the owner, minimizes with it
     Window* GetOwner() const;
+    std::vector&lt;Window*&gt; GetOwnedWindows() const;   // all owned child windows of this window
     int RunModal(Window* owner = nullptr);     // run modally: disables the owner, nested loop, restores on close
+
+    // Flash hint (5 consecutive flashes by default; captionOnly flashes only the caption, not the taskbar)
+    void Flash(int times = 5, bool captionOnly = true);
+    void StopFlash();
+
+    // Convenient style / extended-style helpers (e.g. SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true))
+    DWORD GetStyle() const;
+    DWORD GetExStyle() const;
+    void SetWindowStyleFlag(DWORD flag, bool on);
+    void SetWindowExStyleFlag(DWORD flag, bool on);
+
+    // Show / hide / raise (bring to top of z-order)
+    void Show();
+    void ShowNoActivate();
+    void Hide();
+    void Raise();
+
+    // How an owned child handles being minimized on its own
+    enum class OwnedMinimizePolicy {
+        None,            // do nothing (an old-style "small tile" may appear)
+        Hide,            // intercept minimize -&gt; hide; restore when the owner restores/activates
+        DisableMinimize  // gray out the minimize button and ignore minimize-related messages
+    };
+    void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
+    OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -246,12 +273,16 @@ class Window {
 - An internal 16ms timer drives animations; `timeBeginPeriod(1)` / `timeEndPeriod(1)` reduce jitter.
 - `deltaTime` is clamped to `0.033s`, so animations never jump to their end after idle/minimize.
 - Title-bar colors use Win11 DWM attributes; ignored on unsupported systems.
-- Shadows: the window composites element shadows into their caches; tooltips are drawn by the window too.</pre></div></div>
+- Shadows: the window composites element shadows into their caches; tooltips are drawn by the window too.
+- **Owned windows**: the owner relationship set at creation (via the `CreateWindowEx` parent parameter) means owned windows have **no separate taskbar button**; when the owner is minimized their owned children are hidden **unconditionally**, restored when the owner is restored/activated (not relying on the shell's minimize grouping, which does not apply when the owner is in the background).
+- **Modal**: `RunModal` uses the official mechanism — `EnableWindow(owner, FALSE)` + activating the modal window + an `IsDialogMessage` nested loop. **No global hooks are used**, so other processes are unaffected. Clicking the disabled owner produces the standard system hint.
+- **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
+- **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.</pre></div></div>
 <div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 9 · Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 9</span><h1>Window</h1><p class="chapter-summary">Creation, backdrop, title bar, and root layout</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-096b41af', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-227009d0', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
@@ -283,12 +314,39 @@ class Window {
 
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwner</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">owner</span><span class="p">);</span><span class="w">              </span><span class="c1">// owned window: stays above the owner, minimizes with it</span>
 <span class="w">    </span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="nf">GetOwner</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Window</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">GetOwnedWindows</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// all owned child windows of this window</span>
 <span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">RunModal</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span><span class="w">     </span><span class="c1">// run modally: disables the owner, nested loop, restores on close</span>
+
+<span class="w">    </span><span class="c1">// Flash hint (5 consecutive flashes by default; captionOnly flashes only the caption, not the taskbar)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Flash</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">times</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">captionOnly</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">StopFlash</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// Convenient style / extended-style helpers (e.g. SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true))</span>
+<span class="w">    </span><span class="n">DWORD</span><span class="w"> </span><span class="nf">GetStyle</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DWORD</span><span class="w"> </span><span class="nf">GetExStyle</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetWindowStyleFlag</span><span class="p">(</span><span class="n">DWORD</span><span class="w"> </span><span class="n">flag</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetWindowExStyleFlag</span><span class="p">(</span><span class="n">DWORD</span><span class="w"> </span><span class="n">flag</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Show / hide / raise (bring to top of z-order)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Show</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ShowNoActivate</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Hide</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Raise</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// How an owned child handles being minimized on its own</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">OwnedMinimizePolicy</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">None</span><span class="p">,</span><span class="w">            </span><span class="c1">// do nothing (an old-style "small tile" may appear)</span>
+<span class="w">        </span><span class="n">Hide</span><span class="p">,</span><span class="w">            </span><span class="c1">// intercept minimize -&gt; hide; restore when the owner restores/activates</span>
+<span class="w">        </span><span class="n">DisableMinimize</span><span class="w">  </span><span class="c1">// gray out the minimize button and ignore minimize-related messages</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
+<span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-096b41af" style="display: none;">class Window {
+<pre id="code-227009d0" style="display: none;">class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
     static Color DefaultBackgroundColor;          // transparent
@@ -318,7 +376,34 @@ class Window {
 
     void SetOwner(Window* owner);              // owned window: stays above the owner, minimizes with it
     Window* GetOwner() const;
+    std::vector&lt;Window*&gt; GetOwnedWindows() const;   // all owned child windows of this window
     int RunModal(Window* owner = nullptr);     // run modally: disables the owner, nested loop, restores on close
+
+    // Flash hint (5 consecutive flashes by default; captionOnly flashes only the caption, not the taskbar)
+    void Flash(int times = 5, bool captionOnly = true);
+    void StopFlash();
+
+    // Convenient style / extended-style helpers (e.g. SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true))
+    DWORD GetStyle() const;
+    DWORD GetExStyle() const;
+    void SetWindowStyleFlag(DWORD flag, bool on);
+    void SetWindowExStyleFlag(DWORD flag, bool on);
+
+    // Show / hide / raise (bring to top of z-order)
+    void Show();
+    void ShowNoActivate();
+    void Hide();
+    void Raise();
+
+    // How an owned child handles being minimized on its own
+    enum class OwnedMinimizePolicy {
+        None,            // do nothing (an old-style "small tile" may appear)
+        Hide,            // intercept minimize -&gt; hide; restore when the owner restores/activates
+        DisableMinimize  // gray out the minimize button and ignore minimize-related messages
+    };
+    void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
+    OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
@@ -332,6 +417,10 @@ class Window {
 <li><code>deltaTime</code> is clamped to <code>0.033s</code>, so animations never jump to their end after idle/minimize.</li>
 <li>Title-bar colors use Win11 DWM attributes; ignored on unsupported systems.</li>
 <li>Shadows: the window composites element shadows into their caches; tooltips are drawn by the window too.</li>
+<li><strong>Owned windows</strong>: the owner relationship set at creation (via the <code>CreateWindowEx</code> parent parameter) means owned windows have <strong>no separate taskbar button</strong>; when the owner is minimized their owned children are hidden <strong>unconditionally</strong>, restored when the owner is restored/activated (not relying on the shell's minimize grouping, which does not apply when the owner is in the background).</li>
+<li><strong>Modal</strong>: <code>RunModal</code> uses the official mechanism — <code>EnableWindow(owner, FALSE)</code> + activating the modal window + an <code>IsDialogMessage</code> nested loop. <strong>No global hooks are used</strong>, so other processes are unaffected. Clicking the disabled owner produces the standard system hint.</li>
+<li><strong><code>OwnedMinimizePolicy</code></strong>: how an owned child handles being minimized on its own. <code>None</code> does nothing; <code>Hide</code> intercepts minimize and hides, restoring when the owner restores/activates; <code>DisableMinimize</code> grays out the minimize button and ignores minimize-related messages.</li>
+<li><strong>Dangling cleanup</strong>: on destroy a window clears every reference other windows hold to it (<code>owner_</code> and hidden lists), so address reuse can never affect unrelated windows.</li>
 </ul>
 <nav class="chapter-nav"><a class="prev" href="API.en.8.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Menus</span><span class="nav-desc">MenuItem, Menu, MenuWindow</span></a><a class="next" href="API.en.10.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Application and multiple windows</span><span class="nav-desc">Application and multi-window</span></a></nav>
         </main>

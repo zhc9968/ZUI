@@ -197,7 +197,7 @@ pre { line-height: 125%; }
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class="active"><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>应用与多窗口</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>基础控件</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>数据视图</a></li><li class=""><a href="API.13.html"><span class="chapter-index">13</span>附录</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class="active"><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>应用与多窗口</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>基础控件</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>数据视图</a></li><li class=""><a href="API.13.html"><span class="chapter-index">13</span>图像</a></li><li class=""><a href="API.14.html"><span class="chapter-index">14</span>附录</a></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>```cpp
@@ -231,7 +231,34 @@ class Window {
 
     void SetOwner(Window* owner);              // 设置所有者：owned 子窗口，始终在所有者之上、随其最小化
     Window* GetOwner() const;
+    std::vector&lt;Window*&gt; GetOwnedWindows() const;   // 本窗口拥有的全部 owned 子窗口
     int RunModal(Window* owner = nullptr);     // 模态运行：禁用 owner，嵌套消息循环，关闭后恢复
+
+    // 闪烁提示（默认连闪 5 次；captionOnly=true 只闪标题栏，不闪任务栏）
+    void Flash(int times = 5, bool captionOnly = true);
+    void StopFlash();
+
+    // 样式 / 扩展样式便捷设置（如 SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true)）
+    DWORD GetStyle() const;
+    DWORD GetExStyle() const;
+    void SetWindowStyleFlag(DWORD flag, bool on);
+    void SetWindowExStyleFlag(DWORD flag, bool on);
+
+    // 显示 / 隐藏 / 置顶（z 序最上）
+    void Show();
+    void ShowNoActivate();
+    void Hide();
+    void Raise();
+
+    // owned 子窗口被“单独最小化”的处理策略
+    enum class OwnedMinimizePolicy {
+        None,            // 不处理（会出现老式“小瓷砖”）
+        Hide,            // 拦截最小化 → 隐藏；父窗口还原/激活时恢复
+        DisableMinimize  // 禁用最小化按钮，并忽略最小化相关消息
+    };
+    void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
+    OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -246,12 +273,16 @@ class Window {
 - 窗口内部维护 16ms 定时器驱动动画；`timeBeginPeriod(1)` / `timeEndPeriod(1)` 用于降低定时器抖动。
 - 帧时间 `deltaTime` 被钳制在 `0.033s`，空闲或最小化恢复后不会让动画一帧跳到终点。
 - 标题栏颜色是 Win11 的 DWM 属性；在不支持的系统上会被忽略。
-- 阴影：窗口负责把元素的阴影合成进其离屏缓存；ToolTip 也由窗口统一绘制。</pre></div></div>
+- 阴影：窗口负责把元素的阴影合成进其离屏缓存；ToolTip 也由窗口统一绘制。
+- **owned 子窗口**：用 `CreateWindow(...)` / `SetOwner` 建立的所有者关系在**创建时**即生效（`CreateWindowEx` 的父窗口参数），因此 owned 窗口**不会有独立任务栏按钮**；父窗口最小化时会**无条件**隐藏其 owned 子窗口、还原/激活时恢复（不依赖系统“最小化分组”，避免父窗口在后台时子窗口不跟随）。
+- **模态**：`RunModal` 用官方机制实现——`EnableWindow(owner, FALSE)` + 激活模态窗 + `IsDialogMessage` 嵌套消息循环；**不使用任何全局钩子**，不会影响其它进程。点击被禁用的所有者时由系统给出标准提示。
+- **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
+- **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 9 章 · 窗口 Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 9 章</span><h1>窗口 Window</h1><p class="chapter-summary">创建、背景、标题栏与根布局</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-abcce8cb', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-c8cda4bc', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
@@ -283,12 +314,39 @@ class Window {
 
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwner</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">owner</span><span class="p">);</span><span class="w">              </span><span class="c1">// 设置所有者：owned 子窗口，始终在所有者之上、随其最小化</span>
 <span class="w">    </span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="nf">GetOwner</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Window</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">GetOwnedWindows</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// 本窗口拥有的全部 owned 子窗口</span>
 <span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">RunModal</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span><span class="w">     </span><span class="c1">// 模态运行：禁用 owner，嵌套消息循环，关闭后恢复</span>
+
+<span class="w">    </span><span class="c1">// 闪烁提示（默认连闪 5 次；captionOnly=true 只闪标题栏，不闪任务栏）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Flash</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">times</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">captionOnly</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">StopFlash</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 样式 / 扩展样式便捷设置（如 SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true)）</span>
+<span class="w">    </span><span class="n">DWORD</span><span class="w"> </span><span class="nf">GetStyle</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DWORD</span><span class="w"> </span><span class="nf">GetExStyle</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetWindowStyleFlag</span><span class="p">(</span><span class="n">DWORD</span><span class="w"> </span><span class="n">flag</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetWindowExStyleFlag</span><span class="p">(</span><span class="n">DWORD</span><span class="w"> </span><span class="n">flag</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 显示 / 隐藏 / 置顶（z 序最上）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Show</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ShowNoActivate</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Hide</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Raise</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// owned 子窗口被“单独最小化”的处理策略</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">OwnedMinimizePolicy</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">None</span><span class="p">,</span><span class="w">            </span><span class="c1">// 不处理（会出现老式“小瓷砖”）</span>
+<span class="w">        </span><span class="n">Hide</span><span class="p">,</span><span class="w">            </span><span class="c1">// 拦截最小化 → 隐藏；父窗口还原/激活时恢复</span>
+<span class="w">        </span><span class="n">DisableMinimize</span><span class="w">  </span><span class="c1">// 禁用最小化按钮，并忽略最小化相关消息</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
+<span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-abcce8cb" style="display: none;">class Window {
+<pre id="code-c8cda4bc" style="display: none;">class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
     static Color DefaultBackgroundColor;          // 透明
@@ -318,7 +376,34 @@ class Window {
 
     void SetOwner(Window* owner);              // 设置所有者：owned 子窗口，始终在所有者之上、随其最小化
     Window* GetOwner() const;
+    std::vector&lt;Window*&gt; GetOwnedWindows() const;   // 本窗口拥有的全部 owned 子窗口
     int RunModal(Window* owner = nullptr);     // 模态运行：禁用 owner，嵌套消息循环，关闭后恢复
+
+    // 闪烁提示（默认连闪 5 次；captionOnly=true 只闪标题栏，不闪任务栏）
+    void Flash(int times = 5, bool captionOnly = true);
+    void StopFlash();
+
+    // 样式 / 扩展样式便捷设置（如 SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true)）
+    DWORD GetStyle() const;
+    DWORD GetExStyle() const;
+    void SetWindowStyleFlag(DWORD flag, bool on);
+    void SetWindowExStyleFlag(DWORD flag, bool on);
+
+    // 显示 / 隐藏 / 置顶（z 序最上）
+    void Show();
+    void ShowNoActivate();
+    void Hide();
+    void Raise();
+
+    // owned 子窗口被“单独最小化”的处理策略
+    enum class OwnedMinimizePolicy {
+        None,            // 不处理（会出现老式“小瓷砖”）
+        Hide,            // 拦截最小化 → 隐藏；父窗口还原/激活时恢复
+        DisableMinimize  // 禁用最小化按钮，并忽略最小化相关消息
+    };
+    void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
+    OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
@@ -332,6 +417,10 @@ class Window {
 <li>帧时间 <code>deltaTime</code> 被钳制在 <code>0.033s</code>，空闲或最小化恢复后不会让动画一帧跳到终点。</li>
 <li>标题栏颜色是 Win11 的 DWM 属性；在不支持的系统上会被忽略。</li>
 <li>阴影：窗口负责把元素的阴影合成进其离屏缓存；ToolTip 也由窗口统一绘制。</li>
+<li><strong>owned 子窗口</strong>：用 <code>CreateWindow(...)</code> / <code>SetOwner</code> 建立的所有者关系在<strong>创建时</strong>即生效（<code>CreateWindowEx</code> 的父窗口参数），因此 owned 窗口<strong>不会有独立任务栏按钮</strong>；父窗口最小化时会<strong>无条件</strong>隐藏其 owned 子窗口、还原/激活时恢复（不依赖系统“最小化分组”，避免父窗口在后台时子窗口不跟随）。</li>
+<li><strong>模态</strong>：<code>RunModal</code> 用官方机制实现——<code>EnableWindow(owner, FALSE)</code> + 激活模态窗 + <code>IsDialogMessage</code> 嵌套消息循环；<strong>不使用任何全局钩子</strong>，不会影响其它进程。点击被禁用的所有者时由系统给出标准提示。</li>
+<li><strong><code>OwnedMinimizePolicy</code></strong>：处理 owned 子窗口被“单独最小化”的情况。<code>None</code> 不处理（会出现老式小瓷砖）；<code>Hide</code> 拦截最小化改为隐藏、父窗口还原/激活时恢复；<code>DisableMinimize</code> 置灰最小化按钮并忽略最小化相关消息。</li>
+<li><strong>裸引用清理</strong>：窗口销毁时会清除其它窗口对它的引用（<code>owner_</code> 与隐藏列表），避免地址被复用后牵连不相干的窗口。</li>
 </ul>
 <nav class="chapter-nav"><a class="prev" href="API.8.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">菜单</span><span class="nav-desc">MenuItem、Menu 与 MenuWindow</span></a><a class="next" href="API.10.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">应用与多窗口</span><span class="nav-desc">Application 与多窗口</span></a></nav>
         </main>

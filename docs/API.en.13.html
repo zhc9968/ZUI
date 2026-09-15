@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appendix · ZUI API Reference</title>
+    <title>Images · ZUI API Reference</title>
     <style>
 
 :root {
@@ -197,393 +197,213 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class="active"><a href="API.en.13.html"><span class="chapter-index">13</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="signal-list-updated"><div class="toc-row"><a href="#signal-list-updated" data-target="signal-list-updated">Signal list (updated)</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="default-values"><div class="toc-row"><a href="#default-values" data-target="default-values">Default values</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="common-pitfalls"><div class="toc-row"><a href="#common-pitfalls" data-target="common-pitfalls">Common pitfalls</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="complete-example"><div class="toc-row"><a href="#complete-example" data-target="complete-example">Complete example</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class="active"><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="imagemanager-imagedevicecache"><div class="toc-row"><a href="#imagemanager-imagedevicecache" data-target="imagemanager-imagedevicecache">ImageManager / ImageDeviceCache</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="image"><div class="toc-row"><a href="#image" data-target="image">Image</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>## Signal list (updated)
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>The image system lives in `ZUIImages.h`: WIC decoding plus Direct2D (GPU) drawing and transforms.
 
-| Class | Signals | Args |
-| --- | --- | --- |
-| `Button` | `Clicked` / `Toggled` | — / `bool` |
-| `CheckBox` | `Toggled` / `StateChanged` | `bool` / `State` |
-| `TextBox` | `TextChanged` / `ReturnPressed` | `const std::wstring&amp;` / — |
-| `ComboBox` | `SelectionChanged` / `DropDownOpened` / `DropDownClosed` | `int` / — / — |
-| `ToggleSwitch` | `Toggled` | `bool` |
-| `ProgressBar` | `ValueChanged` | `float` |
-| `Slider` | `ValueChanged` / `SliderReleased` | `float` / — |
-| `ScrollViewer` | `ScrollChanged` | `float, float` |
-| `ListView` | `SelectionChanged` / `ItemClicked` / `ItemDoubleClicked` / `SelectionChangedMulti` / `ItemCheckStateChanged` | `int` / `int` / `int` / `std::vector&lt;int&gt;` / `int,bool` |
-| `TableView` | `CellClicked` / `CellDoubleClicked` / `HeaderClicked` / `CurrentCellChanged` / `SelectionChangedCells` / `ItemCheckStateChanged` | `int,int` / `int,int` / `int` / `int,int` / `vector&lt;pair&lt;int,int&gt;&gt;` / `int,bool` |
-| `TreeView` | `SelectionChanged` / `NodeClicked` / `ItemDoubleClicked` / `ItemRightClicked` / `HeaderClicked` / `SelectionChangedMulti` / `ExpandChanged` / `ItemCheckStateChanged` | see above |
-| `FontManager` | `GlobalFontChanged` | — |
-| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` | see Chapter 4 |
-
-## Default values
-
-| Item | Value |
-| --- | --- |
-| Global font | `Segoe UI` / `14.0f` |
-| Default window backdrop | `AcrylicBlurBehind` / `0x80FFFFFF` |
-| Root layout margin / spacing | `20` / `10` |
-| `deltaTime` cap | `0.033s` |
-| Window timer | `16ms`, `timeBeginPeriod(1)` |
-| Shadow defaults | color `(0,0,0.02,0.42)`, `blur 10`, `offset (0,3)` |
-| ToolTip hover delay | `0.5s` |
-| Label | size `16`, `Ellipsis`, vertically centered |
-| Button | `120×36`, radius `4`, blue/white |
-| TextBox | `160×30`, size `14`, caret blink `0.5s` |
-| ComboBox | `160×30`, item height `24` |
-| ToggleSwitch | `50×24` |
-| CheckBox | size `16`, radius `4` |
-| ScrollViewer | bar width `8`, min length `20`, wheel step `30` |
-| ProgressBar | `200×20` |
-| Slider | `160×24`, range `[0,100]`, track `4`, thumb `14` |
-| ListView | `200×200`, row height `28` |
-| TableView | `400×300`, header `26`, default row `24`, min column `40` |
-| TreeView | `400×300`, row height `24`, indent `16` |
-
-## Common pitfalls
-
-1. **Color components are `[0,1]`**: `Color(255,0,0)` is wrong; use `Color(1,0,0)` or `FromArgb(255,255,0,0)`.
-2. **Capturing the host's `shared_ptr` in a signal slot** creates a reference cycle that leaks the whole subtree. Capture a raw pointer or `weak_ptr` (Chapter 4).
-3. **Forgetting to repaint after changing state**: framework setters call `RequestRepaint()` for you; if you mutate internal data directly, call it yourself.
-4. **Invisible elements**: `SetVisible(false)` releases the cache but keeps layout; the cache is rebuilt when shown again.
-5. **Disabled ≠ hidden**: `SetEnabled(false)` keeps layout and draws grey; use `SetVisible(false)` to hide.
-6. **Focus ring only on Tab**: mouse-click focus deliberately does not draw the ring.
-7. **`deltaTime` is already clamped**: compute animations in seconds; you do not need to guard against huge `dt`.
-8. **Data-view metadata after sorting**: this version binds metadata to items / remaps it, so it survives sorting; if you **reorder internal containers yourself**, maintain it manually.
-9. **`PageHost::NavigateTo` is asynchronous**: `GetCurrentIndex()` changes only after the transition.
-10. **`GetChildren()` returns a reference**: do not hold it while mutating the element's child list; calling it during traversal is safe.
-
-## Complete example
+## ImageManager / ImageDeviceCache
 
 ```cpp
-#include "ZDataViewer.h"
-using namespace ZUI;
+class ImageManager {
+    static ImageManager&amp; Instance();
+    IWICImagingFactory* Factory();                        // shared WIC factory
+    void RegisterCache(const std::shared_ptr&lt;ImageDeviceCache&gt;&amp;);
+    void ClearAllDeviceCaches();                          // clears every image's D2D bitmap cache on device loss
+};
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    Window win;
-    if (!win.Create(900, 600, L"ZUI Example")) return 1;
+class ImageDeviceCache {                                  // per-render-target ID2D1Bitmap cache for one Image
+    ID2D1Bitmap* Get(ID2D1RenderTarget*, IWICBitmapSource*);
+    void Clear();
+    void Clear(ID2D1RenderTarget*);
+};
+```
 
-    auto root = win.GetRootColumnBox();
-    root-&gt;SetSpacing(10);
+- Decoded pixels (`IWICBitmapSource`, 32bppPBGRA) are **device-independent**, one per `Image`; `ImageDeviceCache` caches one `ID2D1Bitmap` per render target (D2D bitmaps belong to the render target that created them).
+- On device loss the framework calls `ClearAllDeviceCaches()` to rebuild them.
 
-    auto row = std::make_shared&lt;RowBox&gt;();
-    row-&gt;SetSpacing(10);
+## Image
 
-    auto toggle = std::make_shared&lt;ToggleSwitch&gt;(false);
-    auto slider = std::make_shared&lt;Slider&gt;();
-    slider-&gt;SetRange(0.0f, 1.0f);
-    slider-&gt;SetStep(0.1f);
-    slider-&gt;SetSnapToStep(true);
-    auto bar = std::make_shared&lt;ProgressBar&gt;();
-    bar-&gt;SetShowText(true);
+```cpp
+class Image {
+    enum class Format { Png, Jpeg, Bmp, Gif, Tiff };
+    enum class Interpolation { Nearest, Linear };
+    struct DrawOptions { float opacity = 1.0f; Interpolation interpolation = Interpolation::Linear; };
 
-    toggle-&gt;Connect(toggle-&gt;Toggled, [bar](bool on) { bar-&gt;SetIndeterminate(on); });
-    slider-&gt;Connect(slider-&gt;ValueChanged, [bar](float v) { bar-&gt;SetValue(v); });
+    bool IsNull() const;
+    int Width() const; int Height() const;
+    Rect Bounds() const;
+    bool HasAlpha() const;
 
-    row-&gt;AddChild(toggle);
-    row-&gt;AddChild(slider);
-    row-&gt;AddChild(bar);
-    root-&gt;AddChild(row);
+    // Loading
+    static std::shared_ptr&lt;Image&gt; FromFile(const std::wstring&amp; path);
+    static std::shared_ptr&lt;Image&gt; FromMemory(const void* data, size_t size);
+    static std::shared_ptr&lt;Image&gt; FromBase64(const std::string&amp; base64);            // supports data: URI prefix and URL-safe
+    static std::shared_ptr&lt;Image&gt; FromResource(HMODULE mod, const wchar_t* name, const wchar_t* type);
+    static std::shared_ptr&lt;Image&gt; FromResource(int id, const wchar_t* type);        // current module
+    static std::shared_ptr&lt;Image&gt; FromHBITMAP(HBITMAP);
+    static std::shared_ptr&lt;Image&gt; FromHICON(HICON);
 
-    auto list = std::make_shared&lt;ListView&gt;();
-    list-&gt;SetFillHeight(true);
-    list-&gt;SetSelectionMode(ListView::SelectionMode::Extended);
-    list-&gt;SetCheckable(true);
-    for (int i = 1; i &lt;= 20; ++i)
-        list-&gt;AddItem(L"Item " + std::to_wstring(i));
-    list-&gt;SetItemDisabled(2, true);
-    list-&gt;SetItemTextColor(3, Color::FromArgb(255, 200, 60, 60));
-    list-&gt;SetItemToolTip(1, L"Tooltip for item 2");
-    list-&gt;SetSortComparator([](const std::wstring&amp; a, const std::wstring&amp; b) { return a &lt; b; });
-    list-&gt;SetShowSortIndicator(true);
-    list-&gt;SetSelectedIndex(0);
-    root-&gt;AddChild(list);
+    // Transforms (lightweight descriptors applied by the GPU at draw time; share one decoded source)
+    std::shared_ptr&lt;Image&gt; Scaled(float w, float h) const;
+    std::shared_ptr&lt;Image&gt; ScaledToWidth(float w) const;
+    std::shared_ptr&lt;Image&gt; ScaledToHeight(float h) const;
+    std::shared_ptr&lt;Image&gt; Rotated(float degrees) const;
+    std::shared_ptr&lt;Image&gt; Mirrored(bool horizontal = true, bool vertical = false) const;
+    std::shared_ptr&lt;Image&gt; Cropped(const Rect&amp; srcRect) const;
 
-    win.Run();
-    return 0;
-}
-```</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 13 · Appendix</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">Chapter 13</span><h1>Appendix</h1><p class="chapter-summary">Signal list, default values, and common pitfalls</p></header><h2 id="signal-list-updated">Signal list (updated)</h2>
-<table>
-<thead>
-<tr>
-<th>Class</th>
-<th>Signals</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Button</code></td>
-<td><code>Clicked</code> / <code>Toggled</code></td>
-<td>— / <code>bool</code></td>
-</tr>
-<tr>
-<td><code>CheckBox</code></td>
-<td><code>Toggled</code> / <code>StateChanged</code></td>
-<td><code>bool</code> / <code>State</code></td>
-</tr>
-<tr>
-<td><code>TextBox</code></td>
-<td><code>TextChanged</code> / <code>ReturnPressed</code></td>
-<td><code>const std::wstring&amp;</code> / —</td>
-</tr>
-<tr>
-<td><code>ComboBox</code></td>
-<td><code>SelectionChanged</code> / <code>DropDownOpened</code> / <code>DropDownClosed</code></td>
-<td><code>int</code> / — / —</td>
-</tr>
-<tr>
-<td><code>ToggleSwitch</code></td>
-<td><code>Toggled</code></td>
-<td><code>bool</code></td>
-</tr>
-<tr>
-<td><code>ProgressBar</code></td>
-<td><code>ValueChanged</code></td>
-<td><code>float</code></td>
-</tr>
-<tr>
-<td><code>Slider</code></td>
-<td><code>ValueChanged</code> / <code>SliderReleased</code></td>
-<td><code>float</code> / —</td>
-</tr>
-<tr>
-<td><code>ScrollViewer</code></td>
-<td><code>ScrollChanged</code></td>
-<td><code>float, float</code></td>
-</tr>
-<tr>
-<td><code>ListView</code></td>
-<td><code>SelectionChanged</code> / <code>ItemClicked</code> / <code>ItemDoubleClicked</code> / <code>SelectionChangedMulti</code> / <code>ItemCheckStateChanged</code></td>
-<td><code>int</code> / <code>int</code> / <code>int</code> / <code>std::vector&lt;int&gt;</code> / <code>int,bool</code></td>
-</tr>
-<tr>
-<td><code>TableView</code></td>
-<td><code>CellClicked</code> / <code>CellDoubleClicked</code> / <code>HeaderClicked</code> / <code>CurrentCellChanged</code> / <code>SelectionChangedCells</code> / <code>ItemCheckStateChanged</code></td>
-<td><code>int,int</code> / <code>int,int</code> / <code>int</code> / <code>int,int</code> / <code>vector&lt;pair&lt;int,int&gt;&gt;</code> / <code>int,bool</code></td>
-</tr>
-<tr>
-<td><code>TreeView</code></td>
-<td><code>SelectionChanged</code> / <code>NodeClicked</code> / <code>ItemDoubleClicked</code> / <code>ItemRightClicked</code> / <code>HeaderClicked</code> / <code>SelectionChangedMulti</code> / <code>ExpandChanged</code> / <code>ItemCheckStateChanged</code></td>
-<td>see above</td>
-</tr>
-<tr>
-<td><code>FontManager</code></td>
-<td><code>GlobalFontChanged</code></td>
-<td>—</td>
-</tr>
-<tr>
-<td><code>UIZSignals</code></td>
-<td><code>DrawOverlay</code> / <code>GlobalMouseDown</code> / <code>WindowDeactivated</code> / <code>ElementCaptureRequest</code> / <code>ElementCaptureRelease</code> / <code>RepaintRequest</code> / <code>LayoutInvalidated</code></td>
-<td>see Chapter 4</td>
-</tr>
-</tbody>
-</table>
-<h2 id="default-values">Default values</h2>
-<table>
-<thead>
-<tr>
-<th>Item</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Global font</td>
-<td><code>Segoe UI</code> / <code>14.0f</code></td>
-</tr>
-<tr>
-<td>Default window backdrop</td>
-<td><code>AcrylicBlurBehind</code> / <code>0x80FFFFFF</code></td>
-</tr>
-<tr>
-<td>Root layout margin / spacing</td>
-<td><code>20</code> / <code>10</code></td>
-</tr>
-<tr>
-<td><code>deltaTime</code> cap</td>
-<td><code>0.033s</code></td>
-</tr>
-<tr>
-<td>Window timer</td>
-<td><code>16ms</code>, <code>timeBeginPeriod(1)</code></td>
-</tr>
-<tr>
-<td>Shadow defaults</td>
-<td>color <code>(0,0,0.02,0.42)</code>, <code>blur 10</code>, <code>offset (0,3)</code></td>
-</tr>
-<tr>
-<td>ToolTip hover delay</td>
-<td><code>0.5s</code></td>
-</tr>
-<tr>
-<td>Label</td>
-<td>size <code>16</code>, <code>Ellipsis</code>, vertically centered</td>
-</tr>
-<tr>
-<td>Button</td>
-<td><code>120×36</code>, radius <code>4</code>, blue/white</td>
-</tr>
-<tr>
-<td>TextBox</td>
-<td><code>160×30</code>, size <code>14</code>, caret blink <code>0.5s</code></td>
-</tr>
-<tr>
-<td>ComboBox</td>
-<td><code>160×30</code>, item height <code>24</code></td>
-</tr>
-<tr>
-<td>ToggleSwitch</td>
-<td><code>50×24</code></td>
-</tr>
-<tr>
-<td>CheckBox</td>
-<td>size <code>16</code>, radius <code>4</code></td>
-</tr>
-<tr>
-<td>ScrollViewer</td>
-<td>bar width <code>8</code>, min length <code>20</code>, wheel step <code>30</code></td>
-</tr>
-<tr>
-<td>ProgressBar</td>
-<td><code>200×20</code></td>
-</tr>
-<tr>
-<td>Slider</td>
-<td><code>160×24</code>, range <code>[0,100]</code>, track <code>4</code>, thumb <code>14</code></td>
-</tr>
-<tr>
-<td>ListView</td>
-<td><code>200×200</code>, row height <code>28</code></td>
-</tr>
-<tr>
-<td>TableView</td>
-<td><code>400×300</code>, header <code>26</code>, default row <code>24</code>, min column <code>40</code></td>
-</tr>
-<tr>
-<td>TreeView</td>
-<td><code>400×300</code>, row height <code>24</code>, indent <code>16</code></td>
-</tr>
-</tbody>
-</table>
-<h2 id="common-pitfalls">Common pitfalls</h2>
-<ol>
-<li><strong>Color components are <code>[0,1]</code></strong>: <code>Color(255,0,0)</code> is wrong; use <code>Color(1,0,0)</code> or <code>FromArgb(255,255,0,0)</code>.</li>
-<li><strong>Capturing the host's <code>shared_ptr</code> in a signal slot</strong> creates a reference cycle that leaks the whole subtree. Capture a raw pointer or <code>weak_ptr</code> (Chapter 4).</li>
-<li><strong>Forgetting to repaint after changing state</strong>: framework setters call <code>RequestRepaint()</code> for you; if you mutate internal data directly, call it yourself.</li>
-<li><strong>Invisible elements</strong>: <code>SetVisible(false)</code> releases the cache but keeps layout; the cache is rebuilt when shown again.</li>
-<li><strong>Disabled ≠ hidden</strong>: <code>SetEnabled(false)</code> keeps layout and draws grey; use <code>SetVisible(false)</code> to hide.</li>
-<li><strong>Focus ring only on Tab</strong>: mouse-click focus deliberately does not draw the ring.</li>
-<li><strong><code>deltaTime</code> is already clamped</strong>: compute animations in seconds; you do not need to guard against huge <code>dt</code>.</li>
-<li><strong>Data-view metadata after sorting</strong>: this version binds metadata to items / remaps it, so it survives sorting; if you <strong>reorder internal containers yourself</strong>, maintain it manually.</li>
-<li><strong><code>PageHost::NavigateTo</code> is asynchronous</strong>: <code>GetCurrentIndex()</code> changes only after the transition.</li>
-<li><strong><code>GetChildren()</code> returns a reference</strong>: do not hold it while mutating the element's child list; calling it during traversal is safe.</li>
-</ol>
-<h2 id="complete-example">Complete example</h2>
+    // Drawing (GPU)
+    void Draw(ID2D1RenderTarget* rt, const Rect&amp; dst, const DrawOptions&amp; = {}) const;
+    void Draw(ID2D1RenderTarget* rt, const D2D1_RECT_F&amp; dst, const DrawOptions&amp; = {}) const;
+    void Draw(ID2D1RenderTarget* rt, float x, float y, const DrawOptions&amp; = {}) const;
+    ComPtr&lt;ID2D1Bitmap&gt; Bake(ID2D1RenderTarget* rt) const;
+
+    // Encoding / saving
+    bool Save(const std::wstring&amp; path, Format = Format::Png, float quality = 0.9f) const;
+    std::vector&lt;uint8_t&gt; Encode(Format = Format::Png, float quality = 0.9f) const;
+};
+```
+
+**Notes and pitfalls:**
+
+- **Decode once, share**: `Scaled/Rotated/Mirrored/Cropped` return new `Image` objects sharing the same decoded source (lightweight descriptors); transforms are applied by the GPU at `Draw` time with no re-decoding and no per-pixel CPU work.
+- **Device bitmap cache**: drawing the same `Image` repeatedly in one window uploads its GPU bitmap once; each window has its own.
+- **Lifetime (root cause)**: memory-backed inputs (`FromMemory/FromBase64/FromResource(RT_BITMAP)`) use `IWICStream::InitializeFromMemory`, which does **not copy** the buffer, and frame decoding / format conversion are **lazy**; if pixels are not fetched at decode time, drawing reads freed memory (the image simply never appears). The implementation therefore uses `WICBitmapCacheOnLoad` inside `detail_img_MakeFromSource` to **copy the pixels into an independent WIC bitmap immediately**, fully decoupling from the source buffer.
+- **Resources**: `type` may be `L"PNG"`/`L"IMAGE"`/`RT_RCDATA`/`RT_BITMAP`, etc.; `RT_BITMAP` (DIB) gets a BMP file header prepended automatically; the `HMODULE` overload can load **from a DLL's resources**.
+- **Encoding**: `Encode` uses `CreateStreamOnHGlobal` (a growable memory stream, **no temp files**) and returns the encoded bytes; `Save` writes a file directly.
+- **With `Label`**: use `Label::SetImage` + `SetIconSize` to show an icon (see "Basic controls -&gt; Label").
+- **Transform matrix (root cause)**: `Rotated/Mirrored` pivot around the destination rect center. D2D matrix multiplication applies the **left operand first**, so the `Rotation/Scale` overloads that take a `center` must be used; otherwise the image is pushed out of the target rect (rotated/mirrored images appear missing).</pre></div></div>
+<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 13 · Images</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 13</span><h1>Images</h1><p class="chapter-summary">Image, ImageManager, ImageDeviceCache</p></header><p>The image system lives in <code>ZUIImages.h</code>: WIC decoding plus Direct2D (GPU) drawing and transforms.</p>
+<h2 id="imagemanager-imagedevicecache">ImageManager / ImageDeviceCache</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-ff358c66', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-7879ffbb', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
-<div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZDataViewer.h"</span>
-<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ImageManager</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">ImageManager</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">Instance</span><span class="p">();</span>
+<span class="w">    </span><span class="n">IWICImagingFactory</span><span class="o">*</span><span class="w"> </span><span class="nf">Factory</span><span class="p">();</span><span class="w">                        </span><span class="c1">// shared WIC factory</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">RegisterCache</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">ImageDeviceCache</span><span class="o">&gt;&amp;</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearAllDeviceCaches</span><span class="p">();</span><span class="w">                          </span><span class="c1">// clears every image's D2D bitmap cache on device loss</span>
+<span class="p">};</span>
 
-<span class="kt">int</span><span class="w"> </span><span class="n">WINAPI</span><span class="w"> </span><span class="nf">WinMain</span><span class="p">(</span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">LPSTR</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">Window</span><span class="w"> </span><span class="n">win</span><span class="p">;</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">win</span><span class="p">.</span><span class="n">Create</span><span class="p">(</span><span class="mi">900</span><span class="p">,</span><span class="w"> </span><span class="mi">600</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"ZUI Example"</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
-
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">win</span><span class="p">.</span><span class="n">GetRootColumnBox</span><span class="p">();</span>
-<span class="w">    </span><span class="n">root</span><span class="o">-&gt;</span><span class="n">SetSpacing</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
-
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">row</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">RowBox</span><span class="o">&gt;</span><span class="p">();</span>
-<span class="w">    </span><span class="n">row</span><span class="o">-&gt;</span><span class="n">SetSpacing</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
-
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">toggle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">ToggleSwitch</span><span class="o">&gt;</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">slider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Slider</span><span class="o">&gt;</span><span class="p">();</span>
-<span class="w">    </span><span class="n">slider</span><span class="o">-&gt;</span><span class="n">SetRange</span><span class="p">(</span><span class="mf">0.0f</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">);</span>
-<span class="w">    </span><span class="n">slider</span><span class="o">-&gt;</span><span class="n">SetStep</span><span class="p">(</span><span class="mf">0.1f</span><span class="p">);</span>
-<span class="w">    </span><span class="n">slider</span><span class="o">-&gt;</span><span class="n">SetSnapToStep</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">ProgressBar</span><span class="o">&gt;</span><span class="p">();</span>
-<span class="w">    </span><span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetShowText</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-
-<span class="w">    </span><span class="n">toggle</span><span class="o">-&gt;</span><span class="n">Connect</span><span class="p">(</span><span class="n">toggle</span><span class="o">-&gt;</span><span class="n">Toggled</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">bar</span><span class="p">](</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetIndeterminate</span><span class="p">(</span><span class="n">on</span><span class="p">);</span><span class="w"> </span><span class="p">});</span>
-<span class="w">    </span><span class="n">slider</span><span class="o">-&gt;</span><span class="n">Connect</span><span class="p">(</span><span class="n">slider</span><span class="o">-&gt;</span><span class="n">ValueChanged</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">bar</span><span class="p">](</span><span class="kt">float</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetValue</span><span class="p">(</span><span class="n">v</span><span class="p">);</span><span class="w"> </span><span class="p">});</span>
-
-<span class="w">    </span><span class="n">row</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">toggle</span><span class="p">);</span>
-<span class="w">    </span><span class="n">row</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">slider</span><span class="p">);</span>
-<span class="w">    </span><span class="n">row</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span>
-<span class="w">    </span><span class="n">root</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">row</span><span class="p">);</span>
-
-<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">list</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">ListView</span><span class="o">&gt;</span><span class="p">();</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetFillHeight</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetSelectionMode</span><span class="p">(</span><span class="n">ListView</span><span class="o">::</span><span class="n">SelectionMode</span><span class="o">::</span><span class="n">Extended</span><span class="p">);</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetCheckable</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span>
-<span class="w">        </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">AddItem</span><span class="p">(</span><span class="sa">L</span><span class="s">"Item "</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">to_wstring</span><span class="p">(</span><span class="n">i</span><span class="p">));</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetItemDisabled</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetItemTextColor</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">Color</span><span class="o">::</span><span class="n">FromArgb</span><span class="p">(</span><span class="mi">255</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">));</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetItemToolTip</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Tooltip for item 2"</span><span class="p">);</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetSortComparator</span><span class="p">([](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="p">});</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetShowSortIndicator</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-<span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetSelectedIndex</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
-<span class="w">    </span><span class="n">root</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">list</span><span class="p">);</span>
-
-<span class="w">    </span><span class="n">win</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span>
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<span class="p">}</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ImageDeviceCache</span><span class="w"> </span><span class="p">{</span><span class="w">                                  </span><span class="c1">// per-render-target ID2D1Bitmap cache for one Image</span>
+<span class="w">    </span><span class="n">ID2D1Bitmap</span><span class="o">*</span><span class="w"> </span><span class="nf">Get</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="n">IWICBitmapSource</span><span class="o">*</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Clear</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Clear</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="p">);</span>
+<span class="p">};</span>
 </pre></div>
-<pre id="code-ff358c66" style="display: none;">#include "ZDataViewer.h"
-using namespace ZUI;
+<pre id="code-7879ffbb" style="display: none;">class ImageManager {
+    static ImageManager&amp; Instance();
+    IWICImagingFactory* Factory();                        // shared WIC factory
+    void RegisterCache(const std::shared_ptr&lt;ImageDeviceCache&gt;&amp;);
+    void ClearAllDeviceCaches();                          // clears every image's D2D bitmap cache on device loss
+};
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    Window win;
-    if (!win.Create(900, 600, L"ZUI Example")) return 1;
-
-    auto root = win.GetRootColumnBox();
-    root-&gt;SetSpacing(10);
-
-    auto row = std::make_shared&lt;RowBox&gt;();
-    row-&gt;SetSpacing(10);
-
-    auto toggle = std::make_shared&lt;ToggleSwitch&gt;(false);
-    auto slider = std::make_shared&lt;Slider&gt;();
-    slider-&gt;SetRange(0.0f, 1.0f);
-    slider-&gt;SetStep(0.1f);
-    slider-&gt;SetSnapToStep(true);
-    auto bar = std::make_shared&lt;ProgressBar&gt;();
-    bar-&gt;SetShowText(true);
-
-    toggle-&gt;Connect(toggle-&gt;Toggled, [bar](bool on) { bar-&gt;SetIndeterminate(on); });
-    slider-&gt;Connect(slider-&gt;ValueChanged, [bar](float v) { bar-&gt;SetValue(v); });
-
-    row-&gt;AddChild(toggle);
-    row-&gt;AddChild(slider);
-    row-&gt;AddChild(bar);
-    root-&gt;AddChild(row);
-
-    auto list = std::make_shared&lt;ListView&gt;();
-    list-&gt;SetFillHeight(true);
-    list-&gt;SetSelectionMode(ListView::SelectionMode::Extended);
-    list-&gt;SetCheckable(true);
-    for (int i = 1; i &lt;= 20; ++i)
-        list-&gt;AddItem(L"Item " + std::to_wstring(i));
-    list-&gt;SetItemDisabled(2, true);
-    list-&gt;SetItemTextColor(3, Color::FromArgb(255, 200, 60, 60));
-    list-&gt;SetItemToolTip(1, L"Tooltip for item 2");
-    list-&gt;SetSortComparator([](const std::wstring&amp; a, const std::wstring&amp; b) { return a &lt; b; });
-    list-&gt;SetShowSortIndicator(true);
-    list-&gt;SetSelectedIndex(0);
-    root-&gt;AddChild(list);
-
-    win.Run();
-    return 0;
-}</pre>
+class ImageDeviceCache {                                  // per-render-target ID2D1Bitmap cache for one Image
+    ID2D1Bitmap* Get(ID2D1RenderTarget*, IWICBitmapSource*);
+    void Clear();
+    void Clear(ID2D1RenderTarget*);
+};</pre>
 </div>
-<nav class="chapter-nav"><a class="prev" href="API.en.12.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Data views</span><span class="nav-desc">ListView, TableView, TreeNode, TreeView</span></a><a class="next" href="API.en.html"><span class="nav-label">Contents &#8594;</span><span class="nav-title">Back to the chapter list</span></a></nav>
+<ul>
+<li>Decoded pixels (<code>IWICBitmapSource</code>, 32bppPBGRA) are <strong>device-independent</strong>, one per <code>Image</code>; <code>ImageDeviceCache</code> caches one <code>ID2D1Bitmap</code> per render target (D2D bitmaps belong to the render target that created them).</li>
+<li>On device loss the framework calls <code>ClearAllDeviceCaches()</code> to rebuild them.</li>
+</ul>
+<h2 id="image">Image</h2>
+<div class="code-container">
+<div class="code-header">
+<span class="code-language">cpp</span>
+<button class="copy-btn" onclick="copyCode('code-f3c9a67d', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+</div>
+<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Image</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Format</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Png</span><span class="p">,</span><span class="w"> </span><span class="n">Jpeg</span><span class="p">,</span><span class="w"> </span><span class="n">Bmp</span><span class="p">,</span><span class="w"> </span><span class="n">Gif</span><span class="p">,</span><span class="w"> </span><span class="n">Tiff</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Interpolation</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Nearest</span><span class="p">,</span><span class="w"> </span><span class="n">Linear</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">DrawOptions</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">opacity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">;</span><span class="w"> </span><span class="n">Interpolation</span><span class="w"> </span><span class="n">interpolation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Interpolation</span><span class="o">::</span><span class="n">Linear</span><span class="p">;</span><span class="w"> </span><span class="p">};</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsNull</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="nf">Width</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">Height</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Rect</span><span class="w"> </span><span class="nf">Bounds</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">HasAlpha</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Loading</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FromFile</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">path</span><span class="p">);</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FromMemory</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FromBase64</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">base64</span><span class="p">);</span><span class="w">            </span><span class="c1">// supports data: URI prefix and URL-safe</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FromResource</span><span class="p">(</span><span class="n">HMODULE</span><span class="w"> </span><span class="n">mod</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">wchar_t</span><span class="o">*</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">wchar_t</span><span class="o">*</span><span class="w"> </span><span class="n">type</span><span class="p">);</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FromResource</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">wchar_t</span><span class="o">*</span><span class="w"> </span><span class="n">type</span><span class="p">);</span><span class="w">        </span><span class="c1">// current module</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FromHBITMAP</span><span class="p">(</span><span class="n">HBITMAP</span><span class="p">);</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">FromHICON</span><span class="p">(</span><span class="n">HICON</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Transforms (lightweight descriptors applied by the GPU at draw time; share one decoded source)</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Scaled</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ScaledToWidth</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">w</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ScaledToHeight</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Rotated</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">degrees</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Mirrored</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">horizontal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">vertical</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Cropped</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Rect</span><span class="o">&amp;</span><span class="w"> </span><span class="n">srcRect</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Drawing (GPU)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Draw</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="w"> </span><span class="n">rt</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Rect</span><span class="o">&amp;</span><span class="w"> </span><span class="n">dst</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">DrawOptions</span><span class="o">&amp;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{})</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Draw</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="w"> </span><span class="n">rt</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">D2D1_RECT_F</span><span class="o">&amp;</span><span class="w"> </span><span class="n">dst</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">DrawOptions</span><span class="o">&amp;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{})</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Draw</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="w"> </span><span class="n">rt</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">DrawOptions</span><span class="o">&amp;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{})</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ComPtr</span><span class="o">&lt;</span><span class="n">ID2D1Bitmap</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Bake</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="w"> </span><span class="n">rt</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Encoding / saving</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">Save</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">Format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Format</span><span class="o">::</span><span class="n">Png</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">quality</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.9f</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Encode</span><span class="p">(</span><span class="n">Format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Format</span><span class="o">::</span><span class="n">Png</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">quality</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.9f</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+<pre id="code-f3c9a67d" style="display: none;">class Image {
+    enum class Format { Png, Jpeg, Bmp, Gif, Tiff };
+    enum class Interpolation { Nearest, Linear };
+    struct DrawOptions { float opacity = 1.0f; Interpolation interpolation = Interpolation::Linear; };
+
+    bool IsNull() const;
+    int Width() const; int Height() const;
+    Rect Bounds() const;
+    bool HasAlpha() const;
+
+    // Loading
+    static std::shared_ptr&lt;Image&gt; FromFile(const std::wstring&amp; path);
+    static std::shared_ptr&lt;Image&gt; FromMemory(const void* data, size_t size);
+    static std::shared_ptr&lt;Image&gt; FromBase64(const std::string&amp; base64);            // supports data: URI prefix and URL-safe
+    static std::shared_ptr&lt;Image&gt; FromResource(HMODULE mod, const wchar_t* name, const wchar_t* type);
+    static std::shared_ptr&lt;Image&gt; FromResource(int id, const wchar_t* type);        // current module
+    static std::shared_ptr&lt;Image&gt; FromHBITMAP(HBITMAP);
+    static std::shared_ptr&lt;Image&gt; FromHICON(HICON);
+
+    // Transforms (lightweight descriptors applied by the GPU at draw time; share one decoded source)
+    std::shared_ptr&lt;Image&gt; Scaled(float w, float h) const;
+    std::shared_ptr&lt;Image&gt; ScaledToWidth(float w) const;
+    std::shared_ptr&lt;Image&gt; ScaledToHeight(float h) const;
+    std::shared_ptr&lt;Image&gt; Rotated(float degrees) const;
+    std::shared_ptr&lt;Image&gt; Mirrored(bool horizontal = true, bool vertical = false) const;
+    std::shared_ptr&lt;Image&gt; Cropped(const Rect&amp; srcRect) const;
+
+    // Drawing (GPU)
+    void Draw(ID2D1RenderTarget* rt, const Rect&amp; dst, const DrawOptions&amp; = {}) const;
+    void Draw(ID2D1RenderTarget* rt, const D2D1_RECT_F&amp; dst, const DrawOptions&amp; = {}) const;
+    void Draw(ID2D1RenderTarget* rt, float x, float y, const DrawOptions&amp; = {}) const;
+    ComPtr&lt;ID2D1Bitmap&gt; Bake(ID2D1RenderTarget* rt) const;
+
+    // Encoding / saving
+    bool Save(const std::wstring&amp; path, Format = Format::Png, float quality = 0.9f) const;
+    std::vector&lt;uint8_t&gt; Encode(Format = Format::Png, float quality = 0.9f) const;
+};</pre>
+</div>
+<p><strong>Notes and pitfalls:</strong></p>
+<ul>
+<li><strong>Decode once, share</strong>: <code>Scaled/Rotated/Mirrored/Cropped</code> return new <code>Image</code> objects sharing the same decoded source (lightweight descriptors); transforms are applied by the GPU at <code>Draw</code> time with no re-decoding and no per-pixel CPU work.</li>
+<li><strong>Device bitmap cache</strong>: drawing the same <code>Image</code> repeatedly in one window uploads its GPU bitmap once; each window has its own.</li>
+<li><strong>Lifetime (root cause)</strong>: memory-backed inputs (<code>FromMemory/FromBase64/FromResource(RT_BITMAP)</code>) use <code>IWICStream::InitializeFromMemory</code>, which does <strong>not copy</strong> the buffer, and frame decoding / format conversion are <strong>lazy</strong>; if pixels are not fetched at decode time, drawing reads freed memory (the image simply never appears). The implementation therefore uses <code>WICBitmapCacheOnLoad</code> inside <code>detail_img_MakeFromSource</code> to <strong>copy the pixels into an independent WIC bitmap immediately</strong>, fully decoupling from the source buffer.</li>
+<li><strong>Resources</strong>: <code>type</code> may be <code>L"PNG"</code>/<code>L"IMAGE"</code>/<code>RT_RCDATA</code>/<code>RT_BITMAP</code>, etc.; <code>RT_BITMAP</code> (DIB) gets a BMP file header prepended automatically; the <code>HMODULE</code> overload can load <strong>from a DLL's resources</strong>.</li>
+<li><strong>Encoding</strong>: <code>Encode</code> uses <code>CreateStreamOnHGlobal</code> (a growable memory stream, <strong>no temp files</strong>) and returns the encoded bytes; <code>Save</code> writes a file directly.</li>
+<li><strong>With <code>Label</code></strong>: use <code>Label::SetImage</code> + <code>SetIconSize</code> to show an icon (see "Basic controls -&gt; Label").</li>
+<li><strong>Transform matrix (root cause)</strong>: <code>Rotated/Mirrored</code> pivot around the destination rect center. D2D matrix multiplication applies the <strong>left operand first</strong>, so the <code>Rotation/Scale</code> overloads that take a <code>center</code> must be used; otherwise the image is pushed out of the target rect (rotated/mirrored images appear missing).</li>
+</ul>
+<nav class="chapter-nav"><a class="prev" href="API.en.12.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Data views</span><span class="nav-desc">ListView, TableView, TreeNode, TreeView</span></a><a class="next" href="API.en.14.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Appendix</span><span class="nav-desc">Signal list, default values, and common pitfalls</span></a></nav>
         </main>
     </div>
 
