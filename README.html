@@ -229,8 +229,9 @@ ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Dire
 | 项 | 要求 |
 | --- | --- |
 | 操作系统 | Windows 10 / 11 |
-| 编译器 | Visual Studio（需 **v145** 工具集），C++17 及以上（Release x64 使用 C++20） |
+| 编译器 | Visual Studio（**任意工具集均可**，需 **C++20** 及以上） |
 | Windows SDK | 10.0 及以上 |
+| 源文件编码 | **UTF-8 带 BOM**（不然 MSVC 会按本地代码页解析中文注释导致编译报错） |
 | 运行库 | 系统自带 `d2d1` / `dwrite` / `dwmapi` / `imm32`（无需额外安装） |
 | 第三方依赖 | 无 |
 
@@ -437,11 +438,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 </tr>
 <tr>
 <td>编译器</td>
-<td>Visual Studio（需 <strong>v145</strong> 工具集），C++17 及以上（Release x64 使用 C++20）</td>
+<td>Visual Studio（<strong>任意工具集均可</strong>，需 <strong>C++20</strong> 及以上）</td>
 </tr>
 <tr>
 <td>Windows SDK</td>
 <td>10.0 及以上</td>
+</tr>
+<tr>
+<td>源文件编码</td>
+<td><strong>UTF-8 带 BOM</strong>（不然 MSVC 会按本地代码页解析中文注释导致编译报错）</td>
 </tr>
 <tr>
 <td>运行库</td>
@@ -464,11 +469,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">bash</span>
-<button class="copy-btn" onclick="copyCode('code-c9fe6e6b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-19a8be6b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span>msbuild<span class="w"> </span>ZUI.slnx<span class="w"> </span>/p:Configuration<span class="o">=</span>Release<span class="w"> </span>/p:Platform<span class="o">=</span>x64
 </pre></div>
-<pre id="code-c9fe6e6b" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
+<pre id="code-19a8be6b" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
 </div>
 <blockquote>
 <p><code>ZUI.cpp</code> 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 <code>WinMain</code>。</p>
@@ -477,7 +482,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">text</span>
-<button class="copy-btn" onclick="copyCode('code-3ee613ec', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-6f148044', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span>ZUI/
 ├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
@@ -490,7 +495,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 └── docs/
     └── API.md         # 完整 API 文档
 </pre></div>
-<pre id="code-3ee613ec" style="display: none;">ZUI/
+<pre id="code-6f148044" style="display: none;">ZUI/
 ├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
 ├── ZUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # 数据视图：ListView / TableView / TreeView
@@ -505,7 +510,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-e5f70fc2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-5f2b7674', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZUIWidgets.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -541,7 +546,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-e5f70fc2" style="display: none;">#include "ZUIWidgets.h"
+<pre id="code-5f2b7674" style="display: none;">#include "ZUIWidgets.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {

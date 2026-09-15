@@ -229,8 +229,9 @@ ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D
 | Item | Requirement |
 | --- | --- |
 | Operating system | Windows 10 / 11 |
-| Compiler | Visual Studio (requires the **v145** toolset), C++17 or later (Release x64 uses C++20) |
+| Compiler | Visual Studio (**any toolset works**; requires **C++20** or later) |
 | Windows SDK | 10.0 or later |
+| Source encoding | **UTF-8 with BOM** (otherwise MSVC parses Chinese comments in the local code page and fails to compile) |
 | Runtime libraries | System-provided `d2d1` / `dwrite` / `dwmapi` / `imm32` (no additional installation required) |
 | Third-party dependencies | None |
 
@@ -437,11 +438,15 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 </tr>
 <tr>
 <td>Compiler</td>
-<td>Visual Studio (requires the <strong>v145</strong> toolset), C++17 or later (Release x64 uses C++20)</td>
+<td>Visual Studio (<strong>any toolset works</strong>; requires <strong>C++20</strong> or later)</td>
 </tr>
 <tr>
 <td>Windows SDK</td>
 <td>10.0 or later</td>
+</tr>
+<tr>
+<td>Source encoding</td>
+<td><strong>UTF-8 with BOM</strong> (otherwise MSVC parses Chinese comments in the local code page and fails to compile)</td>
 </tr>
 <tr>
 <td>Runtime libraries</td>
@@ -464,11 +469,11 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">bash</span>
-<button class="copy-btn" onclick="copyCode('code-e06e4fc4', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-216b7c0a', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>msbuild<span class="w"> </span>ZUI.slnx<span class="w"> </span>/p:Configuration<span class="o">=</span>Release<span class="w"> </span>/p:Platform<span class="o">=</span>x64
 </pre></div>
-<pre id="code-e06e4fc4" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
+<pre id="code-216b7c0a" style="display: none;">msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64</pre>
 </div>
 <blockquote>
 <p><code>ZUI.cpp</code> is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own <code>WinMain</code>.</p>
@@ -477,7 +482,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">text</span>
-<button class="copy-btn" onclick="copyCode('code-525734c6', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-0e1aeb60', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span>ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
@@ -490,7 +495,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 └── docs/
     └── API.en.md      # Full API documentation
 </pre></div>
-<pre id="code-525734c6" style="display: none;">ZUI/
+<pre id="code-0e1aeb60" style="display: none;">ZUI/
 ├── ZUI.h              # Core: types / signals &amp; slots / fonts / elements / layout / menus / window
 ├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
@@ -505,7 +510,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-01e2fc93', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-6ba048a8', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZUIWidgets.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -541,7 +546,7 @@ This project is licensed under the **MIT** License; see [LICENSE](LICENSE) for d
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-01e2fc93" style="display: none;">#include "ZUIWidgets.h"
+<pre id="code-6ba048a8" style="display: none;">#include "ZUIWidgets.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
