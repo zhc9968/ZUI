@@ -27,8 +27,9 @@ ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D
 | Item | Requirement |
 | --- | --- |
 | Operating system | Windows 10 / 11 |
-| Compiler | Visual Studio (requires the **v145** toolset), C++17 or later (Release x64 uses C++20) |
+| Compiler | Visual Studio (**any toolset works**; requires **C++20** or later) |
 | Windows SDK | 10.0 or later |
+| Source encoding | **UTF-8 with BOM** (otherwise MSVC parses Chinese comments in the local code page and fails to compile) |
 | Runtime libraries | System-provided `d2d1` / `dwrite` / `dwmapi` / `imm32` (no additional installation required) |
 | Third-party dependencies | None |
 
