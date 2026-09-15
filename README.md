@@ -109,6 +109,34 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 ## 更新日志
 
+### 2026-09-15 — 图像系统、窗口机制增强与多项根源修复
+
+**图像（新增 `ZUIImages.h`）**
+
+- 新增 `Image`：WIC 解码 + Direct2D GPU 绘制/变换。加载：`FromFile / FromMemory / FromBase64 / FromResource(HMODULE,name,type) / FromResource(id,type) / FromHBITMAP / FromHICON`；变换：`Scaled / ScaledToWidth / ScaledToHeight / Rotated / Mirrored / Cropped`（轻量描述符，绘制时 GPU 施加）；绘制：`Draw`（opacity / 插值）、`Bake`；编码：`Save / Encode`（`CreateStreamOnHGlobal` 内存流，**无临时文件**）。
+- `ImageManager`：共享 `IWICImagingFactory` 并登记设备缓存；`ImageDeviceCache`：每个渲染目标一张 `ID2D1Bitmap` 缓存，设备丢失统一重建。同一图像同一窗口只上传一次 GPU 位图。
+- **根源修复**：`IWICStream::InitializeFromMemory` 不复制内存，而解码/转换是惰性的；改为在解码时用 `WICBitmapCacheOnLoad` 立即把像素拷进独立 WIC 位图，避免 `FromMemory/FromBase64/RT_BITMAP` 在绘制阶段读到已释放内存（此前表现为**图像完全不显示**）。
+- **根源修复**：`DrawWithTransform` 的变换矩阵合成顺序写反，导致旋转/镜像后的图像被推出目标矩形（表现为旋转/镜像**什么都看不到**）；改用带 `center` 的 `Rotation/Scale` 重载。
+- `Label` 支持**图标与嵌套子控件**：`SetImage/GetImage`、`SetIconSize/GetIconSize`、`SetIconSpacing/GetIconSpacing`、`AddChild/ClearChildren/GetChildCount`（图标 + 文本 + 子控件内联横排）。
+
+**窗口**
+
+- `RunModal` 改为官方机制：`EnableWindow(owner, FALSE)` + 激活模态窗 + `IsDialogMessage` 嵌套循环；**移除了全局低级鼠标钩子**（之前会吞掉其它进程的点击，模态一开整个桌面点击失灵）。
+- owned 子窗口：**创建时**即通过 `CreateWindowEx` 的父窗口参数建立所有者关系，因此不再有独立任务栏按钮；父窗口最小化时**无条件**隐藏其 owned 子窗口、还原/激活时恢复（不再依赖系统“最小化分组”，避免父窗口在后台时子窗口不跟随）。
+- 新增便捷 API：`Flash(times=5, captionOnly=true)` / `StopFlash()`（`FlashWindowEx`）、`GetOwnedWindows()`、`GetStyle()/GetExStyle()`、`SetWindowStyleFlag/SetWindowExStyleFlag`（如 `WS_EX_TOOLWINDOW`）、`Show()/ShowNoActivate()/Hide()/Raise()`。
+- 新增 `OwnedMinimizePolicy { None, Hide, DisableMinimize }` + `SetOwnedMinimizePolicy`：处理 owned 子窗口被单独最小化的方式。
+- **修复**：窗口销毁时清除其它窗口对它的裸引用（`owner_` / 隐藏列表），避免地址被复用后牵连不相干的窗口。
+- **修复**：`SIZE_RESTORED` 在拖拽改变窗口大小时也会触发，之前会无条件恢复已隐藏的 owned 子窗口（拖一下大小子窗口就冒出来）；改为只在“最小化 → 还原”时恢复。
+
+**控件 / 渲染**
+
+- **根源修复**：元素缓存位图合成到主渲染目标时，目标像素尺寸必须与位图像素尺寸**完全一致**，否则任何插值都会把缓存整体重采样，导致文字发糊；改为用位图实际像素数反推目标尺寸。
+- `ComboBox`：折叠框宽度按选项文本**平均宽度**自适应（放不下时省略号截断 + 自动 `ToolTip` 显示完整文本）；下拉列表宽度按**最宽选项**自适应，保证每个选项完整显示；修复“列表比框体宽时滚动条画到中间”的问题。
+
+**文档**
+
+- API 文档新增“**图像**”章节（中英），并补充 `Window`、`Label`、`ComboBox` 的新 API 与要点。
+
 ### 2026-09-13 — 大优化：交互状态、阴影 / ToolTip、控件与数据视图增强
 
 **核心框架**
@@ -161,7 +189,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 ## 文档
 
 - 在线文档站点：<https://zhc9968.github.io/ZUI/>
-- API 参考（中文，13 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
+- API 参考（中文，14 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
 - API Reference (English)：<https://zhc9968.github.io/ZUI/docs/API.en.html>
 
 ## 许可证

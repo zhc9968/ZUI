@@ -1515,18 +1515,61 @@ namespace ZUI {
         bool IsPointInExpandedList(float x, float y) const {
             if (!expanded_ && expandProgress_ <= 0.01f) return false;
             float listY = expandUp_ ? arrangedRect_.y - listViewHeight_ : arrangedRect_.y + arrangedRect_.height;
-            Rect listRect(arrangedRect_.x, listY, arrangedRect_.width, listViewHeight_);
+            Rect listRect(arrangedRect_.x, listY, ListWidth(), listViewHeight_);
             return listRect.Contains(x, y);
         }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        // 测量一段文本的像素宽度
+        float MeasureStringWidth(const std::wstring& s) {
+            if (s.empty()) return 0.0f;
+            IDWriteFactory* factory = FontManager::Instance().GetFactory();
+            IDWriteTextFormat* fmt = GetFontFormat();
+            if (!factory || !fmt) return 0.0f;
+            ComPtr<IDWriteTextLayout> layout;
+            factory->CreateTextLayout(s.c_str(), (UINT32)s.length(), fmt, 10000.0f, 1000.0f, &layout);
+            if (!layout) return 0.0f;
+            DWRITE_TEXT_METRICS m;
+            layout->GetMetrics(&m);
+            return m.width;
+        }
+        void RecalcItemWidths() {
+            avgItemWidth_ = 0.0f; widestItemWidth_ = 0.0f;
+            const std::vector<std::wstring>& src = (filterEnabled_ && !editText_.empty()) ? items_ : allItems_;
+            if (src.empty()) return;
+            float sum = 0.0f;
+            for (auto& s : src) {
+                float w = MeasureStringWidth(s);
+                sum += w;
+                if (w > widestItemWidth_) widestItemWidth_ = w;
+            }
+            avgItemWidth_ = sum / (float)src.size();
+        }
+        // 下拉框宽度：至少能完整显示最宽的选项
+        float ListWidth() const {
+            float w = arrangedRect_.width;
+            if (widestItemWidth_ > 0.0f) w = max(w, widestItemWidth_ + 24.0f);
+            return w;
+        }
+
+        Size Measure(const Size& availableSize) override {
+            RecalcItemWidths();
+            // 折叠框宽度取“选项平均宽度”（放不下时再靠 tooltip 显示完整文本）
+            float w = width_;
+            if (avgItemWidth_ > 0.0f) w = max(w, avgItemWidth_ + 36.0f);   // 8 左内边距 + 箭头/右内边距
+            std::wstring disp = editable_
+                ? editText_
+                : (selectedIndex_ >= 0 && selectedIndex_ < (int)items_.size() ? items_[selectedIndex_] : std::wstring());
+            if (!disp.empty() && MeasureStringWidth(disp) > w - 36.0f) SetToolTip(disp);
+            else SetToolTip(L"");
+            return Size(w, height_);
+        }
 
         UIElement* HitTest(float x, float y) override {
             if (!visible_) return nullptr;
             if (arrangedRect_.Contains(x, y)) return this;
             if (expanded_ || expandProgress_ > 0.01f) {
                 float listY = expandUp_ ? arrangedRect_.y - listViewHeight_ : arrangedRect_.y + arrangedRect_.height;
-                Rect listRect(arrangedRect_.x, listY, arrangedRect_.width, listViewHeight_);
+                Rect listRect(arrangedRect_.x, listY, ListWidth(), listViewHeight_);
                 if (listRect.Contains(x, y)) return this;
             }
             return nullptr;
@@ -1565,7 +1608,23 @@ namespace ZUI {
                         arrangedRect_.x + arrangedRect_.width - 28, arrangedRect_.y + arrangedRect_.height);
                     std::wstring disp = editable_ ? editText_ : (hasSel ? items_[selectedIndex_] : L"");
                     if (!disp.empty()) {
-                        rt->DrawText(disp.c_str(), (UINT32)disp.length(), fmt, txtRect, textBrush_.Get());
+                        IDWriteFactory* factory = FontManager::Instance().GetFactory();
+                        ComPtr<IDWriteTextLayout> layout;
+                        if (factory) {
+                            factory->CreateTextLayout(disp.c_str(), (UINT32)disp.length(), fmt,
+                                txtRect.right - txtRect.left, txtRect.bottom - txtRect.top, &layout);
+                        }
+                        if (layout) {
+                            layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+                            layout->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+                            layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                            ComPtr<IDWriteInlineObject> ellipsis;
+                            if (factory && SUCCEEDED(factory->CreateEllipsisTrimmingSign(fmt, &ellipsis))) {
+                                DWRITE_TRIMMING tr = { DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0, 0 };
+                                layout->SetTrimming(&tr, ellipsis.Get());
+                            }
+                            rt->DrawTextLayout(D2D1::Point2F(txtRect.left, txtRect.top), layout.Get(), textBrush_.Get());
+                        }
                     }
                     else if (!placeholder_.empty()) {
                         textBrush_->SetColor(D2D1::ColorF(0.6f, 0.6f, 0.6f, 1.0f));
@@ -1640,7 +1699,7 @@ namespace ZUI {
             listMaxScroll_ = max(0.0f, totalContentHeight - listViewHeight_);
             listScrollOffset_ = clamp(listScrollOffset_, 0.0f, listMaxScroll_);
 
-            D2D1_RECT_F listRect = D2D1::RectF(arrangedRect_.x, listY, arrangedRect_.x + arrangedRect_.width, listY + listViewHeight_);
+            D2D1_RECT_F listRect = D2D1::RectF(arrangedRect_.x, listY, arrangedRect_.x + ListWidth(), listY + listViewHeight_);
 
             ComPtr<ID2D1RoundedRectangleGeometry> clipGeometry;
             ID2D1Factory* factory = nullptr;
@@ -1679,7 +1738,7 @@ namespace ZUI {
 
             for (int i = firstVisibleIndex; i <= lastVisibleIndex; ++i) {
                 float itemTop = listY + i * listItemHeight_ - listScrollOffset_;
-                D2D1_RECT_F itemRect = D2D1::RectF(arrangedRect_.x, itemTop, arrangedRect_.x + arrangedRect_.width, itemTop + listItemHeight_);
+                D2D1_RECT_F itemRect = D2D1::RectF(arrangedRect_.x, itemTop, arrangedRect_.x + ListWidth(), itemTop + listItemHeight_);
                 bool isSelected = (i == selectedIndex_);
                 bool isHovered = (i == hoveredItemIndex_);
                 bool isPressed = (i == pressedItemIndex_);
@@ -1718,7 +1777,7 @@ namespace ZUI {
 
             if (listMaxScroll_ > 0.0f) {
                 float trackWidth = 6.0f;
-                float trackX = arrangedRect_.x + arrangedRect_.width - trackWidth - 2.0f;
+                float trackX = arrangedRect_.x + ListWidth() - trackWidth - 2.0f;
                 float trackY = listY + 2.0f;
                 float trackHeight = listViewHeight_ - 4.0f;
                 if (!scrollTrackBrush_) rt->CreateSolidColorBrush(D2D1::ColorF(0.9f, 0.9f, 0.9f, 0.8f), &scrollTrackBrush_);
@@ -2084,6 +2143,9 @@ namespace ZUI {
         float listMaxScroll_;
         float listViewHeight_;
         float listItemHeight_;
+
+        float avgItemWidth_ = 0.0f;      // 选项文本平均宽度 → 折叠框据此定宽
+        float widestItemWidth_ = 0.0f;   // 最宽选项文本 → 下拉框据此定宽（保证完整显示）
 
         float indicatorY_;
         float targetIndicatorY_;

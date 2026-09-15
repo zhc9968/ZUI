@@ -2636,9 +2636,16 @@ namespace ZUI {
             wc.hbrBackground = nullptr;
             RegisterClassExW(&wc);
 
-            hwnd_ = CreateWindowExW(0, L"ZUIWindowClass", title.c_str(), WS_OVERLAPPEDWINDOW,
+            // 关键：owner 必须在“创建时”通过 CreateWindowEx 的父窗口参数建立。
+            // 若先以 nullptr 创建、事后再 SetWindowLongPtr(GWLP_HWNDPARENT)，窗口在创建时
+            // 已作为独立顶层窗口登记，会拿到自己的任务栏按钮，且最小化不会随所有者隐藏。
+            HWND hwndOwner = owner_ ? owner_->hwnd_ : nullptr;
+            DWORD style = WS_OVERLAPPEDWINDOW;
+            if (owner_ && ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize)
+                style &= ~WS_MINIMIZEBOX;   // 方案4：创建时就置灰最小化按钮
+            hwnd_ = CreateWindowExW(0, L"ZUIWindowClass", title.c_str(), style,
                 CW_USEDEFAULT, CW_USEDEFAULT, physicalWidth, physicalHeight,
-                nullptr, nullptr, GetModuleHandle(nullptr), this);
+                hwndOwner, nullptr, GetModuleHandle(nullptr), this);
             if (!hwnd_) return false;
 
             dpi_ = GetDpiForWindow(hwnd_);
@@ -2717,6 +2724,12 @@ namespace ZUI {
         bool IsValid() const { return hwnd_ != nullptr; }
         int GetId() const { return id_; }
 
+        // 便捷：显示 / 隐藏 / 置顶（z 序最上）
+        void Show() { if (hwnd_) ShowWindow(hwnd_, SW_SHOW); }
+        void ShowNoActivate() { if (hwnd_) ShowWindow(hwnd_, SW_SHOWNOACTIVATE); }
+        void Hide() { if (hwnd_) ShowWindow(hwnd_, SW_HIDE); }
+        void Raise() { if (hwnd_) SetWindowPos(hwnd_, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE); }
+
         // 父子（owned）窗口：设置所有者后，本窗口会始终位于所有者之上，并随所有者最小化。
         void SetOwner(Window* owner) {
             owner_ = owner;
@@ -2724,28 +2737,96 @@ namespace ZUI {
         }
         Window* GetOwner() const { return owner_; }
 
-        void Run() { core_->Run(); }
-
-        // 以“模态”方式运行本窗口：禁用 owner（未指定则用 SetOwner 设置的所有者，再否则禁用当前活动窗口），
-        // 运行一个嵌套消息循环，直到本窗口关闭；返回后恢复 owner。
-        // 模态期间的低级鼠标钩子：点击被禁用的父窗口时，让模态窗口闪烁提示（并吞掉该点击）
-        static inline HWND s_modalHwnd = nullptr;
-        static LRESULT CALLBACK ModalMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
-            if (nCode == HC_ACTION && s_modalHwnd &&
-                (wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN || wParam == WM_MBUTTONDOWN)) {
-                MSLLHOOKSTRUCT* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
-                HWND target = WindowFromPoint(ms->pt);
-                if (target && target != s_modalHwnd && !IsChild(s_modalHwnd, target)) {
-                    FLASHWINFO fi = {};
-                    fi.cbSize = sizeof(fi); fi.hwnd = s_modalHwnd;
-                    fi.dwFlags = FLASHW_ALL; fi.uCount = 3; fi.dwTimeout = 0;
-                    FlashWindowEx(&fi);
-                    return 1;
-                }
-            }
-            return CallNextHookEx(nullptr, nCode, wParam, lParam);
+        // ---- 便捷：取得本窗口拥有的全部子窗口（owner == this）----
+        std::vector<Window*> GetOwnedWindows() const {
+            std::vector<Window*> out;
+            if (!core_) return out;
+            for (Window* w : core_->Windows())
+                if (w && w != this && w->GetOwner() == this) out.push_back(w);
+            return out;
         }
 
+        // ---- 便捷：闪烁提示（默认连闪 5 次）。captionOnly=true 只闪标题栏，不闪任务栏 ----
+        void Flash(int times = 5, bool captionOnly = true) {
+            if (!hwnd_) return;
+            FLASHWINFO fi = {};
+            fi.cbSize = sizeof(fi);
+            fi.hwnd = hwnd_;
+            fi.dwFlags = captionOnly ? FLASHW_CAPTION : FLASHW_ALL;
+            fi.uCount = (times > 0) ? (UINT)times : 0;
+            fi.dwTimeout = 0;
+            FlashWindowEx(&fi);
+        }
+        void StopFlash() {
+            if (!hwnd_) return;
+            FLASHWINFO fi = {}; fi.cbSize = sizeof(fi); fi.hwnd = hwnd_; fi.dwFlags = FLASHW_STOP;
+            FlashWindowEx(&fi);
+        }
+
+        // ---- 便捷：窗口样式 / 扩展样式（如 WS_EX_TOOLWINDOW、WS_MINIMIZEBOX 等）----
+        DWORD GetStyle() const { return hwnd_ ? (DWORD)GetWindowLongPtr(hwnd_, GWL_STYLE) : 0; }
+        DWORD GetExStyle() const { return hwnd_ ? (DWORD)GetWindowLongPtr(hwnd_, GWL_EXSTYLE) : 0; }
+        void SetWindowStyleFlag(DWORD flag, bool on) {
+            if (!hwnd_) return;
+            LONG_PTR s = GetWindowLongPtr(hwnd_, GWL_STYLE);
+            s = on ? (s | (LONG_PTR)flag) : (s & ~(LONG_PTR)flag);
+            SetWindowLongPtr(hwnd_, GWL_STYLE, s);
+            SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        }
+        void SetWindowExStyleFlag(DWORD flag, bool on) {
+            if (!hwnd_) return;
+            LONG_PTR s = GetWindowLongPtr(hwnd_, GWL_EXSTYLE);
+            s = on ? (s | (LONG_PTR)flag) : (s & ~(LONG_PTR)flag);
+            SetWindowLongPtr(hwnd_, GWL_EXSTYLE, s);
+            SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        }
+
+        // ---- owned 子窗口“被单独最小化”的处理方案 ----
+        enum class OwnedMinimizePolicy {
+            None,             // 方案1：不处理（保持现状，会出现小瓷砖等）
+            Hide,             // 方案2：拦截最小化 → 隐藏；父窗口还原/激活时恢复显示
+            DisableMinimize   // 方案3：禁用最小化按钮(WS_MINIMIZEBOX)，并在消息处理里忽略最小化相关消息
+        };
+        void SetOwnedMinimizePolicy(OwnedMinimizePolicy p) {
+            ownedMinimizePolicy_ = p;
+            if (hwnd_) {
+                // 方案4 需要把最小化按钮置灰；切换到其它方案时恢复
+                SetWindowStyleFlag(WS_MINIMIZEBOX, p != OwnedMinimizePolicy::DisableMinimize);
+            }
+        }
+        OwnedMinimizePolicy GetOwnedMinimizePolicy() const { return ownedMinimizePolicy_; }
+
+        // ---- owned 窗口跟随：父窗口最小化/还原时，无条件隐藏/恢复其所有 owned 窗口 ----
+        // 不能依赖系统的“最小化分组”自动行为：那是外壳按“前台窗口组”触发的，
+        // 父窗口在后台（焦点不在子窗口）被最小化时不会连带（实测已确认）。
+        void HideOwnedWindows() {
+            hiddenOwnedIds_.clear();
+            if (!core_) return;
+            for (Window* w : core_->Windows()) {
+                if (!w || w == this || w->GetOwner() != this || !w->hwnd_) continue;
+                if (IsWindowVisible(w->hwnd_)) {
+                    ShowWindow(w->hwnd_, SW_HIDE);
+                    hiddenOwnedIds_.push_back(w->id_);
+                }
+            }
+        }
+        void ShowOwnedWindows() {
+            if (!core_) { hiddenOwnedIds_.clear(); return; }
+            for (int id : hiddenOwnedIds_) {
+                if (Window* w = core_->GetWindowById(id)) {
+                    if (w->hwnd_) ShowWindow(w->hwnd_, SW_SHOW);
+                }
+            }
+            hiddenOwnedIds_.clear();
+        }
+
+        void Run() { core_->Run(); }
+
+        // 以“模态”方式运行本窗口：官方做法 —— 用 EnableWindow(FALSE) 禁用所有者，
+        // 把本窗口设为活动窗口，再跑一个嵌套消息循环；结束时恢复所有者。
+        // 点击被禁用的所有者时，系统会自行给出提示（蜂鸣/闪烁），不需要任何钩子。
         int RunModal(Window* owner = nullptr) {
             if (!hwnd_) return 0;
             Window* ow = owner ? owner : owner_;
@@ -2754,19 +2835,17 @@ namespace ZUI {
             if (ownerHwnd == hwnd_) ownerHwnd = nullptr;   // 不要禁用自己
             if (ownerHwnd) EnableWindow(ownerHwnd, FALSE);
 
-            s_modalHwnd = hwnd_;
-            HHOOK hook = SetWindowsHookExW(WH_MOUSE_LL, &Window::ModalMouseProc, nullptr, 0);
+            SetActiveWindow(hwnd_);
+            SetForegroundWindow(hwnd_);
 
             int modalExit = 0;
             MSG msg;
             while (IsWindow(hwnd_) && GetMessage(&msg, nullptr, 0, 0)) {
                 if (msg.message == WM_QUIT) { PostQuitMessage((int)msg.wParam); break; }
-                if (hwnd_ && IsDialogMessage(hwnd_, &msg)) continue;   // Tab/方向键等对话框导航
+                if (IsWindow(hwnd_) && IsDialogMessage(hwnd_, &msg)) continue;   // Tab/方向键等对话框导航
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
-            if (hook) UnhookWindowsHookEx(hook);
-            s_modalHwnd = nullptr;
 
             if (ownerHwnd && IsWindow(ownerHwnd)) {
                 EnableWindow(ownerHwnd, TRUE);
@@ -2945,7 +3024,20 @@ namespace ZUI {
             case WM_SIZE:
                 UpdateTimerState();
                 if (wParam == SIZE_MINIMIZED) {
+                    // 方案4：禁用最小化的 owned 子窗口，最小化相关消息一律不处理
+                    if (owner_ && ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize) return 0;
                     Deactivated(); UIZSignals::WindowDeactivated(this);
+                    wasMinimized_ = true;
+                    HideOwnedWindows();          // 父窗口最小化 → 无条件隐藏 owned 子窗口
+                }
+                else if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED) {
+                    // 只在“从最小化还原”时恢复 owned 子窗口。
+                    // 注意：拖拽改变窗口大小时也会收到 SIZE_RESTORED，若每次都恢复，
+                    // 之前被隐藏的 owned 子窗口会莫名其妙又冒出来（之前的 bug）。
+                    if (wasMinimized_) {
+                        wasMinimized_ = false;
+                        ShowOwnedWindows();      // 还原/最大化 → 恢复 owned 子窗口
+                    }
                 }
                 if (!IsIconic(hwnd_)) {
                     layoutNeeded_ = true;
@@ -2969,6 +3061,7 @@ namespace ZUI {
                 }
                 else {
                     Activated();
+                    ShowOwnedWindows();   // 本窗口重新获得焦点/置顶 → 恢复被隐藏的 owned 子窗口
                 }
                 return 0;
             case WM_DPICHANGED:
@@ -3086,10 +3179,37 @@ namespace ZUI {
                 // 捕获被系统/其他窗口夺走时，清理拖拽按下状态，避免松手后残留
                 pressedElement_ = nullptr;
                 return 0;
+            case WM_SYSCOMMAND:
+                // owned 子窗口被“单独最小化”的处理（见 OwnedMinimizePolicy）
+                if (owner_ && (wParam & 0xFFF0) == SC_MINIMIZE) {
+                    if (ownedMinimizePolicy_ == OwnedMinimizePolicy::Hide) {
+                        // 方案2：不真正最小化，改为隐藏；登记到父窗口，等其还原/激活时恢复
+                        ShowWindow(hwnd_, SW_HIDE);
+                        owner_->hiddenOwnedIds_.push_back(id_);
+                        return 0;
+                    }
+                    if (ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize) {
+                        // 方案4：直接忽略最小化（按钮已置灰；这里再兜底拦一次）
+                        return 0;
+                    }
+                    // 方案3：交给系统正常最小化（出现小瓷砖）
+                }
+                break;
             case WM_DESTROY:
                 if (timerRunning_) {
                     KillTimer(hwnd_, 1);
                     timerRunning_ = false;
+                }
+                // 关键：本窗口销毁前，清除其它窗口对它的所有裸引用，
+                // 否则地址被复用后会牵连到“不相干”的窗口（最小化/显示错窗口）。
+                if (core_) {
+                    int myId = id_;
+                    for (Window* w : core_->Windows()) {
+                        if (!w || w == this) continue;
+                        if (w->owner_ == this) w->owner_ = nullptr;
+                        auto& ids = w->hiddenOwnedIds_;
+                        ids.erase(std::remove(ids.begin(), ids.end(), myId), ids.end());
+                    }
                 }
                 if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);  // 清除整棵树的窗口指针，避免外部持有元素时悬垂
                 hwnd_ = nullptr;
@@ -3210,24 +3330,20 @@ namespace ZUI {
                         float scaleX = dpiX / 96.0f;
                         float scaleY = dpiY / 96.0f;
 
-                        // 坐标取整到物理像素，避免亚像素模糊
-                        auto roundToPixelX = [&](float dip) -> float {
-                            return std::round(dip * scaleX) / scaleX;
-                            };
-                        auto roundToPixelY = [&](float dip) -> float {
-                            return std::round(dip * scaleY) / scaleY;
-                            };
-
-                        float dstX = roundToPixelX(r.x - elem->cacheOriginX_);
-                        float dstY = roundToPixelY(r.y - elem->cacheOriginY_);
-                        float dstW = roundToPixelX(r.x - elem->cacheOriginX_ + elem->cacheSize_.width) - dstX;
-                        float dstH = roundToPixelY(r.y - elem->cacheOriginY_ + elem->cacheSize_.height) - dstY;
+                        // 目标像素尺寸必须与缓存位图的像素尺寸“完全一致”，否则任何插值
+                        // 都会把缓存内容整体重采样，文字/线条就会发糊。
+                        // 之前用 DIP 圆整推导目标宽度，可能与位图实际像素数差 1px，
+                        // 叠加 NEAREST 后整个缓存被轻微缩放 → 模糊。这里直接用位图像素数反推。
+                        D2D1_SIZE_U bpx = bitmap->GetPixelSize();
+                        float dstX = std::round((r.x - elem->cacheOriginX_) * scaleX) / scaleX;
+                        float dstY = std::round((r.y - elem->cacheOriginY_) * scaleY) / scaleY;
+                        float dstW = (float)bpx.width / scaleX;
+                        float dstH = (float)bpx.height / scaleY;
 
                         rt->DrawBitmap(
                             bitmap.Get(),
                             D2D1::RectF(dstX, dstY, dstX + dstW, dstY + dstH),
                             1.0f,
-                            // 缓存尺寸与目标尺寸一致，用最近邻避免线性插值带来的二次模糊
                             D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR
                         );
                     }
@@ -3875,6 +3991,9 @@ namespace ZUI {
         std::unique_ptr<MenuWindow> activeMenuRoot_;
         UIElement* mouseCaptureElement_ = nullptr;
         Window* owner_ = nullptr;
+        std::vector<int> hiddenOwnedIds_;   // 父窗口最小化时被隐藏的 owned 窗口 id（还原时恢复）
+        OwnedMinimizePolicy ownedMinimizePolicy_ = OwnedMinimizePolicy::Hide;   // 见 OwnedMinimizePolicy
+        bool wasMinimized_ = false;         // 上一状态是否最小化（只有“最小化→还原”才恢复 owned 子窗口）
         bool imePosUpdating_ = false;
         HIMC defaultIMC_ = nullptr;
 
@@ -3921,8 +4040,9 @@ namespace ZUI {
         }
         // 带所有者的窗口（父子/owned）
         std::shared_ptr<Window> CreateWindow(int width, int height, const std::wstring& title, Window* owner) {
-            auto w = CreateWindow(width, height, title);
-            if (w) w->SetOwner(owner);
+            auto w = std::make_shared<Window>();
+            if (owner) w->SetOwner(owner);   // 必须在 Create 之前设置，使其以正确的所有者创建
+            if (!w->Create(width, height, title)) return nullptr;
             return w;
         }
         // 把已有窗口登记进应用（一般由 Create 自动完成）

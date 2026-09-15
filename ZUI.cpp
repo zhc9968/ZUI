@@ -805,7 +805,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // 内嵌 base64（1x1 PNG），演示从 base64 加载
         std::shared_ptr<Image> base = Image::FromBase64(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+            "data:image/png;base64,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");
 
         auto mk = [&](const std::wstring& caption, std::shared_ptr<Image> img) {
             auto l = std::make_shared<Label>(caption);
@@ -860,10 +860,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         troot->AddChild(std::make_shared<Label>(L"这是一个独立的窗口，与主窗口互不干扰。"));
 
         auto tcombo = std::make_shared<ComboBox>();
-        tcombo->AddItem(L"选项 1");
-        tcombo->AddItem(L"选项 2");
-        tcombo->AddItem(L"选项 3");
-        tcombo->SetPlaceholder(L"点击展开（测试跨窗口不误收）");
+        tcombo->AddItem(L"方案1：不处理");
+        tcombo->AddItem(L"方案2：最小化则隐藏");
+        tcombo->AddItem(L"方案3：禁用最小化");
+        tcombo->SetPlaceholder(L"选择 owned 子窗口的最小化方案");
+        auto ownedPolicy = std::make_shared<Window::OwnedMinimizePolicy>(Window::OwnedMinimizePolicy::Hide);
+        tcombo->Connect(tcombo->SelectionChanged, [w = toolWin.get(), ownedPolicy](int idx) {
+            if (idx < 0) return;
+            *ownedPolicy = (Window::OwnedMinimizePolicy)idx;
+            for (auto* c : w->GetOwnedWindows()) c->SetOwnedMinimizePolicy(*ownedPolicy);
+            });
+        tcombo->SetSelectedIndex(1);
         troot->AddChild(tcombo);
 
         auto tbtn = std::make_shared<Button>(L"新建窗口");
@@ -880,9 +887,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
         // 父子（owned）窗口：始终位于本窗口之上，随本窗口最小化
         auto tchildBtn = std::make_shared<Button>(L"子窗口(owned)");
-        tchildBtn->Connect(tchildBtn->Clicked, [w = toolWin.get()]() {
+        tchildBtn->Connect(tchildBtn->Clicked, [w = toolWin.get(), ownedPolicy]() {
             auto c = Application::Instance().CreateWindow(360, 240, L"子窗口 (owned)", w);
             if (c) {
+                c->SetOwnedMinimizePolicy(*ownedPolicy);
                 c->GetRootColumnBox()->AddChild(std::make_shared<Label>(L"这是工具窗口的 owned 子窗口"));
                 static std::vector<std::shared_ptr<Window>> keep;
                 keep.push_back(c);
@@ -890,10 +898,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             });
         troot->AddChild(tchildBtn);
 
+        // 显示并置顶所有 owned 子窗口
+        auto tshowBtn = std::make_shared<Button>(L"显示并置顶所有子窗口");
+        tshowBtn->Connect(tshowBtn->Clicked, [w = toolWin.get()]() {
+            for (auto* c : w->GetOwnedWindows()) { c->Show(); c->Raise(); }
+            });
+        troot->AddChild(tshowBtn);
+
         // 模态窗口：禁用所有者，关闭后恢复
         auto tmodalBtn = std::make_shared<Button>(L"模态窗口");
         tmodalBtn->Connect(tmodalBtn->Clicked, [w = toolWin.get()]() {
-            auto m = Application::Instance().CreateWindow(320, 200, L"模态窗口");
+            auto m = Application::Instance().CreateWindow(320, 200, L"模态窗口", w);
             if (!m) return;
             auto r = m->GetRootColumnBox();
             r->AddChild(std::make_shared<Label>(L"模态窗口：所有者被禁用，关闭后恢复"));

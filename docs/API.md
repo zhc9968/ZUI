@@ -640,7 +640,34 @@ class Window {
 
     void SetOwner(Window* owner);              // 设置所有者：owned 子窗口，始终在所有者之上、随其最小化
     Window* GetOwner() const;
+    std::vector<Window*> GetOwnedWindows() const;   // 本窗口拥有的全部 owned 子窗口
     int RunModal(Window* owner = nullptr);     // 模态运行：禁用 owner，嵌套消息循环，关闭后恢复
+
+    // 闪烁提示（默认连闪 5 次；captionOnly=true 只闪标题栏，不闪任务栏）
+    void Flash(int times = 5, bool captionOnly = true);
+    void StopFlash();
+
+    // 样式 / 扩展样式便捷设置（如 SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true)）
+    DWORD GetStyle() const;
+    DWORD GetExStyle() const;
+    void SetWindowStyleFlag(DWORD flag, bool on);
+    void SetWindowExStyleFlag(DWORD flag, bool on);
+
+    // 显示 / 隐藏 / 置顶（z 序最上）
+    void Show();
+    void ShowNoActivate();
+    void Hide();
+    void Raise();
+
+    // owned 子窗口被“单独最小化”的处理策略
+    enum class OwnedMinimizePolicy {
+        None,            // 不处理（会出现老式“小瓷砖”）
+        Hide,            // 拦截最小化 → 隐藏；父窗口还原/激活时恢复
+        DisableMinimize  // 禁用最小化按钮，并忽略最小化相关消息
+    };
+    void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
+    OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -656,6 +683,10 @@ class Window {
 - 帧时间 `deltaTime` 被钳制在 `0.033s`，空闲或最小化恢复后不会让动画一帧跳到终点。
 - 标题栏颜色是 Win11 的 DWM 属性；在不支持的系统上会被忽略。
 - 阴影：窗口负责把元素的阴影合成进其离屏缓存；ToolTip 也由窗口统一绘制。
+- **owned 子窗口**：用 `CreateWindow(...)` / `SetOwner` 建立的所有者关系在**创建时**即生效（`CreateWindowEx` 的父窗口参数），因此 owned 窗口**不会有独立任务栏按钮**；父窗口最小化时会**无条件**隐藏其 owned 子窗口、还原/激活时恢复（不依赖系统“最小化分组”，避免父窗口在后台时子窗口不跟随）。
+- **模态**：`RunModal` 用官方机制实现——`EnableWindow(owner, FALSE)` + 激活模态窗 + `IsDialogMessage` 嵌套消息循环；**不使用任何全局钩子**，不会影响其它进程。点击被禁用的所有者时由系统给出标准提示。
+- **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
+- **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
 
 ###chapter: 应用与多窗口 | Application 与多窗口
 
@@ -757,12 +788,27 @@ class Label : public UIElement {
     static void SetDefaultFontSize(float);
     static void SetDefaultOverflow(TextOverflow);
     static void SetDefaultAlignment(HAlign, VAlign);
+
+    // 图标 / 图片
+    void SetImage(std::shared_ptr<Image> image);
+    std::shared_ptr<Image> GetImage() const;
+    void SetIconSize(float w, float h);      // 0 表示按图像原尺寸
+    Size GetIconSize() const;
+    void SetIconSpacing(float spacing);      // 图标与文本/子控件的间距
+    float GetIconSpacing() const;
+
+    // 嵌套子控件（内联横排：图标 + 文本 + 子控件）
+    void AddChild(std::shared_ptr<UIElement> child);
+    void ClearChildren();
+    size_t GetChildCount() const;
 };
 ```
 
 - 默认：黑色文字、`Ellipsis`、左对齐、垂直居中、字号 `16`。
 - `SetMaxLines` 只在 `Wrap` 模式下有意义；`Ellipsis` 本身就是单行。
 - 禁用时文字自动变为灰色（`DefaultDisabledColor`）。
+- **图标**：`SetImage` 后 Label 在文本左侧绘制图标；`SetIconSize(0,0)` 表示用图像原尺寸。图标可与文字、子控件共存（即使没有文字也会绘制）。
+- **嵌套子控件**：`AddChild` 的子控件与图标、文本**内联横排**，并参与 `GetChildren()` 递归（窗口归属、重绘、布局都按子控件处理）。
 
 ## Button
 
@@ -896,6 +942,7 @@ class ComboBox : public UIElement {
 - `SetMaxVisibleItems(n)` 限制下拉最多显示 `n` 行，超出部分滚动。
 - **可编辑 + 过滤**：`SetEditable(true)` 后可输入；`SetFilterEnabled(true)` 时输入内容会即时筛选下拉项（大小写不敏感的子串匹配）；`GetSelectedIndex()` 对应**筛选后**的列表。带闪烁光标，点击可定位光标位置（当前版本不支持文本区间选区）。
 - `SetItemDisabled` 的禁用项不可被选择，键盘上下键会跳过。
+- **宽度自适应**：折叠框宽度取“选项文本平均宽度”（放不下当前文本时用省略号截断，并自动挂 `ToolTip` 显示完整文本）；**下拉列表宽度取最宽选项**，保证每个选项都完整显示（列表的命中检测、背景、滚动条都按该宽度对齐）。
 
 ## ToggleSwitch
 
@@ -1329,6 +1376,82 @@ class TreeView : public UIElement {
 - `SetDefaultExpandDepth` 只影响**之后插入**的节点；对已存在节点用 `ExpandToDepth`。
 - `SortChildren` 只对子节点排序，`recursive=true` 时递归排序整棵子树。
 - 节点的 `tooltip` 通过基础类统一 ToolTip 显示；`enabled=false` 的节点置灰且不可选。
+
+###chapter: 图像 | Image、ImageManager、ImageDeviceCache
+
+图像系统在 `ZUIImages.h`，用 WIC 解码、Direct2D（GPU）绘制与变换。
+
+## ImageManager / ImageDeviceCache
+
+```cpp
+class ImageManager {
+    static ImageManager& Instance();
+    IWICImagingFactory* Factory();                        // 共享的 WIC 工厂
+    void RegisterCache(const std::shared_ptr<ImageDeviceCache>&);
+    void ClearAllDeviceCaches();                          // 设备丢失/重建时清理所有图像的 D2D 位图缓存
+};
+
+class ImageDeviceCache {                                  // 某个 Image 在“每个渲染目标”上的 ID2D1Bitmap 缓存
+    ID2D1Bitmap* Get(ID2D1RenderTarget*, IWICBitmapSource*);
+    void Clear();
+    void Clear(ID2D1RenderTarget*);
+};
+```
+
+- 解码结果（`IWICBitmapSource`，32bppPBGRA）是**设备无关**的，每个 `Image` 一份；`ImageDeviceCache` 按渲染目标缓存一张 `ID2D1Bitmap`（D2D 位图属于创建它的渲染目标）。
+- 设备丢失时由框架调用 `ClearAllDeviceCaches()` 统一重建。
+
+## Image
+
+```cpp
+class Image {
+    enum class Format { Png, Jpeg, Bmp, Gif, Tiff };
+    enum class Interpolation { Nearest, Linear };
+    struct DrawOptions { float opacity = 1.0f; Interpolation interpolation = Interpolation::Linear; };
+
+    bool IsNull() const;
+    int Width() const; int Height() const;
+    Rect Bounds() const;
+    bool HasAlpha() const;
+
+    // 加载
+    static std::shared_ptr<Image> FromFile(const std::wstring& path);
+    static std::shared_ptr<Image> FromMemory(const void* data, size_t size);
+    static std::shared_ptr<Image> FromBase64(const std::string& base64);            // 支持 data: URI 前缀与 URL-safe
+    static std::shared_ptr<Image> FromResource(HMODULE mod, const wchar_t* name, const wchar_t* type);
+    static std::shared_ptr<Image> FromResource(int id, const wchar_t* type);        // 当前模块
+    static std::shared_ptr<Image> FromHBITMAP(HBITMAP);
+    static std::shared_ptr<Image> FromHICON(HICON);
+
+    // 变换（轻量描述符，绘制时 GPU 施加，共享同一份解码数据）
+    std::shared_ptr<Image> Scaled(float w, float h) const;
+    std::shared_ptr<Image> ScaledToWidth(float w) const;
+    std::shared_ptr<Image> ScaledToHeight(float h) const;
+    std::shared_ptr<Image> Rotated(float degrees) const;
+    std::shared_ptr<Image> Mirrored(bool horizontal = true, bool vertical = false) const;
+    std::shared_ptr<Image> Cropped(const Rect& srcRect) const;
+
+    // 绘制（GPU）
+    void Draw(ID2D1RenderTarget* rt, const Rect& dst, const DrawOptions& = {}) const;
+    void Draw(ID2D1RenderTarget* rt, const D2D1_RECT_F& dst, const DrawOptions& = {}) const;
+    void Draw(ID2D1RenderTarget* rt, float x, float y, const DrawOptions& = {}) const;
+    ComPtr<ID2D1Bitmap> Bake(ID2D1RenderTarget* rt) const;
+
+    // 编码 / 保存
+    bool Save(const std::wstring& path, Format = Format::Png, float quality = 0.9f) const;
+    std::vector<uint8_t> Encode(Format = Format::Png, float quality = 0.9f) const;
+};
+```
+
+**要点与易混点**：
+
+- **解码一次、共享**：`Scaled/Rotated/Mirrored/Cropped` 返回的是共享同一份解码数据的新 `Image`（轻量描述符），变换在 `Draw` 时由 GPU 施加，不重复解码，也不做 CPU 逐像素处理。
+- **设备位图缓存**：同一 `Image` 在同一窗口反复绘制只上传一次 GPU 位图；多窗口各自一张。
+- **元数据缓存（根源）**：内存型输入（`FromMemory/FromBase64/FromResource(RT_BITMAP)`）用的 `IWICStream::InitializeFromMemory` **不复制**缓冲区，而帧解码 / 格式转换是**惰性**的；若不在解码时立即取像素，绘制阶段会读到已释放内存（表现为图像完全不显示）。实现里用 `WICBitmapCacheOnLoad` 在 `detail_img_MakeFromSource` 内**立即把像素拷进独立 WIC 位图**，与来源内存彻底解耦。
+- **资源**：`FromResource` 的 `type` 可传 `L"PNG"`/`L"IMAGE"`/`RT_RCDATA`/`RT_BITMAP` 等；`RT_BITMAP`（DIB）会自动补 BMP 文件头再解码；`HMODULE` 版本可用于**从 DLL 资源**加载。
+- **编码**：`Encode` 用 `CreateStreamOnHGlobal` 得到可增长内存流（**无临时文件**），返回编码字节；`Save` 直接写文件。
+- **配合 `Label`**：`Label::SetImage` + `SetIconSize` 即可显示图标（见“基础控件 → Label”）。
+- **变换矩阵（根源）**：`Rotated/Mirrored` 以目标矩形中心为轴。D2D 矩阵乘法是“左侧先应用”，必须用带 `center` 的 `Rotation/Scale` 重载，否则会把图像推出目标矩形（表现为旋转/镜像后什么都看不到）。
 
 ###chapter: 附录 | 信号一览、默认值速查与常见坑
 

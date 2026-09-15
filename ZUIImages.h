@@ -174,7 +174,7 @@ namespace ZUI {
     // ==================================================================
     namespace detail_img {
 
-        inline std::wstring Base64DecodeW(const std::string& base64, bool& ok) {
+        inline std::vector<uint8_t> Base64Decode(const std::string& base64) {
             // 去掉 data URI 前缀
             std::string s = base64;
             size_t comma = s.find(',');
@@ -187,18 +187,16 @@ namespace ZUI {
                 if (c == '/' || c == '_') return 63;
                 return -1;
                 };
-            std::string out;
+            std::vector<uint8_t> out;
             int buf = 0, bits = 0;
             for (char c : s) {
                 if (c == '=') break;
                 int v = val(c);
                 if (v < 0) continue;   // 跳过空白等
                 buf = (buf << 6) | v; bits += 6;
-                if (bits >= 8) { bits -= 8; out.push_back((char)((buf >> bits) & 0xFF)); }
+                if (bits >= 8) { bits -= 8; out.push_back((uint8_t)((buf >> bits) & 0xFF)); }
             }
-            ok = !out.empty();
-            std::wstring w(out.begin(), out.end());
-            return w;
+            return out;
         }
 
         // 从内存/资源字节解码（自动识别格式）
@@ -241,6 +239,15 @@ namespace ZUI {
     }
 
     // 把任意 WIC 源转成 32bppPBGRA 并返回 Image
+    //
+    // 根源说明（务必保留这段缓存逻辑）：
+    //   IWICStream::InitializeFromMemory 不复制缓冲区，调用者必须保证该内存在
+    //   流的整个生命周期内有效；而帧解码 / 格式转换都是惰性的，真正的像素读取
+    //   发生在后面的 ID2D1RenderTarget::CreateBitmapFromWicBitmap。
+    //   FromMemory / FromBase64 / FromResource(RT_BITMAP) 传入的都是临时缓冲，
+    //   函数返回后即析构——若此处不立即取像素，绘制时会访问已释放内存，
+    //   结果是 CreateBitmapFromWicBitmap 返回 nullptr（什么都不画）或读到垃圾数据。
+    //   因此这里用 WICBitmapCacheOnLoad 强制把像素拷进一张独立 WIC 位图，与来源内存彻底解耦。
     inline std::shared_ptr<Image> detail_img_MakeFromSource(IWICBitmapSource* src) {
         if (!src) return nullptr;
         IWICImagingFactory* f = ImageManager::Instance().Factory();
@@ -251,6 +258,10 @@ namespace ZUI {
         if (SUCCEEDED(f->CreateFormatConverter(conv.GetAddressOf()))) {
             if (SUCCEEDED(conv->Initialize(src, GUID_WICPixelFormat32bppPBGRA,
                 WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom))) {
+                ComPtr<IWICBitmap> cached;
+                if (SUCCEEDED(f->CreateBitmapFromSource(conv.Get(), WICBitmapCacheOnLoad, cached.GetAddressOf()))) {
+                    return Image::FromSource(cached.Get(), (int)w, (int)h, true);
+                }
                 return Image::FromSource(conv.Get(), (int)w, (int)h, true);
             }
         }
@@ -288,9 +299,8 @@ namespace ZUI {
     }
 
     inline std::shared_ptr<Image> Image::FromBase64(const std::string& base64) {
-        bool ok = false;
-        std::wstring bytes = detail_img::Base64DecodeW(base64, ok);
-        if (!ok) return nullptr;
+        std::vector<uint8_t> bytes = detail_img::Base64Decode(base64);
+        if (bytes.empty()) return nullptr;
         return detail_img::DecodeFromMemory(bytes.data(), bytes.size());
     }
 
@@ -399,13 +409,15 @@ namespace ZUI {
         D2D1::Matrix3x2F oldT;
         if (needXform) {
             rt->GetTransform(&oldT);
-            float cx = (dst.left + dst.right) * 0.5f;
-            float cy = (dst.top + dst.bottom) * 0.5f;
+            // 绕“目标矩形中心”做旋转/镜像。
+            // 注意 D2D1::Matrix3x2F 的乘法是“左边的先应用”（行向量 p*M）。
+            // 之前写成 Translation(+c) * ... * Translation(-c)，把中心平移用反了，
+            // 图像被整体位移约 2×center，落到图标矩形之外，看起来就是“没画出来”。
+            // 这里改用带 center 的重载，语义清晰且不会写反。
+            D2D1_POINT_2F pivot = D2D1::Point2F((dst.left + dst.right) * 0.5f, (dst.top + dst.bottom) * 0.5f);
             D2D1::Matrix3x2F m =
-                D2D1::Matrix3x2F::Translation(cx, cy) *
-                D2D1::Matrix3x2F::Rotation(xf_.rot) *
-                D2D1::Matrix3x2F::Scale(xf_.mh ? -1.0f : 1.0f, xf_.mv ? -1.0f : 1.0f) *
-                D2D1::Matrix3x2F::Translation(-cx, -cy);
+                D2D1::Matrix3x2F::Rotation(xf_.rot, pivot) *
+                D2D1::Matrix3x2F::Scale(xf_.mh ? -1.0f : 1.0f, xf_.mv ? -1.0f : 1.0f, pivot);
             rt->SetTransform(m * oldT);
         }
 

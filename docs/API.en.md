@@ -631,7 +631,34 @@ class Window {
 
     void SetOwner(Window* owner);              // owned window: stays above the owner, minimizes with it
     Window* GetOwner() const;
+    std::vector<Window*> GetOwnedWindows() const;   // all owned child windows of this window
     int RunModal(Window* owner = nullptr);     // run modally: disables the owner, nested loop, restores on close
+
+    // Flash hint (5 consecutive flashes by default; captionOnly flashes only the caption, not the taskbar)
+    void Flash(int times = 5, bool captionOnly = true);
+    void StopFlash();
+
+    // Convenient style / extended-style helpers (e.g. SetWindowExStyleFlag(WS_EX_TOOLWINDOW, true))
+    DWORD GetStyle() const;
+    DWORD GetExStyle() const;
+    void SetWindowStyleFlag(DWORD flag, bool on);
+    void SetWindowExStyleFlag(DWORD flag, bool on);
+
+    // Show / hide / raise (bring to top of z-order)
+    void Show();
+    void ShowNoActivate();
+    void Hide();
+    void Raise();
+
+    // How an owned child handles being minimized on its own
+    enum class OwnedMinimizePolicy {
+        None,            // do nothing (an old-style "small tile" may appear)
+        Hide,            // intercept minimize -> hide; restore when the owner restores/activates
+        DisableMinimize  // gray out the minimize button and ignore minimize-related messages
+    };
+    void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
+    OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -647,6 +674,10 @@ class Window {
 - `deltaTime` is clamped to `0.033s`, so animations never jump to their end after idle/minimize.
 - Title-bar colors use Win11 DWM attributes; ignored on unsupported systems.
 - Shadows: the window composites element shadows into their caches; tooltips are drawn by the window too.
+- **Owned windows**: the owner relationship set at creation (via the `CreateWindowEx` parent parameter) means owned windows have **no separate taskbar button**; when the owner is minimized their owned children are hidden **unconditionally**, restored when the owner is restored/activated (not relying on the shell's minimize grouping, which does not apply when the owner is in the background).
+- **Modal**: `RunModal` uses the official mechanism — `EnableWindow(owner, FALSE)` + activating the modal window + an `IsDialogMessage` nested loop. **No global hooks are used**, so other processes are unaffected. Clicking the disabled owner produces the standard system hint.
+- **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
+- **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
 
 ###chapter: Application and multiple windows | Application and multi-window
 
@@ -747,12 +778,27 @@ class Label : public UIElement {
     static void SetDefaultFontSize(float);
     static void SetDefaultOverflow(TextOverflow);
     static void SetDefaultAlignment(HAlign, VAlign);
+
+    // Icon / image
+    void SetImage(std::shared_ptr<Image> image);
+    std::shared_ptr<Image> GetImage() const;
+    void SetIconSize(float w, float h);      // 0 means the image's natural size
+    Size GetIconSize() const;
+    void SetIconSpacing(float spacing);      // gap between icon and text/children
+    float GetIconSpacing() const;
+
+    // Nested child elements (inline row: icon + text + children)
+    void AddChild(std::shared_ptr<UIElement> child);
+    void ClearChildren();
+    size_t GetChildCount() const;
 };
 ```
 
 - Defaults: black text, `Ellipsis`, left-aligned, vertically centered, size `16`.
 - `SetMaxLines` only matters in `Wrap` mode; `Ellipsis` is inherently single-line.
 - When disabled the text turns grey (`DefaultDisabledColor`).
+- **Icon**: after `SetImage` the Label draws the icon to the left of its text; `SetIconSize(0,0)` uses the image's natural size. An icon can coexist with text and children (it is drawn even with no text).
+- **Nested children**: elements added via `AddChild` are laid out **inline** with the icon and text, and participate in `GetChildren()` recursion (window ownership, repaint, and layout all treat them as child elements).
 
 ## Button
 
@@ -873,6 +919,7 @@ class ComboBox : public UIElement {
 - `SetMaxVisibleItems(n)` limits the visible rows; extras scroll.
 - **Editable + filtering**: `SetEditable(true)` enables typing; `SetFilterEnabled(true)` filters items live (case-insensitive substring); `GetSelectedIndex()` refers to the **filtered** list. It has a blinking caret and click-to-position (text-range selection is not supported in this version).
 - Disabled items cannot be selected; keyboard navigation skips them.
+- **Adaptive width**: the collapsed box is sized to the **average item text width** (text that does not fit is ellipsized and gets an automatic `ToolTip` with the full text); the **drop-down list is sized to the widest item** so every option is fully visible (hit-testing, background, and scrollbar all use that width).
 
 ## ToggleSwitch
 
@@ -1257,6 +1304,82 @@ class TreeView : public UIElement {
 - `SetDefaultExpandDepth` affects **newly inserted** nodes only; use `ExpandToDepth` for existing ones.
 - `SortChildren` sorts only the given node's children; `recursive=true` sorts the whole subtree.
 - Node `tooltip` uses the shared tooltip; `enabled=false` greys the node and makes it unselectable.
+
+###chapter: Images | Image, ImageManager, ImageDeviceCache
+
+The image system lives in `ZUIImages.h`: WIC decoding plus Direct2D (GPU) drawing and transforms.
+
+## ImageManager / ImageDeviceCache
+
+```cpp
+class ImageManager {
+    static ImageManager& Instance();
+    IWICImagingFactory* Factory();                        // shared WIC factory
+    void RegisterCache(const std::shared_ptr<ImageDeviceCache>&);
+    void ClearAllDeviceCaches();                          // clears every image's D2D bitmap cache on device loss
+};
+
+class ImageDeviceCache {                                  // per-render-target ID2D1Bitmap cache for one Image
+    ID2D1Bitmap* Get(ID2D1RenderTarget*, IWICBitmapSource*);
+    void Clear();
+    void Clear(ID2D1RenderTarget*);
+};
+```
+
+- Decoded pixels (`IWICBitmapSource`, 32bppPBGRA) are **device-independent**, one per `Image`; `ImageDeviceCache` caches one `ID2D1Bitmap` per render target (D2D bitmaps belong to the render target that created them).
+- On device loss the framework calls `ClearAllDeviceCaches()` to rebuild them.
+
+## Image
+
+```cpp
+class Image {
+    enum class Format { Png, Jpeg, Bmp, Gif, Tiff };
+    enum class Interpolation { Nearest, Linear };
+    struct DrawOptions { float opacity = 1.0f; Interpolation interpolation = Interpolation::Linear; };
+
+    bool IsNull() const;
+    int Width() const; int Height() const;
+    Rect Bounds() const;
+    bool HasAlpha() const;
+
+    // Loading
+    static std::shared_ptr<Image> FromFile(const std::wstring& path);
+    static std::shared_ptr<Image> FromMemory(const void* data, size_t size);
+    static std::shared_ptr<Image> FromBase64(const std::string& base64);            // supports data: URI prefix and URL-safe
+    static std::shared_ptr<Image> FromResource(HMODULE mod, const wchar_t* name, const wchar_t* type);
+    static std::shared_ptr<Image> FromResource(int id, const wchar_t* type);        // current module
+    static std::shared_ptr<Image> FromHBITMAP(HBITMAP);
+    static std::shared_ptr<Image> FromHICON(HICON);
+
+    // Transforms (lightweight descriptors applied by the GPU at draw time; share one decoded source)
+    std::shared_ptr<Image> Scaled(float w, float h) const;
+    std::shared_ptr<Image> ScaledToWidth(float w) const;
+    std::shared_ptr<Image> ScaledToHeight(float h) const;
+    std::shared_ptr<Image> Rotated(float degrees) const;
+    std::shared_ptr<Image> Mirrored(bool horizontal = true, bool vertical = false) const;
+    std::shared_ptr<Image> Cropped(const Rect& srcRect) const;
+
+    // Drawing (GPU)
+    void Draw(ID2D1RenderTarget* rt, const Rect& dst, const DrawOptions& = {}) const;
+    void Draw(ID2D1RenderTarget* rt, const D2D1_RECT_F& dst, const DrawOptions& = {}) const;
+    void Draw(ID2D1RenderTarget* rt, float x, float y, const DrawOptions& = {}) const;
+    ComPtr<ID2D1Bitmap> Bake(ID2D1RenderTarget* rt) const;
+
+    // Encoding / saving
+    bool Save(const std::wstring& path, Format = Format::Png, float quality = 0.9f) const;
+    std::vector<uint8_t> Encode(Format = Format::Png, float quality = 0.9f) const;
+};
+```
+
+**Notes and pitfalls:**
+
+- **Decode once, share**: `Scaled/Rotated/Mirrored/Cropped` return new `Image` objects sharing the same decoded source (lightweight descriptors); transforms are applied by the GPU at `Draw` time with no re-decoding and no per-pixel CPU work.
+- **Device bitmap cache**: drawing the same `Image` repeatedly in one window uploads its GPU bitmap once; each window has its own.
+- **Lifetime (root cause)**: memory-backed inputs (`FromMemory/FromBase64/FromResource(RT_BITMAP)`) use `IWICStream::InitializeFromMemory`, which does **not copy** the buffer, and frame decoding / format conversion are **lazy**; if pixels are not fetched at decode time, drawing reads freed memory (the image simply never appears). The implementation therefore uses `WICBitmapCacheOnLoad` inside `detail_img_MakeFromSource` to **copy the pixels into an independent WIC bitmap immediately**, fully decoupling from the source buffer.
+- **Resources**: `type` may be `L"PNG"`/`L"IMAGE"`/`RT_RCDATA`/`RT_BITMAP`, etc.; `RT_BITMAP` (DIB) gets a BMP file header prepended automatically; the `HMODULE` overload can load **from a DLL's resources**.
+- **Encoding**: `Encode` uses `CreateStreamOnHGlobal` (a growable memory stream, **no temp files**) and returns the encoded bytes; `Save` writes a file directly.
+- **With `Label`**: use `Label::SetImage` + `SetIconSize` to show an icon (see "Basic controls -> Label").
+- **Transform matrix (root cause)**: `Rotated/Mirrored` pivot around the destination rect center. D2D matrix multiplication applies the **left operand first**, so the `Rotation/Scale` overloads that take a `center` must be used; otherwise the image is pushed out of the target rect (rotated/mirrored images appear missing).
 
 ###chapter: Appendix | Signal list, default values, and common pitfalls
 

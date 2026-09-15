@@ -109,6 +109,34 @@ Key points:
 
 ## Changelog
 
+### 2026-09-15 — Image system, window mechanisms, and root-cause fixes
+
+**Images (new `ZUIImages.h`)**
+
+- New `Image`: WIC decoding + Direct2D (GPU) drawing/transforms. Loading: `FromFile / FromMemory / FromBase64 / FromResource(HMODULE,name,type) / FromResource(id,type) / FromHBITMAP / FromHICON`; transforms: `Scaled / ScaledToWidth / ScaledToHeight / Rotated / Mirrored / Cropped` (lightweight descriptors applied by the GPU at draw time); drawing: `Draw` (opacity / interpolation), `Bake`; encoding: `Save / Encode` (`CreateStreamOnHGlobal` memory stream, **no temp files**).
+- `ImageManager`: shared `IWICImagingFactory` and device-cache registry; `ImageDeviceCache`: one `ID2D1Bitmap` per render target, rebuilt on device loss. The same image is uploaded to the GPU once per window.
+- **Root-cause fix**: `IWICStream::InitializeFromMemory` does not copy the buffer and decoding/conversion are lazy; pixels are now copied into an independent WIC bitmap immediately at decode time via `WICBitmapCacheOnLoad`, so `FromMemory/FromBase64/RT_BITMAP` no longer read freed memory while drawing (previously the image **never appeared**).
+- **Root-cause fix**: the transform matrix composition in `DrawWithTransform` was reversed, pushing rotated/mirrored images out of the target rect (they appeared **missing**); fixed by using the `Rotation/Scale` overloads that take a `center`.
+- `Label` now supports an **icon and nested children**: `SetImage/GetImage`, `SetIconSize/GetIconSize`, `SetIconSpacing/GetIconSpacing`, `AddChild/ClearChildren/GetChildCount` (icon + text + children laid out inline).
+
+**Windows**
+
+- `RunModal` now uses the official mechanism: `EnableWindow(owner, FALSE)` + activating the modal window + an `IsDialogMessage` nested loop; the **global low-level mouse hook was removed** (it used to swallow clicks for other processes, breaking the whole desktop's input while modal).
+- Owned child windows now establish the owner relationship **at creation** (via the `CreateWindowEx` parent parameter), so they have no separate taskbar button; when the owner is minimized their owned children are hidden **unconditionally** and restored on restore/activate (no longer relying on the shell's minimize grouping, which fails when the owner is in the background).
+- New convenience APIs: `Flash(times=5, captionOnly=true)` / `StopFlash()` (`FlashWindowEx`), `GetOwnedWindows()`, `GetStyle()/GetExStyle()`, `SetWindowStyleFlag/SetWindowExStyleFlag` (e.g. `WS_EX_TOOLWINDOW`), `Show()/ShowNoActivate()/Hide()/Raise()`.
+- New `OwnedMinimizePolicy { None, Hide, DisableMinimize }` + `SetOwnedMinimizePolicy` for how an owned child handles being minimized on its own.
+- **Fix**: on destroy a window clears every reference other windows hold to it (`owner_` / hidden lists), so address reuse can never affect unrelated windows.
+- **Fix**: `SIZE_RESTORED` also fires while dragging to resize, which used to unconditionally restore hidden owned children (resizing made them pop back); now they are restored only on a real "minimize -> restore".
+
+**Controls / rendering**
+
+- **Root-cause fix**: when an element cache bitmap is composited onto the main render target, the destination pixel size must exactly match the bitmap's pixel size; otherwise any interpolation resamples the whole cache and text looks blurry. Now the destination size is derived from the bitmap's actual pixel size.
+- `ComboBox`: the collapsed box sizes to the **average item text width** (overflow is ellipsized with an automatic `ToolTip` of the full text); the drop-down list sizes to the **widest item** so every option is fully visible; fixed the scrollbar being drawn in the middle when the list is wider than the box.
+
+**Docs**
+
+- API docs gained an **Images** chapter (zh/en), plus new `Window`, `Label`, and `ComboBox` APIs and notes.
+
 ### 2026-09-13 — Major update: interaction states, shadows / tooltips, controls and data views
 
 **Core**
@@ -161,7 +189,7 @@ Key points:
 ## Documentation
 
 - Online documentation: <https://zhc9968.github.io/ZUI/>
-- API Reference (English, 13 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
+- API Reference (English, 14 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
 - API 参考（中文）: <https://zhc9968.github.io/ZUI/docs/API.html>
 
 ## License
