@@ -197,7 +197,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class="active"><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Appendix</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class="active"><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>```cpp
@@ -259,6 +259,44 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
+    // Backdrop implementation (3 modes) + Win11 system material + unsupported callback
+    enum class BackdropMode {
+        Auto,            // adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp
+        Acrylic,         // force: AccentState acrylic (visible on Win10/11)
+        SystemBackdrop   // force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)
+    };
+    void SetBackdropMode(BackdropMode m);
+    BackdropMode GetBackdropMode() const;
+    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
+    void SetSystemBackdropMaterial(SystemBackdropMaterial m);
+    SystemBackdropMaterial GetSystemBackdropMaterial() const;
+    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);
+
+    // Custom title bar (control in the "Window tools" chapter)
+    void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // pass nullptr to restore the native one
+    std::shared_ptr&lt;UIElement&gt; GetCustomTitleBar() const;
+    bool HasCustomTitleBar() const;
+    float GetCustomTitleBarHeight() const;
+    void SetTitleBarVisible(bool on);
+    bool IsTitleBarVisible() const;
+
+    // Border / resizing
+    void SetResizable(bool on);
+    bool IsResizable() const;
+
+    // Corner preference
+    enum class WindowCorner { Default, Square, Round, RoundSmall };
+    void SetWindowCorner(WindowCorner c);
+    WindowCorner GetWindowCorner() const;
+
+    // Window actions (for custom title bar buttons)
+    void Minimize();
+    void Maximize();
+    void Restore();
+    void MaximizeRestore();
+    bool IsMaximizedWindow() const;
+    void BeginSystemDrag();
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -277,12 +315,19 @@ class Window {
 - **Owned windows**: the owner relationship set at creation (via the `CreateWindowEx` parent parameter) means owned windows have **no separate taskbar button**; when the owner is minimized their owned children are hidden **unconditionally**, restored when the owner is restored/activated (not relying on the shell's minimize grouping, which does not apply when the owner is in the background).
 - **Modal**: `RunModal` uses the official mechanism — `EnableWindow(owner, FALSE)` + activating the modal window + an `IsDialogMessage` nested loop. **No global hooks are used**, so other processes are unaffected. Clicking the disabled owner produces the standard system hint.
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
-- **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.</pre></div></div>
+- **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
+- **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
+- **Backdrop modes**: `Auto` / `Acrylic` use the `SetWindowCompositionAttribute` AccentState acrylic; `SystemBackdrop` uses Win11's `DWMWA_SYSTEMBACKDROP_TYPE` (`Mica`/`MicaAlt`/`Acrylic`). If unsupported at runtime (e.g. Win10) the handler registered via `SetBackdropUnsupportedHandler` is called and it falls back to AccentState.
+- **Known limitations (important)**: ZUI currently renders through an `ID2D1HwndRenderTarget` (an opaque redirection surface), so it **cannot display DWM system materials**. Therefore:
+  1) `BackdropMode::Auto` currently uses AccentState on both Win10 and Win11; `SystemBackdrop` is **not visible** until the render target is migrated to DirectComposition (it will look gray/black);
+  2) AccentState acrylic (`AcrylicBlurBehind`) is an undocumented API and makes DWM **skip window transition animations** (minimize/maximize) on both Win10 and Win11 — inherent to that API;
+  3) getting "acrylic + native animations + Mica" together requires migrating rendering from `HwndRenderTarget` to DirectComposition (SwapChain / CompositionSurface), which is planned.
+- **Border / resize / corners**: `SetResizable` controls edge resizing; when snapped, the DWM border/shadow is preserved (`WM_NCCALCSIZE` only insets the snapped edges), and maximizing does not inset. `SetWindowCorner` maps to `DWMWA_WINDOW_CORNER_PREFERENCE`.</pre></div></div>
 <div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 9 · Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 9</span><h1>Window</h1><p class="chapter-summary">Creation, backdrop, title bar, and root layout</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-227009d0', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-2e70bec5', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
@@ -342,11 +387,49 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
 <span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
+<span class="w">    </span><span class="c1">// Backdrop implementation (3 modes) + Win11 system material + unsupported callback</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BackdropMode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">            </span><span class="c1">// adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp</span>
+<span class="w">        </span><span class="n">Acrylic</span><span class="p">,</span><span class="w">         </span><span class="c1">// force: AccentState acrylic (visible on Win10/11)</span>
+<span class="w">        </span><span class="n">SystemBackdrop</span><span class="w">   </span><span class="c1">// force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropMode</span><span class="p">(</span><span class="n">BackdropMode</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
+<span class="w">    </span><span class="n">BackdropMode</span><span class="w"> </span><span class="nf">GetBackdropMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SystemBackdropMaterial</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Auto</span><span class="p">,</span><span class="w"> </span><span class="n">Mica</span><span class="p">,</span><span class="w"> </span><span class="n">MicaAlt</span><span class="p">,</span><span class="w"> </span><span class="n">Acrylic</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSystemBackdropMaterial</span><span class="p">(</span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="nf">GetSystemBackdropMaterial</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropUnsupportedHandler</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">handler</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Custom title bar (control in the "Window tools" chapter)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCustomTitleBar</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">bar</span><span class="p">);</span><span class="w">   </span><span class="c1">// pass nullptr to restore the native one</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCustomTitleBar</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">HasCustomTitleBar</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetCustomTitleBarHeight</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitleBarVisible</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsTitleBarVisible</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Border / resizing</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetResizable</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsResizable</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Corner preference</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">WindowCorner</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Default</span><span class="p">,</span><span class="w"> </span><span class="n">Square</span><span class="p">,</span><span class="w"> </span><span class="n">Round</span><span class="p">,</span><span class="w"> </span><span class="n">RoundSmall</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetWindowCorner</span><span class="p">(</span><span class="n">WindowCorner</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="w">    </span><span class="n">WindowCorner</span><span class="w"> </span><span class="nf">GetWindowCorner</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Window actions (for custom title bar buttons)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Minimize</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Maximize</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Restore</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">MaximizeRestore</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsMaximizedWindow</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">BeginSystemDrag</span><span class="p">();</span>
+
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-227009d0" style="display: none;">class Window {
+<pre id="code-2e70bec5" style="display: none;">class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
     static Color DefaultBackgroundColor;          // transparent
@@ -404,6 +487,44 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
+    // Backdrop implementation (3 modes) + Win11 system material + unsupported callback
+    enum class BackdropMode {
+        Auto,            // adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp
+        Acrylic,         // force: AccentState acrylic (visible on Win10/11)
+        SystemBackdrop   // force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)
+    };
+    void SetBackdropMode(BackdropMode m);
+    BackdropMode GetBackdropMode() const;
+    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
+    void SetSystemBackdropMaterial(SystemBackdropMaterial m);
+    SystemBackdropMaterial GetSystemBackdropMaterial() const;
+    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);
+
+    // Custom title bar (control in the "Window tools" chapter)
+    void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // pass nullptr to restore the native one
+    std::shared_ptr&lt;UIElement&gt; GetCustomTitleBar() const;
+    bool HasCustomTitleBar() const;
+    float GetCustomTitleBarHeight() const;
+    void SetTitleBarVisible(bool on);
+    bool IsTitleBarVisible() const;
+
+    // Border / resizing
+    void SetResizable(bool on);
+    bool IsResizable() const;
+
+    // Corner preference
+    enum class WindowCorner { Default, Square, Round, RoundSmall };
+    void SetWindowCorner(WindowCorner c);
+    WindowCorner GetWindowCorner() const;
+
+    // Window actions (for custom title bar buttons)
+    void Minimize();
+    void Maximize();
+    void Restore();
+    void MaximizeRestore();
+    bool IsMaximizedWindow() const;
+    void BeginSystemDrag();
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
@@ -421,6 +542,13 @@ class Window {
 <li><strong>Modal</strong>: <code>RunModal</code> uses the official mechanism — <code>EnableWindow(owner, FALSE)</code> + activating the modal window + an <code>IsDialogMessage</code> nested loop. <strong>No global hooks are used</strong>, so other processes are unaffected. Clicking the disabled owner produces the standard system hint.</li>
 <li><strong><code>OwnedMinimizePolicy</code></strong>: how an owned child handles being minimized on its own. <code>None</code> does nothing; <code>Hide</code> intercepts minimize and hides, restoring when the owner restores/activates; <code>DisableMinimize</code> grays out the minimize button and ignores minimize-related messages.</li>
 <li><strong>Dangling cleanup</strong>: on destroy a window clears every reference other windows hold to it (<code>owner_</code> and hidden lists), so address reuse can never affect unrelated windows.</li>
+<li><strong>Custom title bar</strong>: <code>SetCustomTitleBar(bar)</code> installs a non-layout title bar control (see "Window tools"); the window places it at <code>(0,0)</code> and shifts the root layout down by its height. Pass <code>nullptr</code> to restore the native title bar (sends <code>SWP_FRAMECHANGED</code>). <code>SetTitleBarVisible(false)</code> hides it while keeping the custom frame.</li>
+<li><strong>Backdrop modes</strong>: <code>Auto</code> / <code>Acrylic</code> use the <code>SetWindowCompositionAttribute</code> AccentState acrylic; <code>SystemBackdrop</code> uses Win11's <code>DWMWA_SYSTEMBACKDROP_TYPE</code> (<code>Mica</code>/<code>MicaAlt</code>/<code>Acrylic</code>). If unsupported at runtime (e.g. Win10) the handler registered via <code>SetBackdropUnsupportedHandler</code> is called and it falls back to AccentState.</li>
+<li><strong>Known limitations (important)</strong>: ZUI currently renders through an <code>ID2D1HwndRenderTarget</code> (an opaque redirection surface), so it <strong>cannot display DWM system materials</strong>. Therefore:
+  1) <code>BackdropMode::Auto</code> currently uses AccentState on both Win10 and Win11; <code>SystemBackdrop</code> is <strong>not visible</strong> until the render target is migrated to DirectComposition (it will look gray/black);
+  2) AccentState acrylic (<code>AcrylicBlurBehind</code>) is an undocumented API and makes DWM <strong>skip window transition animations</strong> (minimize/maximize) on both Win10 and Win11 — inherent to that API;
+  3) getting "acrylic + native animations + Mica" together requires migrating rendering from <code>HwndRenderTarget</code> to DirectComposition (SwapChain / CompositionSurface), which is planned.</li>
+<li><strong>Border / resize / corners</strong>: <code>SetResizable</code> controls edge resizing; when snapped, the DWM border/shadow is preserved (<code>WM_NCCALCSIZE</code> only insets the snapped edges), and maximizing does not inset. <code>SetWindowCorner</code> maps to <code>DWMWA_WINDOW_CORNER_PREFERENCE</code>.</li>
 </ul>
 <nav class="chapter-nav"><a class="prev" href="API.en.8.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Menus</span><span class="nav-desc">MenuItem, Menu, MenuWindow</span></a><a class="next" href="API.en.10.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Application and multiple windows</span><span class="nav-desc">Application and multi-window</span></a></nav>
         </main>

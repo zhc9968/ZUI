@@ -197,7 +197,7 @@ pre { line-height: 125%; }
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>目录</span><button class="toc-collapse" id="tocCollapse" title="折叠目录">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class="active"><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>应用与多窗口</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>基础控件</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>数据视图</a></li><li class=""><a href="API.13.html"><span class="chapter-index">13</span>图像</a></li><li class=""><a href="API.14.html"><span class="chapter-index">14</span>附录</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">章节</div><ul class="chapter-list"><li class=""><a href="API.html"><span class="chapter-index">&#8962;</span>ZUI API 参考</a></li><li class=""><a href="API.1.html"><span class="chapter-index">1</span>约定</a></li><li class=""><a href="API.2.html"><span class="chapter-index">2</span>基础类型</a></li><li class=""><a href="API.3.html"><span class="chapter-index">3</span>全局函数与 DPI</a></li><li class=""><a href="API.4.html"><span class="chapter-index">4</span>信号与连接</a></li><li class=""><a href="API.5.html"><span class="chapter-index">5</span>字体</a></li><li class=""><a href="API.6.html"><span class="chapter-index">6</span>核心元素 UIElement</a></li><li class=""><a href="API.7.html"><span class="chapter-index">7</span>布局</a></li><li class=""><a href="API.8.html"><span class="chapter-index">8</span>菜单</a></li><li class="active"><a href="API.9.html"><span class="chapter-index">9</span>窗口 Window</a></li><li class=""><a href="API.10.html"><span class="chapter-index">10</span>应用与多窗口</a></li><li class=""><a href="API.11.html"><span class="chapter-index">11</span>基础控件</a></li><li class=""><a href="API.12.html"><span class="chapter-index">12</span>数据视图</a></li><li class=""><a href="API.13.html"><span class="chapter-index">13</span>图像</a></li><li class=""><a href="API.14.html"><span class="chapter-index">14</span>窗口工具</a></li><li class=""><a href="API.15.html"><span class="chapter-index">15</span>附录</a></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>```cpp
@@ -259,6 +259,44 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
+    // 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调
+    enum class BackdropMode {
+        Auto,            // 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质
+        Acrylic,         // 强制：AccentState 亚克力（Win10/11 都能显示）
+        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
+    };
+    void SetBackdropMode(BackdropMode m);
+    BackdropMode GetBackdropMode() const;
+    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
+    void SetSystemBackdropMaterial(SystemBackdropMaterial m);   // 仅 SystemBackdrop 模式生效
+    SystemBackdropMaterial GetSystemBackdropMaterial() const;
+    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);  // 运行时不受支持时回调
+
+    // 自定义标题栏（控件见“窗口工具”章节）
+    void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // 传 nullptr 恢复原生标题栏
+    std::shared_ptr&lt;UIElement&gt; GetCustomTitleBar() const;
+    bool HasCustomTitleBar() const;
+    float GetCustomTitleBarHeight() const;
+    void SetTitleBarVisible(bool on);                         // 隐藏/显示（保留自定义边框）
+    bool IsTitleBarVisible() const;
+
+    // 边框 / 调整
+    void SetResizable(bool on);
+    bool IsResizable() const;
+
+    // 圆角偏好（仅一次 DWM 调用；不支持的系统会忽略）
+    enum class WindowCorner { Default, Square, Round, RoundSmall };
+    void SetWindowCorner(WindowCorner c);
+    WindowCorner GetWindowCorner() const;
+
+    // 窗口动作（供自定义标题栏按钮调用）
+    void Minimize();
+    void Maximize();
+    void Restore();
+    void MaximizeRestore();
+    bool IsMaximizedWindow() const;
+    void BeginSystemDrag();                    // ReleaseCapture + WM_NCLBUTTONDOWN(HTCAPTION)
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -277,12 +315,19 @@ class Window {
 - **owned 子窗口**：用 `CreateWindow(...)` / `SetOwner` 建立的所有者关系在**创建时**即生效（`CreateWindowEx` 的父窗口参数），因此 owned 窗口**不会有独立任务栏按钮**；父窗口最小化时会**无条件**隐藏其 owned 子窗口、还原/激活时恢复（不依赖系统“最小化分组”，避免父窗口在后台时子窗口不跟随）。
 - **模态**：`RunModal` 用官方机制实现——`EnableWindow(owner, FALSE)` + 激活模态窗 + `IsDialogMessage` 嵌套消息循环；**不使用任何全局钩子**，不会影响其它进程。点击被禁用的所有者时由系统给出标准提示。
 - **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
-- **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。</pre></div></div>
+- **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
+- **自定义标题栏**：`SetCustomTitleBar(bar)` 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 `(0,0)`、根布局整体下移其高度；传入 `nullptr` 恢复原生标题栏（会发 `SWP_FRAMECHANGED` 全量刷新）。`SetTitleBarVisible(false)` 可隐藏标题栏但保留自定义边框。
+- **背景三模式**：`Auto` / `Acrylic` 走 `SetWindowCompositionAttribute` 的 `AccentState` 亚克力；`SystemBackdrop` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`（`Mica`/`MicaAlt`/`Acrylic`）。运行时不受支持（如 Win10）会调用 `SetBackdropUnsupportedHandler` 注册的回调并回退到 `AccentState`。
+- **已知限制（重要）**：当前 ZUI 的渲染基于 `ID2D1HwndRenderTarget`（不透明重定向表面），**无法显示 DWM 系统材质**。因此：
+  1) `BackdropMode::Auto` 目前在 Win10/Win11 上都走 `AccentState` 路径；`SystemBackdrop` 模式在渲染目标迁移到 DirectComposition 之前**不可见**（会发灰/发黑）；
+  2) `AccentState` 亚克力（`AcrylicBlurBehind`）是未公开 API，会让 DWM **跳过最小化/最大化等窗口过渡动画**（Win10/Win11 均如此），这是该 API 的固有行为；
+  3) 要同时获得"亚克力 + 原生动画 + Mica"，需要把渲染从 `HwndRenderTarget` 迁移到 DirectComposition（SwapChain / CompositionSurface），属于后续规划。
+- **边框/调整/圆角**：`SetResizable` 控制拖边缩放；分屏时会保留 DWM 边框/阴影（`WM_NCCALCSIZE` 只内缩被吸附的边），最大化不做内缩。`SetWindowCorner` 映射到 `DWMWA_WINDOW_CORNER_PREFERENCE`。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 9 章 · 窗口 Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 9 章</span><h1>窗口 Window</h1><p class="chapter-summary">创建、背景、标题栏与根布局</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-c8cda4bc', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-751ac856', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
@@ -342,11 +387,49 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
 <span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
+<span class="w">    </span><span class="c1">// 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BackdropMode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">            </span><span class="c1">// 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质</span>
+<span class="w">        </span><span class="n">Acrylic</span><span class="p">,</span><span class="w">         </span><span class="c1">// 强制：AccentState 亚克力（Win10/11 都能显示）</span>
+<span class="w">        </span><span class="n">SystemBackdrop</span><span class="w">   </span><span class="c1">// 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropMode</span><span class="p">(</span><span class="n">BackdropMode</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
+<span class="w">    </span><span class="n">BackdropMode</span><span class="w"> </span><span class="nf">GetBackdropMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SystemBackdropMaterial</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Auto</span><span class="p">,</span><span class="w"> </span><span class="n">Mica</span><span class="p">,</span><span class="w"> </span><span class="n">MicaAlt</span><span class="p">,</span><span class="w"> </span><span class="n">Acrylic</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSystemBackdropMaterial</span><span class="p">(</span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="n">m</span><span class="p">);</span><span class="w">   </span><span class="c1">// 仅 SystemBackdrop 模式生效</span>
+<span class="w">    </span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="nf">GetSystemBackdropMaterial</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropUnsupportedHandler</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">handler</span><span class="p">);</span><span class="w">  </span><span class="c1">// 运行时不受支持时回调</span>
+
+<span class="w">    </span><span class="c1">// 自定义标题栏（控件见“窗口工具”章节）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCustomTitleBar</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">bar</span><span class="p">);</span><span class="w">   </span><span class="c1">// 传 nullptr 恢复原生标题栏</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCustomTitleBar</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">HasCustomTitleBar</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetCustomTitleBarHeight</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitleBarVisible</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span><span class="w">                         </span><span class="c1">// 隐藏/显示（保留自定义边框）</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsTitleBarVisible</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 边框 / 调整</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetResizable</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsResizable</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 圆角偏好（仅一次 DWM 调用；不支持的系统会忽略）</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">WindowCorner</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Default</span><span class="p">,</span><span class="w"> </span><span class="n">Square</span><span class="p">,</span><span class="w"> </span><span class="n">Round</span><span class="p">,</span><span class="w"> </span><span class="n">RoundSmall</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetWindowCorner</span><span class="p">(</span><span class="n">WindowCorner</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="w">    </span><span class="n">WindowCorner</span><span class="w"> </span><span class="nf">GetWindowCorner</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 窗口动作（供自定义标题栏按钮调用）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Minimize</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Maximize</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Restore</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">MaximizeRestore</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsMaximizedWindow</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">BeginSystemDrag</span><span class="p">();</span><span class="w">                    </span><span class="c1">// ReleaseCapture + WM_NCLBUTTONDOWN(HTCAPTION)</span>
+
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-c8cda4bc" style="display: none;">class Window {
+<pre id="code-751ac856" style="display: none;">class Window {
     static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
     static DWORD DefaultBackdropColor;            // 0x80FFFFFF
     static Color DefaultBackgroundColor;          // 透明
@@ -404,6 +487,44 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
+    // 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调
+    enum class BackdropMode {
+        Auto,            // 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质
+        Acrylic,         // 强制：AccentState 亚克力（Win10/11 都能显示）
+        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
+    };
+    void SetBackdropMode(BackdropMode m);
+    BackdropMode GetBackdropMode() const;
+    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
+    void SetSystemBackdropMaterial(SystemBackdropMaterial m);   // 仅 SystemBackdrop 模式生效
+    SystemBackdropMaterial GetSystemBackdropMaterial() const;
+    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);  // 运行时不受支持时回调
+
+    // 自定义标题栏（控件见“窗口工具”章节）
+    void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // 传 nullptr 恢复原生标题栏
+    std::shared_ptr&lt;UIElement&gt; GetCustomTitleBar() const;
+    bool HasCustomTitleBar() const;
+    float GetCustomTitleBarHeight() const;
+    void SetTitleBarVisible(bool on);                         // 隐藏/显示（保留自定义边框）
+    bool IsTitleBarVisible() const;
+
+    // 边框 / 调整
+    void SetResizable(bool on);
+    bool IsResizable() const;
+
+    // 圆角偏好（仅一次 DWM 调用；不支持的系统会忽略）
+    enum class WindowCorner { Default, Square, Round, RoundSmall };
+    void SetWindowCorner(WindowCorner c);
+    WindowCorner GetWindowCorner() const;
+
+    // 窗口动作（供自定义标题栏按钮调用）
+    void Minimize();
+    void Maximize();
+    void Restore();
+    void MaximizeRestore();
+    bool IsMaximizedWindow() const;
+    void BeginSystemDrag();                    // ReleaseCapture + WM_NCLBUTTONDOWN(HTCAPTION)
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
@@ -421,6 +542,13 @@ class Window {
 <li><strong>模态</strong>：<code>RunModal</code> 用官方机制实现——<code>EnableWindow(owner, FALSE)</code> + 激活模态窗 + <code>IsDialogMessage</code> 嵌套消息循环；<strong>不使用任何全局钩子</strong>，不会影响其它进程。点击被禁用的所有者时由系统给出标准提示。</li>
 <li><strong><code>OwnedMinimizePolicy</code></strong>：处理 owned 子窗口被“单独最小化”的情况。<code>None</code> 不处理（会出现老式小瓷砖）；<code>Hide</code> 拦截最小化改为隐藏、父窗口还原/激活时恢复；<code>DisableMinimize</code> 置灰最小化按钮并忽略最小化相关消息。</li>
 <li><strong>裸引用清理</strong>：窗口销毁时会清除其它窗口对它的引用（<code>owner_</code> 与隐藏列表），避免地址被复用后牵连不相干的窗口。</li>
+<li><strong>自定义标题栏</strong>：<code>SetCustomTitleBar(bar)</code> 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 <code>(0,0)</code>、根布局整体下移其高度；传入 <code>nullptr</code> 恢复原生标题栏（会发 <code>SWP_FRAMECHANGED</code> 全量刷新）。<code>SetTitleBarVisible(false)</code> 可隐藏标题栏但保留自定义边框。</li>
+<li><strong>背景三模式</strong>：<code>Auto</code> / <code>Acrylic</code> 走 <code>SetWindowCompositionAttribute</code> 的 <code>AccentState</code> 亚克力；<code>SystemBackdrop</code> 走 Win11 <code>DWMWA_SYSTEMBACKDROP_TYPE</code>（<code>Mica</code>/<code>MicaAlt</code>/<code>Acrylic</code>）。运行时不受支持（如 Win10）会调用 <code>SetBackdropUnsupportedHandler</code> 注册的回调并回退到 <code>AccentState</code>。</li>
+<li><strong>已知限制（重要）</strong>：当前 ZUI 的渲染基于 <code>ID2D1HwndRenderTarget</code>（不透明重定向表面），<strong>无法显示 DWM 系统材质</strong>。因此：
+  1) <code>BackdropMode::Auto</code> 目前在 Win10/Win11 上都走 <code>AccentState</code> 路径；<code>SystemBackdrop</code> 模式在渲染目标迁移到 DirectComposition 之前<strong>不可见</strong>（会发灰/发黑）；
+  2) <code>AccentState</code> 亚克力（<code>AcrylicBlurBehind</code>）是未公开 API，会让 DWM <strong>跳过最小化/最大化等窗口过渡动画</strong>（Win10/Win11 均如此），这是该 API 的固有行为；
+  3) 要同时获得"亚克力 + 原生动画 + Mica"，需要把渲染从 <code>HwndRenderTarget</code> 迁移到 DirectComposition（SwapChain / CompositionSurface），属于后续规划。</li>
+<li><strong>边框/调整/圆角</strong>：<code>SetResizable</code> 控制拖边缩放；分屏时会保留 DWM 边框/阴影（<code>WM_NCCALCSIZE</code> 只内缩被吸附的边），最大化不做内缩。<code>SetWindowCorner</code> 映射到 <code>DWMWA_WINDOW_CORNER_PREFERENCE</code>。</li>
 </ul>
 <nav class="chapter-nav"><a class="prev" href="API.8.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">菜单</span><span class="nav-desc">MenuItem、Menu 与 MenuWindow</span></a><a class="next" href="API.10.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">应用与多窗口</span><span class="nav-desc">Application 与多窗口</span></a></nav>
         </main>
