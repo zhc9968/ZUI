@@ -440,6 +440,36 @@ private:
 };
 ```
 
+## 布局参与 / 绘制时机
+
+```cpp
+enum class LayoutParticipation {
+    Normal,            // 参与布局（默认）
+    DrawBeforeLayout,  // 不参与布局：在正常布局树绘制之前单独绘制
+    DrawAfterLayout    // 不参与布局：在正常布局树绘制之后、覆盖层之前单独绘制
+};
+void SetLayoutParticipation(LayoutParticipation);
+LayoutParticipation GetLayoutParticipation() const;
+bool ParticipatesInLayout() const;
+```
+
+- 布局容器（ColumnBox/RowBox/GridLayout）在 Measure/Arrange 以及 `ComposeImpl` 的子递归里都会**跳过** `!ParticipatesInLayout()` 的元素。
+- 不参与布局的元素若被放进布局，其位置/尺寸需由设置者自理；`Window` 的自定义标题栏就是用它实现的（`Window` 直接把它放在 `(0,0)`）。
+
+## 拖动区域（所有控件可用）
+
+```cpp
+void SetDraggable(bool on);                 // 整个 arrangedRect 作为拖动区
+void SetDragRegion(const Rect& localRect);  // 指定本地子区域
+void ClearDragRegion();
+bool HasDragRegion() const;
+Rect GetDragRegion() const;
+bool IsPointInDragRegion(float x, float y) const;
+virtual void CollectDragRegions(std::vector<Rect>& out) const;   // Window 递归收集
+```
+
+- `Window` 每帧把整棵树的拖动区域收集起来，命中时 `WM_NCHITTEST` 返回 `HTCAPTION`，于是拖动 / Aero Snap / 双击最大化全部交给系统。
+
 ###chapter: 布局 | Layout、ColumnBox、RowBox、GridLayout、LayoutHost、Card、Page、PageHost
 
 ## Layout（基类）
@@ -668,6 +698,44 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
+    // 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调
+    enum class BackdropMode {
+        Auto,            // 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质
+        Acrylic,         // 强制：AccentState 亚克力（Win10/11 都能显示）
+        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
+    };
+    void SetBackdropMode(BackdropMode m);
+    BackdropMode GetBackdropMode() const;
+    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
+    void SetSystemBackdropMaterial(SystemBackdropMaterial m);   // 仅 SystemBackdrop 模式生效
+    SystemBackdropMaterial GetSystemBackdropMaterial() const;
+    void SetBackdropUnsupportedHandler(std::function<void()> handler);  // 运行时不受支持时回调
+
+    // 自定义标题栏（控件见“窗口工具”章节）
+    void SetCustomTitleBar(std::shared_ptr<UIElement> bar);   // 传 nullptr 恢复原生标题栏
+    std::shared_ptr<UIElement> GetCustomTitleBar() const;
+    bool HasCustomTitleBar() const;
+    float GetCustomTitleBarHeight() const;
+    void SetTitleBarVisible(bool on);                         // 隐藏/显示（保留自定义边框）
+    bool IsTitleBarVisible() const;
+
+    // 边框 / 调整
+    void SetResizable(bool on);
+    bool IsResizable() const;
+
+    // 圆角偏好（仅一次 DWM 调用；不支持的系统会忽略）
+    enum class WindowCorner { Default, Square, Round, RoundSmall };
+    void SetWindowCorner(WindowCorner c);
+    WindowCorner GetWindowCorner() const;
+
+    // 窗口动作（供自定义标题栏按钮调用）
+    void Minimize();
+    void Maximize();
+    void Restore();
+    void MaximizeRestore();
+    bool IsMaximizedWindow() const;
+    void BeginSystemDrag();                    // ReleaseCapture + WM_NCLBUTTONDOWN(HTCAPTION)
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -687,6 +755,13 @@ class Window {
 - **模态**：`RunModal` 用官方机制实现——`EnableWindow(owner, FALSE)` + 激活模态窗 + `IsDialogMessage` 嵌套消息循环；**不使用任何全局钩子**，不会影响其它进程。点击被禁用的所有者时由系统给出标准提示。
 - **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
 - **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
+- **自定义标题栏**：`SetCustomTitleBar(bar)` 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 `(0,0)`、根布局整体下移其高度；传入 `nullptr` 恢复原生标题栏（会发 `SWP_FRAMECHANGED` 全量刷新）。`SetTitleBarVisible(false)` 可隐藏标题栏但保留自定义边框。
+- **背景三模式**：`Auto` / `Acrylic` 走 `SetWindowCompositionAttribute` 的 `AccentState` 亚克力；`SystemBackdrop` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`（`Mica`/`MicaAlt`/`Acrylic`）。运行时不受支持（如 Win10）会调用 `SetBackdropUnsupportedHandler` 注册的回调并回退到 `AccentState`。
+- **已知限制（重要）**：当前 ZUI 的渲染基于 `ID2D1HwndRenderTarget`（不透明重定向表面），**无法显示 DWM 系统材质**。因此：
+  1) `BackdropMode::Auto` 目前在 Win10/Win11 上都走 `AccentState` 路径；`SystemBackdrop` 模式在渲染目标迁移到 DirectComposition 之前**不可见**（会发灰/发黑）；
+  2) `AccentState` 亚克力（`AcrylicBlurBehind`）是未公开 API，会让 DWM **跳过最小化/最大化等窗口过渡动画**（Win10/Win11 均如此），这是该 API 的固有行为；
+  3) 要同时获得"亚克力 + 原生动画 + Mica"，需要把渲染从 `HwndRenderTarget` 迁移到 DirectComposition（SwapChain / CompositionSurface），属于后续规划。
+- **边框/调整/圆角**：`SetResizable` 控制拖边缩放；分屏时会保留 DWM 边框/阴影（`WM_NCCALCSIZE` 只内缩被吸附的边），最大化不做内缩。`SetWindowCorner` 映射到 `DWMWA_WINDOW_CORNER_PREFERENCE`。
 
 ###chapter: 应用与多窗口 | Application 与多窗口
 
@@ -1452,6 +1527,65 @@ class Image {
 - **编码**：`Encode` 用 `CreateStreamOnHGlobal` 得到可增长内存流（**无临时文件**），返回编码字节；`Save` 直接写文件。
 - **配合 `Label`**：`Label::SetImage` + `SetIconSize` 即可显示图标（见“基础控件 → Label”）。
 - **变换矩阵（根源）**：`Rotated/Mirrored` 以目标矩形中心为轴。D2D 矩阵乘法是“左侧先应用”，必须用带 `center` 的 `Rotation/Scale` 重载，否则会把图像推出目标矩形（表现为旋转/镜像后什么都看不到）。
+
+###chapter: 窗口工具 | 自定义标题栏 TitleBar / CaptionButton / DefaultTitleBar
+
+窗口工具控件在 `ZUIWindowTool.h`（窗口级控件集合，后续还会放内置 MessageBox 等）。
+
+```cpp
+class TitleBar : public UIElement {
+    void SetTitle(const std::wstring&);
+    const std::wstring& GetTitle() const;
+    void SetIcon(std::shared_ptr<Image>);        // 复用图像系统
+    void SetIconSize(float w, float h);
+    void SetShowIcon(bool);
+    void SetShowTitle(bool);
+    void SetContentPadding(float left, float right = 8.0f);
+    void SetBackgroundColor(Color);  void SetActiveBackgroundColor(Color);
+    void SetTitleColor(Color);       void SetActiveTitleColor(Color);
+    void SetButtonWidth(float);      // 也可 SetButtonHeight / SetRightMargin
+    void SetButtonHeight(float);
+    void SetRightMargin(float);
+    void ClearRightMargin();         // 恢复默认（右上角齐平，默认右边距 1px）
+    void SetButtonsEnabled(bool);    // 三件套是否可点击
+    bool AreButtonsEnabled() const;
+};
+
+class CaptionButton : public UIElement {
+    enum class Kind { Minimize, MaximizeRestore, Close };
+    explicit CaptionButton(Kind kind);
+    void SetHoverColor(Color);        void SetPressedColor(Color);
+    void SetCloseHoverColor(Color);   void SetClosePressedColor(Color);
+    void SetGlyphColor(Color);
+    void SetButtonWidth(float);
+    void SetAnimationSpeed(float);
+};
+
+class DefaultTitleBar : public TitleBar {
+    DefaultTitleBar();                // 内置 最小化 / 最大化还原 / 关闭
+    std::shared_ptr<CaptionButton> GetMinButton() const;
+    std::shared_ptr<CaptionButton> GetMaxButton() const;
+    std::shared_ptr<CaptionButton> GetCloseButton() const;
+};
+```
+
+**用法**：
+
+```cpp
+auto bar = std::make_shared<DefaultTitleBar>();
+bar->SetTitle(L"我的窗口");
+bar->SetIcon(myImage);                 // 可选
+win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr) 恢复原生
+```
+
+**要点与易混点**：
+
+- 标题栏**不参与布局**（由 Window 放到 `(0,0)`），默认 `DrawAfterLayout`；**不参与 Tab 焦点**（`IsFocusable()==false`）；`UseCache()==true`，仅状态变化重绘。
+- 按钮用系统图标字体 `Segoe Fluent Icons`（Win11）/ `Segoe MDL2 Assets`（Win10）绘制，字形与系统一致（最小化 `E921`、最大化 `E922`、还原 `E923`、关闭 `E8BB`）；找不到图标字体时用矢量兜底。
+- 悬停/按下带**渐变**；最小化/最大化悬停浅灰，**关闭悬停红**（`#C42B1C`）。
+- 按钮在 `WM_NCHITTEST` 里被报告为系统按钮码（`HTMINBUTTON` / `HTMAXBUTTON` / `HTCLOSE`），因此**最大化按钮悬浮会出现系统 Snap Layouts**；点击动作在 `WM_NCLBUTTONUP` 处理。
+- 标题栏自身矩形（按钮以外）是窗口的**拖动区域**，拖动 / Aero Snap / 双击最大化都交给系统。
+- **不建议**把标题栏手动 `AddChild` 进布局（它不参与布局，由 `Window::SetCustomTitleBar` 统一管理）；文档不禁止，但行为由使用者自负。
 
 ###chapter: 附录 | 信号一览、默认值速查与常见坑
 

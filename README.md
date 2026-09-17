@@ -110,6 +110,37 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 ## 更新日志
 
+### 2026-09-16 — 自定义标题栏（ZUIWindowTool）与背景三模式
+
+**新增：自定义标题栏（新文件 `ZUIWindowTool.h`）**
+
+- `TitleBar` / `CaptionButton` / `DefaultTitleBar`：窗口级控件，作为“不参与布局”的覆盖控件由 `Window::SetCustomTitleBar` 安装；传 `nullptr` 恢复原生标题栏。
+- 三件套用系统图标字体绘制（`Segoe Fluent Icons` / `Segoe MDL2 Assets`，码位 `E921/E922/E923/E8BB`），带 **hover/pressed 渐变**，关闭悬停红 `#C42B1C`；按钮在 `WM_NCHITTEST` 报告为 `HTMINBUTTON/HTMAXBUTTON/HTCLOSE`，从而启用系统 **Snap Layouts**；点击在 `WM_NCLBUTTONUP` 处理；标题栏区域为**拖动区域**（拖动 / Aero Snap / 双击最大化交给系统）。
+- 标题栏与按钮**不参与 Tab 焦点**；默认 `DrawAfterLayout`、`UseCache`（仅状态变化重绘）。
+- 便捷设置：`SetTitleBarVisible`、`SetButtonsEnabled`、`SetButtonWidth/Height`、`SetRightMargin`、`CaptionButton::SetAnimationSpeed` 等。
+
+**新增：布局参与 / 拖动机制（`UIElement`）**
+
+- `LayoutParticipation { Normal, DrawBeforeLayout, DrawAfterLayout }`：不参与布局的元素由 Window 在正常布局树**之前/之后**单独绘制；布局与 `ComposeImpl` 子递归都会跳过它们。
+- 拖动区域：`SetDraggable / SetDragRegion / CollectDragRegions`；Window 每帧收集并交 `WM_NCHITTEST`（返回 `HTCAPTION`）。
+
+**新增：背景三模式**
+
+- `BackdropMode { Auto, Acrylic, SystemBackdrop }` + `SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic }` + `SetBackdropUnsupportedHandler`（运行时不受支持的回调）。
+- `SystemBackdrop` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`；不支持时回调并回退 `AccentState`。
+
+**窗口 / 边框修复**
+
+- 分屏（Snap）状态保留 DWM 边框与阴影：`WM_NCCALCSIZE` 只内缩**被吸附到工作区边缘**的那几条边（内缩量取 `DWMWA_VISIBLE_FRAME_BORDER_THICKNESS` 的实际厚度），最大化不内缩；最大化/还原/分屏状态变化时发 `SWP_FRAMECHANGED` 重算框架。
+- 最大化时贴顶下拖可还原窗口；关闭键位置与原生一致。
+
+**演示**：`ZUI.cpp` 新增“自定义标题栏窗口”。
+
+**已知限制（重要）**
+
+- ZUI 当前渲染在 `ID2D1HwndRenderTarget`（不透明重定向表面）上，**无法显示 DWM 系统材质**：`BackdropMode::Auto` 目前在 Win10/Win11 都走 `AccentState`；`SystemBackdrop` 模式在渲染目标迁移到 **DirectComposition** 之前**不可见**（会发灰/发黑）。
+- `AccentState` 亚克力是未公开 API，会让 DWM **跳过最小化/最大化等窗口过渡动画**（Win10/Win11 均如此）。要同时获得“亚克力 + 原生动画 + Mica”，需把渲染迁移到 DirectComposition（SwapChain / CompositionSurface），属后续规划。
+
 ### 2026-09-15 — 图像系统、窗口机制增强与多项根源修复
 
 **图像（新增 `ZUIImages.h`）**
@@ -190,7 +221,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 ## 文档
 
 - 在线文档站点：<https://zhc9968.github.io/ZUI/>
-- API 参考（中文，14 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
+- API 参考（中文，15 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
 - API Reference (English)：<https://zhc9968.github.io/ZUI/docs/API.en.html>
 
 ## 许可证

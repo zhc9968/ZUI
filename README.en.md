@@ -110,6 +110,37 @@ Key points:
 
 ## Changelog
 
+### 2026-09-16 — Custom title bar (ZUIWindowTool) and backdrop modes
+
+**New: custom title bar (new file `ZUIWindowTool.h`)**
+
+- `TitleBar` / `CaptionButton` / `DefaultTitleBar`: window-level controls installed as a non-layout overlay via `Window::SetCustomTitleBar`; pass `nullptr` to restore the native title bar.
+- The three caption buttons are drawn with the system icon font (`Segoe Fluent Icons` / `Segoe MDL2 Assets`, glyphs `E921/E922/E923/E8BB`), with **hover/press gradients** and red close hover `#C42B1C`; buttons report `HTMINBUTTON/HTMAXBUTTON/HTCLOSE` from `WM_NCHITTEST`, enabling the system **Snap Layouts**; clicks are handled in `WM_NCLBUTTONUP`; the title bar area is the **drag region** (drag / Aero Snap / double-click maximize handled by the system).
+- The title bar and buttons are **not Tab-focusable**; default `DrawAfterLayout`, `UseCache`.
+- Helpers: `SetTitleBarVisible`, `SetButtonsEnabled`, `SetButtonWidth/Height`, `SetRightMargin`, `CaptionButton::SetAnimationSpeed`, etc.
+
+**New: layout participation / drag mechanism (`UIElement`)**
+
+- `LayoutParticipation { Normal, DrawBeforeLayout, DrawAfterLayout }`: non-participating elements are drawn by the window before/after the normal layout tree; layouts and the `ComposeImpl` child recursion skip them.
+- Drag regions: `SetDraggable / SetDragRegion / CollectDragRegions`; the window collects them each frame and feeds `WM_NCHITTEST` (returns `HTCAPTION`).
+
+**New: three backdrop modes**
+
+- `BackdropMode { Auto, Acrylic, SystemBackdrop }` + `SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic }` + `SetBackdropUnsupportedHandler`.
+- `SystemBackdrop` uses Win11 `DWMWA_SYSTEMBACKDROP_TYPE`; if unsupported the handler is called and it falls back to `AccentState`.
+
+**Window / frame fixes**
+
+- Snapped windows keep the DWM border and shadow: `WM_NCCALCSIZE` insets only the edges snapped to the work area (using the actual `DWMWA_VISIBLE_FRAME_BORDER_THICKNESS`), and maximizing does not inset; `SWP_FRAMECHANGED` is sent when the maximize/snap state changes.
+- From maximized, dragging down from the top edge restores the window; the close button aligns with the native position.
+
+**Demo**: `ZUI.cpp` gained a "custom title bar window".
+
+**Known limitations (important)**
+
+- ZUI currently renders through `ID2D1HwndRenderTarget` (an opaque redirection surface) and **cannot display DWM system materials**: `BackdropMode::Auto` uses AccentState on both Win10 and Win11, and `SystemBackdrop` is **not visible** until the render target is migrated to **DirectComposition** (it looks gray/black).
+- AccentState acrylic is an undocumented API and makes DWM **skip window transition animations** (minimize/maximize) on both Win10 and Win11. Getting "acrylic + native animations + Mica" together requires migrating rendering to DirectComposition (SwapChain / CompositionSurface), which is planned.
+
 ### 2026-09-15 — Image system, window mechanisms, and root-cause fixes
 
 **Images (new `ZUIImages.h`)**
@@ -190,7 +221,7 @@ Key points:
 ## Documentation
 
 - Online documentation: <https://zhc9968.github.io/ZUI/>
-- API Reference (English, 14 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
+- API Reference (English, 15 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
 - API 参考（中文）: <https://zhc9968.github.io/ZUI/docs/API.html>
 
 ## License

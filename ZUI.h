@@ -53,6 +53,45 @@
 #ifndef DWMWA_TEXT_COLOR
 #define DWMWA_TEXT_COLOR 36
 #endif
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
+#endif
+#ifndef DWMWA_CAPTION_BUTTON_BOUNDS
+#define DWMWA_CAPTION_BUTTON_BOUNDS 5
+#endif
+#ifndef DWMWA_VISIBLE_FRAME_BORDER_THICKNESS
+#define DWMWA_VISIBLE_FRAME_BORDER_THICKNESS 37
+#endif
+#ifndef DWMWA_SYSTEMBACKDROP_TYPE
+#define DWMWA_SYSTEMBACKDROP_TYPE 38
+#endif
+#ifndef DWMSBT_MAINWINDOW
+#define DWMSBT_MAINWINDOW 2
+#endif
+#ifndef DWMSBT_TRANSIENTWINDOW
+#define DWMSBT_TRANSIENTWINDOW 3
+#endif
+#ifndef DWMSBT_TABBEDWINDOW
+#define DWMSBT_TABBEDWINDOW 4
+#endif
+#ifndef DWMSBT_AUTO
+#define DWMSBT_AUTO 0
+#endif
+#ifndef DWMSBT_NONE
+#define DWMSBT_NONE 1
+#endif
+#ifndef DWMWCP_DEFAULT
+#define DWMWCP_DEFAULT 0
+#endif
+#ifndef DWMWCP_DONOTROUND
+#define DWMWCP_DONOTROUND 1
+#endif
+#ifndef DWMWCP_ROUND
+#define DWMWCP_ROUND 2
+#endif
+#ifndef DWMWCP_ROUNDSMALL
+#define DWMWCP_ROUNDSMALL 3
+#endif
 
 namespace ZUI {
 
@@ -118,6 +157,21 @@ namespace ZUI {
         TransparentGradient = ACCENT_ENABLE_TRANSPARENTGRADIENT,
         BlurBehind = ACCENT_ENABLE_BLURBEHIND,
         AcrylicBlurBehind = ACCENT_ENABLE_ACRYLICBLURBEHIND
+    };
+
+    // 背景实现方式（三模式）
+    enum class BackdropMode {
+        Auto,            // 运行时判断：优先 Win11 系统材质，不支持则回退 AccentState 亚克力
+        Acrylic,         // 强制：AccentState 亚克力（Win10/11 均可用；Win10 上动画会被跳过）
+        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用会失败）
+    };
+
+    // Win11 系统材质类型（仅 SystemBackdrop 模式生效）
+    enum class SystemBackdropMaterial {
+        Auto,       // 按 WindowBackdrop 推断
+        Mica,       // DWMSBT_MAINWINDOW
+        MicaAlt,    // DWMSBT_TABBEDWINDOW
+        Acrylic     // DWMSBT_TRANSIENTWINDOW
     };
 
     // ---------- 基础类型 ----------
@@ -746,6 +800,42 @@ namespace ZUI {
         void SetBleed(float bleed) { bleed_ = max(0.0f, bleed); }
         float GetBleed() const { return bleed_; }
 
+        // ---------- 布局参与 / 绘制时机 ----------
+        // Normal：参与布局（默认，现有行为）。
+        // DrawBeforeLayout：不参与布局；在正常布局树绘制之前单独绘制（位置由设置者直接给）。
+        // DrawAfterLayout：不参与布局；在正常布局树绘制之后、覆盖层之前单独绘制。
+        enum class LayoutParticipation { Normal, DrawBeforeLayout, DrawAfterLayout };
+        void SetLayoutParticipation(LayoutParticipation p) {
+            if (layoutParticipation_ != p) { layoutParticipation_ = p; InvalidateLayout(); RequestRepaint(); }
+        }
+        LayoutParticipation GetLayoutParticipation() const { return layoutParticipation_; }
+        bool ParticipatesInLayout() const { return layoutParticipation_ == LayoutParticipation::Normal; }
+
+        // ---------- 拖动区域（供 Window 收集 → WM_NCHITTEST 返回 HTCAPTION）----------
+        void SetDraggable(bool on) { draggableWhole_ = on; if (on) dragRegion_ = Rect(); }
+        void SetDragRegion(const Rect& localRect) { dragRegion_ = localRect; draggableWhole_ = false; }
+        void ClearDragRegion() { draggableWhole_ = false; dragRegion_ = Rect(); }
+        bool HasDragRegion() const { return draggableWhole_ || dragRegion_.width > 0.0f; }
+        Rect GetDragRegion() const {
+            if (draggableWhole_) return arrangedRect_;
+            return Rect(arrangedRect_.x + dragRegion_.x, arrangedRect_.y + dragRegion_.y,
+                dragRegion_.width, dragRegion_.height);
+        }
+        bool IsPointInDragRegion(float x, float y) const {
+            if (!visible_ || !HasDragRegion()) return false;
+            return GetDragRegion().Contains(x, y);
+        }
+        // 收集自身拖动区域到 out（客户坐标，DIP）；Window 递归调用（用 GetChildren 遍历）
+        virtual void CollectDragRegions(std::vector<Rect>& out) const {
+            if (visible_ && HasDragRegion()) out.push_back(GetDragRegion());
+        }
+
+        // 非客户区命中覆盖：自定义标题栏把按钮报告为 HTMINBUTTON/HTMAXBUTTON/HTCLOSE，
+        // 从而启用系统行为（核心是“最大化按钮悬浮出现 Snap Layouts”由资源管理器渲染）。返回 0 表示不用。
+        virtual int NonClientHitTest(float /*x*/, float /*y*/) const { return 0; }
+        // 非客户区按钮的按下视觉（由 Window 在 WM_NCLBUTTON* 时调用）
+        virtual void SetNonClientButtonPressed(int /*hit*/, bool /*pressed*/) {}
+
         // ---------- 禁用态 ----------
         void SetEnabled(bool enabled) {
             if (enabled_ != enabled) { enabled_ = enabled; cacheValid_ = false; RequestRepaint(); }
@@ -882,6 +972,10 @@ namespace ZUI {
         std::optional<float> horizontalStretchWeight_;
         std::optional<float> verticalStretchWeight_;
 
+        LayoutParticipation layoutParticipation_ = LayoutParticipation::Normal;
+        bool draggableWhole_ = false;
+        Rect dragRegion_{ 0, 0, 0, 0 };
+
         std::shared_ptr<ConnectionGroup> connectionGroup_;
         std::vector<Connection> autoConnections_;
 
@@ -923,7 +1017,7 @@ namespace ZUI {
             float totalHeight = 0;
             float maxWidth = 0;
             for (auto& child : children_) {
-                if (!child->IsVisible()) continue;
+                if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
                 Size childSize = child->Measure(availableSize);
                 totalHeight += childSize.height;
                 maxWidth = max(maxWidth, childSize.width + child->GetMargin().left + child->GetMargin().right);
@@ -937,7 +1031,7 @@ namespace ZUI {
             UIElement::Arrange(finalRect);
             float y = finalRect.y;
             for (auto& child : children_) {
-                if (!child->IsVisible()) continue;
+                if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
                 Thickness margin = child->GetMargin();
                 y += margin.top;
                 float availW = finalRect.width - margin.left - margin.right;
@@ -1015,7 +1109,7 @@ namespace ZUI {
             float totalWidth = 0;
             float maxHeight = 0;
             for (auto& child : children_) {
-                if (!child->IsVisible()) continue;
+                if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
                 Size childSize = child->Measure(availableSize);
                 totalWidth += childSize.width;
                 maxHeight = max(maxHeight, childSize.height + child->GetMargin().top + child->GetMargin().bottom);
@@ -1029,7 +1123,7 @@ namespace ZUI {
             UIElement::Arrange(finalRect);
             float x = finalRect.x;
             for (auto& child : children_) {
-                if (!child->IsVisible()) continue;
+                if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
                 Thickness margin = child->GetMargin();
                 x += margin.left;
                 float availH = finalRect.height - margin.top - margin.bottom;
@@ -1144,6 +1238,7 @@ namespace ZUI {
         Size Measure(const Size& availableSize) override {
             int maxRow = 0, maxCol = 0;
             for (auto& item : items_) {
+                if (!item.element->ParticipatesInLayout()) continue;
                 maxRow = max(maxRow, item.row + item.rowSpan);
                 maxCol = max(maxCol, item.col + item.colSpan);
             }
@@ -1153,7 +1248,7 @@ namespace ZUI {
             std::vector<float> colWidths(maxCol, 0.0f);
 
             for (auto& item : items_) {
-                if (!item.element->IsVisible()) continue;
+                if (!item.element->IsVisible() || !item.element->ParticipatesInLayout()) continue;
                 Size childSize = item.element->Measure(availableSize);
                 float heightPerRow = childSize.height / item.rowSpan;
                 float widthPerCol = childSize.width / item.colSpan;
@@ -1172,6 +1267,7 @@ namespace ZUI {
             UIElement::Arrange(finalRect);
             int maxRow = 0, maxCol = 0;
             for (auto& item : items_) {
+                if (!item.element->ParticipatesInLayout()) continue;
                 maxRow = max(maxRow, item.row + item.rowSpan);
                 maxCol = max(maxCol, item.col + item.colSpan);
             }
@@ -1180,7 +1276,7 @@ namespace ZUI {
             std::vector<float> rowMinHeights(maxRow, 0.0f);
             std::vector<float> colMinWidths(maxCol, 0.0f);
             for (auto& item : items_) {
-                if (!item.element->IsVisible()) continue;
+                if (!item.element->IsVisible() || !item.element->ParticipatesInLayout()) continue;
                 Size childSize = item.element->Measure(Size(FLT_MAX, FLT_MAX));
                 float hPerRow = childSize.height / item.rowSpan;
                 float wPerCol = childSize.width / item.colSpan;
@@ -1210,7 +1306,7 @@ namespace ZUI {
             }
             else {
                 for (auto& item : items_) {
-                    if (!item.element->IsVisible()) continue;
+                    if (!item.element->IsVisible() || !item.element->ParticipatesInLayout()) continue;
                     float weight = item.element->GetVerticalStretchWeight();
                     for (int r = item.row; r < item.row + item.rowSpan; ++r)
                         rowStretchWeights[r] = max(rowStretchWeights[r], weight);
@@ -1223,7 +1319,7 @@ namespace ZUI {
             }
             else {
                 for (auto& item : items_) {
-                    if (!item.element->IsVisible()) continue;
+                    if (!item.element->IsVisible() || !item.element->ParticipatesInLayout()) continue;
                     float weight = item.element->GetHorizontalStretchWeight();
                     for (int c = item.col; c < item.col + item.colSpan; ++c)
                         colStretchWeights[c] = max(colStretchWeights[c], weight);
@@ -1292,7 +1388,7 @@ namespace ZUI {
             }
 
             for (auto& item : items_) {
-                if (!item.element->IsVisible()) continue;
+                if (!item.element->IsVisible() || !item.element->ParticipatesInLayout()) continue;
                 float itemX = colX[item.col];
                 float itemY = rowY[item.row];
                 float itemW = 0;
@@ -2583,6 +2679,7 @@ namespace ZUI {
 
         ~Window() {
             if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);
+            if (customTitleBar_) customTitleBar_->AttachWindowRecursive(nullptr);   // 析构路径同样清归属
             if (hwnd_) { DestroyWindow(hwnd_); hwnd_ = nullptr; }
             DiscardDeviceResources();
             // d2dFactory_ 由 AppCore 共享，不在此释放
@@ -2597,6 +2694,15 @@ namespace ZUI {
             backdrop_ = backdrop;
             backdropColor_ = color;
             ApplyBackdrop();
+        }
+        // ---- 背景实现方式（三模式）+ Win11 材质 + 不支持回调 ----
+        void SetBackdropMode(BackdropMode m) { backdropMode_ = m; ApplyBackdrop(); }
+        BackdropMode GetBackdropMode() const { return backdropMode_; }
+        void SetSystemBackdropMaterial(SystemBackdropMaterial m) { systemBackdropMaterial_ = m; ApplyBackdrop(); }
+        SystemBackdropMaterial GetSystemBackdropMaterial() const { return systemBackdropMaterial_; }
+        // 所选方案在当前系统运行时不受支持时调用（例如 Win10 上强制 SystemBackdrop）
+        void SetBackdropUnsupportedHandler(std::function<void()> handler) {
+            backdropUnsupportedHandler_ = std::move(handler);
         }
         void SetBackgroundColor(Color color) {
             backgroundColor_ = color;
@@ -2659,6 +2765,7 @@ namespace ZUI {
 
             ApplyBackdrop();
             ApplyTitleBarColors();
+            ApplyWindowCorner();
 
             auto defaultRoot = std::make_shared<ColumnBox>();
             defaultRoot->SetMargin(Thickness(20, 20, 20, 20));
@@ -2745,6 +2852,105 @@ namespace ZUI {
                 if (w && w != this && w->GetOwner() == this) out.push_back(w);
             return out;
         }
+
+        // ================= 自定义标题栏 / 窗口外观 =================
+        // 安装自定义标题栏（参数一般是 ZUIWindowTool.h 里的 TitleBar；基类 UIElement 即可）。
+        // 传 nullptr 取消，恢复原生标题栏。该控件“不参与布局”，由 Window 放到 (0,0)，
+        // 并把根布局整体下移其高度；绘制时机由控件自身声明（默认 DrawAfterLayout）。
+        void SetCustomTitleBar(std::shared_ptr<UIElement> bar) {
+            if (customTitleBar_ && customTitleBar_ != bar) {
+                customTitleBar_->SetParent(nullptr);
+                customTitleBar_->AttachWindowRecursive(nullptr);
+            }
+            customTitleBar_ = std::move(bar);
+            if (customTitleBar_) {
+                customTitleBar_->SetParent(nullptr);   // 不进入根布局的父子链
+                customTitleBar_->AttachWindowRecursive(this);
+                // 默认绘制在“正常布局之后、覆盖层之前”（可由控件自行改成 DrawBeforeLayout）
+                if (customTitleBar_->GetLayoutParticipation() == UIElement::LayoutParticipation::Normal)
+                    customTitleBar_->SetLayoutParticipation(UIElement::LayoutParticipation::DrawAfterLayout);
+            }
+            bool wasCustom = customFrame_;
+            customFrame_ = (customTitleBar_ != nullptr);
+            if (!customTitleBar_) customTitleBarHeight_ = 0.0f;
+            if (hwnd_ && customFrame_ != wasCustom) {
+                if (customFrame_) {
+                    // 去掉系统 caption（与其它自绘标题栏窗口一致）；客户区即为整窗
+                    if (!styleSaved_) { savedWindowStyle_ = GetWindowLongPtr(hwnd_, GWL_STYLE); styleSaved_ = true; }
+                    SetWindowStyleFlag(WS_CAPTION, false);
+                } else {
+                    if (styleSaved_) { SetWindowLongPtr(hwnd_, GWL_STYLE, savedWindowStyle_); styleSaved_ = false; }
+                }
+            }
+            ApplyWindowCorner();
+            if (hwnd_) {
+                // 关键：发送“框架更改”(SWP_FRAMECHANGED) 让系统重新计算非客户区，
+                // 取消自定义标题栏时才能把原来的系统标题栏刷回来；不能只 InvalidateRect。
+                SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+                layoutNeeded_ = true;
+                layoutInvalidated_ = true;
+                InvalidateRect(hwnd_, nullptr, TRUE);
+            }
+        }
+        std::shared_ptr<UIElement> GetCustomTitleBar() const { return customTitleBar_; }
+        bool HasCustomTitleBar() const { return customTitleBar_ != nullptr; }
+        float GetCustomTitleBarHeight() const { return customTitleBarHeight_; }
+
+        // 查询系统标题栏按钮的度量（DWM）。只把“右边距”当可靠锚点，
+        // 按钮宽/高/垂直位置作为默认参考（用户可覆盖）。返回 valid=false 表示查询失败。
+        struct CaptionMetrics { bool valid = false; float rightMargin = 0.0f; float top = 0.0f; float height = 0.0f; float width = 0.0f; };
+        CaptionMetrics QueryCaptionMetrics() const {
+            CaptionMetrics m;
+            if (!hwnd_ || IsIconic(hwnd_)) return m;
+            RECT rc;
+            if (FAILED(DwmGetWindowAttribute(hwnd_, DWMWA_CAPTION_BUTTON_BOUNDS, &rc, sizeof(rc)))) return m;
+            if (rc.right <= rc.left || rc.bottom <= rc.top) return m;
+            RECT wr; GetWindowRect(hwnd_, &wr);
+            int winW = wr.right - wr.left;
+            int relRight = rc.right, relTop = rc.top;
+            if (rc.left > winW) { relRight = rc.right - wr.left; relTop = rc.top - wr.top; }  // 屏幕坐标 → 窗口坐标
+            float s = 96.0f / dpi_;
+            m.valid = true;
+            m.rightMargin = (winW - relRight) * s;
+            m.top = relTop * s;
+            m.height = (rc.bottom - rc.top) * s;
+            m.width = (rc.right - rc.left) * s;
+            return m;
+        }
+
+        // 隐藏/显示自定义标题栏（保留自定义边框；隐藏后根布局占满整窗）
+        void SetTitleBarVisible(bool on) {
+            titleBarVisible_ = on;
+            if (customTitleBar_) customTitleBar_->SetVisible(on);
+            if (hwnd_) { layoutNeeded_ = true; InvalidateRect(hwnd_, nullptr, TRUE); }
+        }
+        bool IsTitleBarVisible() const { return titleBarVisible_ && customTitleBar_ != nullptr; }
+
+        // 是否允许拖动边框调整大小
+        void SetResizable(bool on) {
+            resizable_ = on;
+            if (hwnd_) {
+                SetWindowStyleFlag(WS_THICKFRAME, on);
+                layoutNeeded_ = true;
+                InvalidateRect(hwnd_, nullptr, FALSE);
+            }
+        }
+        bool IsResizable() const { return resizable_; }
+
+        // 圆角偏好（内部只调一次 DwmSetWindowAttribute；不支持的系统会被忽略）
+        enum class WindowCorner { Default, Square, Round, RoundSmall };
+        void SetWindowCorner(WindowCorner c) { corner_ = c; ApplyWindowCorner(); }
+        WindowCorner GetWindowCorner() const { return corner_; }
+
+        // 窗口动作（供自定义标题栏的按钮调用）
+        void Minimize() { if (hwnd_) ShowWindow(hwnd_, SW_MINIMIZE); }
+        void Maximize() { if (hwnd_) ShowWindow(hwnd_, SW_MAXIMIZE); }
+        void Restore() { if (hwnd_) ShowWindow(hwnd_, SW_RESTORE); }
+        void MaximizeRestore() { if (hwnd_) ShowWindow(hwnd_, IsZoomed(hwnd_) ? SW_RESTORE : SW_MAXIMIZE); }
+        bool IsMaximizedWindow() const { return hwnd_ && IsZoomed(hwnd_) != FALSE; }
+        // 发起系统级拖动：拖动 / Aero Snap / 双击最大化全部交给系统
+        void BeginSystemDrag() { if (hwnd_) { ReleaseCapture(); SendMessageW(hwnd_, WM_NCLBUTTONDOWN, HTCAPTION, 0); } }
 
         // ---- 便捷：闪烁提示（默认连闪 5 次）。captionOnly=true 只闪标题栏，不闪任务栏 ----
         void Flash(int times = 5, bool captionOnly = true) {
@@ -2856,6 +3062,97 @@ namespace ZUI {
 
         // 关闭本窗口（其余窗口不受影响；全部关闭后消息循环才会退出）
         void Close() { if (hwnd_) DestroyWindow(hwnd_); }
+
+        // ---------- 自定义标题栏 / 窗口外观：实现 ----------
+        void ApplyWindowCorner() {
+            if (!hwnd_) return;
+            int pref = DWMWCP_DEFAULT;
+            switch (corner_) {
+            case WindowCorner::Square:     pref = DWMWCP_DONOTROUND; break;
+            case WindowCorner::Round:      pref = DWMWCP_ROUND; break;
+            case WindowCorner::RoundSmall: pref = DWMWCP_ROUNDSMALL; break;
+            default:                       pref = DWMWCP_DEFAULT; break;
+            }
+            DwmSetWindowAttribute(hwnd_, DWMWA_WINDOW_CORNER_PREFERENCE, &pref, sizeof(pref));
+        }
+
+        void CollectDragRegions() {
+            dragRegions_.clear();
+            if (customTitleBar_) CollectDragRegionsRec(customTitleBar_.get());
+            if (rootElement_) CollectDragRegionsRec(rootElement_.get());
+        }
+        void CollectDragRegionsRec(UIElement* elem) {
+            if (!elem || !elem->IsVisible()) return;
+            elem->CollectDragRegions(dragRegions_);
+            for (auto* c : elem->GetChildren()) CollectDragRegionsRec(c);
+        }
+        bool PointInDragRegion(float x, float y) const {
+            for (auto& r : dragRegions_) if (r.Contains(x, y)) return true;
+            return false;
+        }
+        // 统一的命中测试：先自定义标题栏，再根布局树（标题栏不参与布局、不在根树下，
+        // 必须单独纳入，否则它收不到任何鼠标事件）。
+        UIElement* HitTestElement(float x, float y) {
+            if (customTitleBar_) { if (UIElement* h = customTitleBar_->HitTest(x, y)) return h; }
+            return rootElement_ ? rootElement_->HitTest(x, y) : nullptr;
+        }
+        // 自定义边框下的非客户区命中测试（缩放边 + 拖动区）
+        LRESULT HitTestNonClient(POINT clientPtPx) {
+            float x = clientPtPx.x * 96.0f / dpi_;
+            float y = clientPtPx.y * 96.0f / dpi_;
+            RECT rc; GetClientRect(hwnd_, &rc);
+            float w = (rc.right - rc.left) * 96.0f / dpi_;
+            float h = (rc.bottom - rc.top) * 96.0f / dpi_;
+            // 最大化时禁用边框调整（最大化窗口不可调整；分屏/普通状态仍保留）
+            if (resizable_ && !IsZoomed(hwnd_)) {
+                const float b = 8.0f;   // 缩放热区（DIP）
+                bool L = x < b, R = x >= w - b, T = y < b, B = y >= h - b;
+                if (T && L) return HTTOPLEFT;
+                if (T && R) return HTTOPRIGHT;
+                if (B && L) return HTBOTTOMLEFT;
+                if (B && R) return HTBOTTOMRIGHT;
+                if (L) return HTLEFT;
+                if (R) return HTRIGHT;
+                if (T) return HTTOP;
+                if (B) return HTBOTTOM;
+            }
+            // 自定义标题栏按钮 → 报告为系统按钮码（HTMINBUTTON/HTMAXBUTTON/HTCLOSE），
+            // 让系统提供原生行为（尤其“最大化按钮悬浮的 Snap Layouts”由资源管理器渲染）。
+            if (customTitleBar_) {
+                int nc = customTitleBar_->NonClientHitTest(x, y);
+                if (nc) return nc;
+            }
+            UIElement* hit = HitTestElement(x, y);
+            if (hit && hit->IsPointInDragRegion(x, y)) return HTCAPTION;
+            if (hit) return HTCLIENT;
+            if (PointInDragRegion(x, y)) return HTCAPTION;
+            return HTCLIENT;
+        }
+        // 收集“不参与布局”的元素（按绘制时机分类），递归整棵子树
+        void CollectNonParticipating(UIElement* elem, UIElement::LayoutParticipation phase, std::vector<UIElement*>& out) {
+            if (!elem || !elem->IsVisible()) return;
+            if (elem->GetLayoutParticipation() == phase) out.push_back(elem);
+            for (auto* c : elem->GetChildren()) CollectNonParticipating(c, phase, out);
+        }
+
+        // 当前“框架状态”位掩码：bit0=最大化，bit1..4=贴左/上/右/下工作区边缘。
+        // 用于在 最大化/还原/分屏 状态变化时发一次 SWP_FRAMECHANGED 重算框架。
+        int ComputeFrameState() {
+            int s = IsZoomed(hwnd_) ? 1 : 0;
+            if (!IsZoomed(hwnd_)) {
+                HMONITOR mon = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
+                MONITORINFO mi = { sizeof(MONITORINFO) };
+                if (GetMonitorInfoW(mon, &mi)) {
+                    RECT wr; GetWindowRect(hwnd_, &wr);
+                    const int kTol = 2;
+                    if (wr.left <= mi.rcWork.left + kTol) s |= 2;
+                    if (wr.top <= mi.rcWork.top + kTol) s |= 4;
+                    if (wr.right >= mi.rcWork.right - kTol) s |= 8;
+                    if (wr.bottom >= mi.rcWork.bottom - kTol) s |= 16;
+                }
+            }
+            return s;
+        }
 
         // 由 UIElement 直接路由，多窗口互不干扰
         void MarkRepaint(UIElement* elem) { if (elem) pendingRepaint_.insert(elem); }
@@ -3021,8 +3318,100 @@ namespace ZUI {
             }
             case WM_PAINT: OnPaint(); return 0;
             case WM_ERASEBKGND: return 1;
+            case WM_NCCALCSIZE:
+                // 自定义边框：客户区覆盖整个窗口 → 去掉系统标题栏。
+                // 只在 wParam==TRUE（计算客户区）时接管，wParam==FALSE 交给 DefWindowProc。
+                if (customFrame_ && wParam == TRUE) {
+                    // 最大化：客户区 = 窗口 = 工作区，不额外留边（与原生一致；
+                    // 也保证顶端那条仍在客户区内，鼠标贴顶下拖能还原窗口）。
+                    if (IsZoomed(hwnd_)) return 0;
+
+                    NCCALCSIZE_PARAMS* p = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+                    // 内缩量用“实际可见边框厚度”（通常 1px），避免用 sizing frame(≈8px) 造成大空隙/白条
+                    int bx = 1, by = 1;
+                    UINT bthick = 1;
+                    if (SUCCEEDED(DwmGetWindowAttribute(hwnd_, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &bthick, sizeof(bthick))) && bthick > 0) {
+                        bx = by = (int)bthick;
+                    }
+                    else {
+                        int sysDpi = GetDpiForSystem(); if (!sysDpi) sysDpi = 96;
+                        bx = MulDiv(GetSystemMetrics(SM_CXSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER), dpi_, sysDpi);
+                        by = MulDiv(GetSystemMetrics(SM_CYSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER), dpi_, sysDpi);
+                    }
+                    // 非最大化：若被吸附到工作区边缘，则只内缩被吸附的那几条边，
+                    // 把“吸附边框”区域留给 DWM，让它能画出边框/圆角阴影。
+                    HMONITOR mon = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
+                    MONITORINFO mi = { sizeof(MONITORINFO) };
+                    if (GetMonitorInfoW(mon, &mi)) {
+                        RECT wr; GetWindowRect(hwnd_, &wr);
+                        const int kTol = 2;   // 容差，避免取整误差漏判
+                        if (wr.left   <= mi.rcWork.left   + kTol) p->rgrc[0].left   += bx;
+                        if (wr.top    <= mi.rcWork.top    + kTol) p->rgrc[0].top    += by;
+                        if (wr.right  >= mi.rcWork.right  - kTol) p->rgrc[0].right  -= bx;
+                        if (wr.bottom >= mi.rcWork.bottom - kTol) p->rgrc[0].bottom -= by;
+                    }
+                    return 0;
+                }
+                break;
+            case WM_NCHITTEST:
+                if (customFrame_) {
+                    POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+                    ScreenToClient(hwnd_, &pt);
+                    return HitTestNonClient(pt);
+                }
+                break;
+            case WM_NCMOUSEMOVE:
+                if (customFrame_) {
+                    // 按钮在非客户区（HTMINBUTTON/HTMAXBUTTON/HTCLOSE），用 NC 移动驱动自定义 hover
+                    POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+                    ScreenToClient(hwnd_, &pt);
+                    UpdateHover(PixelToDipX(pt.x), PixelToDipY(pt.y));
+                    TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE | TME_NONCLIENT, hwnd_, 0 };
+                    TrackMouseEvent(&tme);
+                    return 0;
+                }
+                break;
+            case WM_NCMOUSELEAVE:
+                if (customFrame_) { OnMouseLeave(); return 0; }
+                break;
+            case WM_NCLBUTTONDOWN:
+                if (customFrame_ && (wParam == HTMINBUTTON || wParam == HTMAXBUTTON || wParam == HTCLOSE)) {
+                    if (customTitleBar_) customTitleBar_->SetNonClientButtonPressed((int)wParam, true);
+                    return 0;
+                }
+                break;
+            case WM_NCLBUTTONUP:
+                if (customFrame_) {
+                    if (customTitleBar_) customTitleBar_->SetNonClientButtonPressed((int)wParam, false);
+                    if (wParam == HTMINBUTTON) { Minimize(); return 0; }
+                    if (wParam == HTMAXBUTTON) { MaximizeRestore(); return 0; }
+                    if (wParam == HTCLOSE) { Close(); return 0; }
+                }
+                break;
+            case WM_NCRBUTTONUP:
+                if (customFrame_ && wParam == HTCAPTION) { ShowSystemMenu(); return 0; }
+                break;
+            case WM_NCACTIVATE:
+                if (customFrame_) return TRUE;   // 不绘制默认非客户区
+                break;
+            case WM_NCPAINT:
+                if (customFrame_) return 0;
+                break;
+            case 0x00AE:   // WM_NCUAHDRAWCAPTION
+            case 0x00AF:   // WM_NCUAHDRAWFRAME
+                if (customFrame_) return 0;
+                break;
             case WM_SIZE:
                 UpdateTimerState();
+                // 最大化/还原/分屏 状态变化 → 发一次框架更新，让内缩与 DWM 边框/阴影重算
+                if (customFrame_ && !IsIconic(hwnd_)) {
+                    int fs = ComputeFrameState();
+                    if (fs != frameState_) {
+                        frameState_ = fs;
+                        SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+                    }
+                }
                 if (wParam == SIZE_MINIMIZED) {
                     // 方案4：禁用最小化的 owned 子窗口，最小化相关消息一律不处理
                     if (owner_ && ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize) return 0;
@@ -3164,6 +3553,19 @@ namespace ZUI {
                         mmi->ptMinTrackSize.y = rect.bottom - rect.top;
                     }
                 }
+                // 自定义边框：最大化时用显示器工作区，避免盖住任务栏
+                if (customFrame_) {
+                    HMONITOR mon = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
+                    MONITORINFO mi = { sizeof(mi) };
+                    if (GetMonitorInfoW(mon, &mi)) {
+                        mmi->ptMaxPosition.x = mi.rcWork.left - mi.rcMonitor.left;
+                        mmi->ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
+                        mmi->ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
+                        mmi->ptMaxSize.y = mi.rcWork.bottom - mi.rcWork.top;
+                        mmi->ptMaxTrackSize.x = mmi->ptMaxSize.x;
+                        mmi->ptMaxTrackSize.y = mmi->ptMaxSize.y;
+                    }
+                }
                 return 0;
             }
             case WM_SETCURSOR:
@@ -3212,6 +3614,7 @@ namespace ZUI {
                     }
                 }
                 if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);  // 清除整棵树的窗口指针，避免外部持有元素时悬垂
+                if (customTitleBar_) customTitleBar_->AttachWindowRecursive(nullptr);  // 标题栏同样清归属
                 hwnd_ = nullptr;
                 Closed();
                 if (core_ && id_) { core_->UnregisterWindow(id_, this); id_ = 0; }
@@ -3246,7 +3649,9 @@ namespace ZUI {
             }
         }
         bool HasRenderWork() const {
-            if (layoutInvalidated_ || focusDirty_ || !pendingRepaint_.empty() || (rootElement_ && rootElement_->HasActiveAnimation())) return true;
+            if (layoutInvalidated_ || focusDirty_ || !pendingRepaint_.empty()) return true;
+            if (rootElement_ && rootElement_->HasActiveAnimation()) return true;
+            if (customTitleBar_ && customTitleBar_->HasActiveAnimation()) return true;   // 标题栏 hover 动画也要驱动
             if (tooltipTarget_ || tooltipProgress_ > 0.0f) return true;
             if (currentHovered_ && currentHovered_->IsEffectivelyEnabled() && !currentHovered_->GetToolTip().empty()) return true;
             return false;
@@ -3358,6 +3763,9 @@ namespace ZUI {
 
             // 递归处理子元素
             for (auto* child : elem->GetChildren()) {
+                // 不参与布局的元素由 Window 的 before/after 通道单独绘制，这里必须跳过，
+                // 否则若它被用户塞进了 root 树，会被画两次。
+                if (!child->ParticipatesInLayout()) continue;
                 D2D1::Matrix3x2F childTransform = elem->GetChildRenderTransform(child);
                 bool hasTransform = !childTransform.IsIdentity();
 
@@ -3554,6 +3962,7 @@ namespace ZUI {
                 }
                 };
             clearRecursive(rootElement_.get());
+            clearRecursive(customTitleBar_.get());
         }
 
         void CollectVisibleCachedElements(UIElement* elem, std::unordered_set<UIElement*>& set) {
@@ -3587,6 +3996,19 @@ namespace ZUI {
             float availWidth = clientWidthDip - left - rootMargin.right;
             float availHeight = clientHeightDip - top - rootMargin.bottom;
 
+            // 自定义标题栏：不参与布局，放在 (0,0)；根布局整体下移其高度
+            if (customTitleBar_ && titleBarVisible_) {
+                Size tbSize = customTitleBar_->Measure(Size(clientWidthDip, FLT_MAX));
+                customTitleBarHeight_ = max(0.0f, tbSize.height);
+                customTitleBar_->Arrange(Rect(0.0f, 0.0f, clientWidthDip, customTitleBarHeight_));
+                top += customTitleBarHeight_;
+                availHeight -= customTitleBarHeight_;
+                if (availHeight < 0.0f) availHeight = 0.0f;
+            }
+            else {
+                customTitleBarHeight_ = 0.0f;
+            }
+
             // 1. 帧开始，计算时间差
             auto now = std::chrono::steady_clock::now();
             float deltaTime = std::chrono::duration<float>(now - lastTime_).count();
@@ -3613,16 +4035,26 @@ namespace ZUI {
                 if (rootElement_) {
                     CollectVisibleCachedElements(rootElement_.get(), pendingRepaint_);
                 }
+                if (customTitleBar_) {
+                    CollectVisibleCachedElements(customTitleBar_.get(), pendingRepaint_);
+                }
             }
+
+            // 收集可拖动区域（供 WM_NCHITTEST 返回 HTCAPTION）
+            CollectDragRegions();
 
             // 3. 动画更新
             if (rootElement_) {
                 rootElement_->UpdateAnimation(deltaTime);
             }
+            if (customTitleBar_) {
+                customTitleBar_->UpdateAnimation(deltaTime);
+            }
 
             // 自动收集活跃动画元素（确保动画期间每帧重绘这些元素）
             activeAnimScratch_.clear();
             CollectActiveAnimations(rootElement_.get(), activeAnimScratch_);
+            if (customTitleBar_) CollectActiveAnimations(customTitleBar_.get(), activeAnimScratch_);
             for (auto* elem : activeAnimScratch_) {
                 pendingRepaint_.insert(elem);
             }
@@ -3639,9 +4071,23 @@ namespace ZUI {
             renderTarget_->BeginDraw();
             renderTarget_->Clear(backgroundColor_.ToD2D());
 
-            if (rootElement_) {
+            if (rootElement_ || customTitleBar_) {
                 D2D1_SIZE_F rsz = renderTarget_->GetSize();
-                ComposeImpl(rootElement_.get(), renderTarget_, D2D1::RectF(0, 0, rsz.width, rsz.height), true);
+                D2D1_RECT_F full = D2D1::RectF(0, 0, rsz.width, rsz.height);
+                std::vector<UIElement*> beforeElems, afterElems;
+                if (rootElement_) {
+                    CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawBeforeLayout, beforeElems);
+                    CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawAfterLayout, afterElems);
+                }
+                if (customTitleBar_) {
+                    if (customTitleBar_->GetLayoutParticipation() == UIElement::LayoutParticipation::DrawBeforeLayout)
+                        beforeElems.push_back(customTitleBar_.get());
+                    else
+                        afterElems.push_back(customTitleBar_.get());
+                }
+                for (auto* e : beforeElems) ComposeImpl(e, renderTarget_, full, true);
+                if (rootElement_) ComposeImpl(rootElement_.get(), renderTarget_, full, true);
+                for (auto* e : afterElems) ComposeImpl(e, renderTarget_, full, true);
             }
 
             UIZSignals::DrawOverlay(this, renderTarget_);
@@ -3682,7 +4128,7 @@ namespace ZUI {
                 hoverStartTick_ = GetTickCount();
                 if (tooltipTarget_ || tooltipProgress_ > 0.0f) { tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f; }
             }
-            if (!rootElement_) return;
+            if (!rootElement_ && !customTitleBar_) return;
             if (mouseCaptureElement_) {
                 mouseCaptureElement_->OnMouseMove(x, y);
                 return;
@@ -3714,7 +4160,7 @@ namespace ZUI {
 
             UIZSignals::GlobalMouseDown(this, x, y);
 
-            UIElement* hit = rootElement_ ? rootElement_->HitTest(x, y) : nullptr;
+            UIElement* hit = HitTestElement(x, y);
             if (hit) {
                 hit->OnMouseDown(x, y);
                 SetCapture(hwnd_);
@@ -3746,9 +4192,28 @@ namespace ZUI {
             UpdateHover(x, y);
         }
 
+        // 在标题栏区域右键时弹系统菜单（与原生一致；显式 TrackPopupMenu 更可靠）
+        void ShowSystemMenu() {
+            if (!hwnd_) return;
+            HMENU hMenu = GetSystemMenu(hwnd_, FALSE);
+            if (!hMenu) return;
+            EnableMenuItem(hMenu, SC_RESTORE, IsZoomed(hwnd_) ? MF_ENABLED : MF_GRAYED);
+            EnableMenuItem(hMenu, SC_SIZE, resizable_ ? MF_ENABLED : MF_GRAYED);
+            EnableMenuItem(hMenu, SC_MINIMIZE, MF_ENABLED);
+            EnableMenuItem(hMenu, SC_MAXIMIZE, IsZoomed(hwnd_) ? MF_GRAYED : MF_ENABLED);
+            EnableMenuItem(hMenu, SC_CLOSE, MF_ENABLED);
+            POINT pt; GetCursorPos(&pt);
+            SetForegroundWindow(hwnd_);
+            int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_LEFTBUTTON,
+                pt.x, pt.y, 0, hwnd_, nullptr);
+            if (cmd) PostMessageW(hwnd_, WM_SYSCOMMAND, (WPARAM)cmd, 0);
+        }
+
         void OnContextMenu(float x, float y) {
-            if (!rootElement_) return;
-            UIElement* hit = rootElement_->HitTest(x, y);
+            // 自定义边框下，标题栏区域右键 → 系统菜单
+            if (customFrame_ && y <= customTitleBarHeight_) { ShowSystemMenu(); return; }
+            if (!rootElement_ && !customTitleBar_) return;
+            UIElement* hit = HitTestElement(x, y);
             if (hit && hit->OnContextMenu(x, y)) return;   // 控件已处理右键
             std::shared_ptr<Menu> menu;
             if (hit && hit->GetContextMenu()) {
@@ -3769,8 +4234,8 @@ namespace ZUI {
         }
 
         void UpdateHover(float x, float y) {
-            if (!rootElement_) return;
-            UIElement* hit = rootElement_->HitTest(x, y);
+            if (!rootElement_ && !customTitleBar_) return;
+            UIElement* hit = HitTestElement(x, y);
             if (hit && !hit->IsEffectivelyEnabled()) hit = nullptr;
             if (hit != currentHovered_) {
                 if (currentHovered_) currentHovered_->OnMouseLeave();
@@ -3790,9 +4255,9 @@ namespace ZUI {
 
         void OnMouseWheel(float x, float y, float deltaX, float deltaY) {
             tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f;
-            if (!rootElement_) return;
+            if (!rootElement_ && !customTitleBar_) return;
             UIElement* elem = currentHovered_;
-            if (!elem) elem = rootElement_->HitTest(x, y);
+            if (!elem) elem = HitTestElement(x, y);
             while (elem) {
                 if (elem->OnMouseWheel(deltaX, deltaY)) break;
                 elem = elem->GetParent();
@@ -3832,6 +4297,31 @@ namespace ZUI {
 
         void ApplyBackdrop() {
             if (!hwnd_) return;
+
+            // 当前 ZUI 的渲染（HwndRenderTarget / 重定向表面）无法显示 DWM 系统材质，
+            // 因此 Auto 仍走 AccentState 亚克力；只有显式 SystemBackdrop 才尝试系统材质
+            // （等渲染迁移到 DirectComposition 后，Auto 再优先系统材质）。
+            const bool trySystem = (backdropMode_ == BackdropMode::SystemBackdrop);
+            if (trySystem && backdrop_ != WindowBackdrop::None) {
+                int type = DWMSBT_AUTO;
+                switch (systemBackdropMaterial_) {
+                case SystemBackdropMaterial::Mica:    type = DWMSBT_MAINWINDOW; break;
+                case SystemBackdropMaterial::MicaAlt: type = DWMSBT_TABBEDWINDOW; break;
+                case SystemBackdropMaterial::Acrylic: type = DWMSBT_TRANSIENTWINDOW; break;
+                default:
+                    type = (backdrop_ == WindowBackdrop::AcrylicBlurBehind) ? DWMSBT_TRANSIENTWINDOW : DWMSBT_MAINWINDOW;
+                    break;
+                }
+                HRESULT hrType = DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type));
+                if (SUCCEEDED(hrType)) return;   // 系统材质已生效
+                // 运行时不受支持 → 回调（强制的 SystemBackdrop 也回退到 AccentState 路径）
+                if (backdropUnsupportedHandler_) backdropUnsupportedHandler_();
+            }
+
+            // AccentState 路径（Win10 / 回退）：先清掉可能已生效的系统材质，避免叠加
+            int noneType = DWMSBT_NONE;
+            DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &noneType, sizeof(noneType));
+
             HMODULE hUser = GetModuleHandleW(L"user32.dll");
             if (!hUser) return;
             auto pSetWindowCompositionAttribute = (BOOL(WINAPI*)(HWND, void*))GetProcAddress(hUser, "SetWindowCompositionAttribute");
@@ -3983,6 +4473,9 @@ namespace ZUI {
         std::chrono::steady_clock::time_point lastTime_;
         bool layoutNeeded_;
         WindowBackdrop backdrop_;
+        BackdropMode backdropMode_ = BackdropMode::Auto;
+        SystemBackdropMaterial systemBackdropMaterial_ = SystemBackdropMaterial::Auto;
+        std::function<void()> backdropUnsupportedHandler_;
         DWORD backdropColor_;
         Color backgroundColor_;
         bool animationTimerActive_;   // 常驻定时器，始终 true
@@ -3992,6 +4485,17 @@ namespace ZUI {
         UIElement* mouseCaptureElement_ = nullptr;
         Window* owner_ = nullptr;
         std::vector<int> hiddenOwnedIds_;   // 父窗口最小化时被隐藏的 owned 窗口 id（还原时恢复）
+        // 自定义标题栏 / 窗口外观
+        std::shared_ptr<UIElement> customTitleBar_;
+        float customTitleBarHeight_ = 0.0f;
+        bool titleBarVisible_ = true;
+        bool resizable_ = true;
+        WindowCorner corner_ = WindowCorner::Default;
+        bool customFrame_ = false;          // 是否处于自定义边框模式
+        LONG_PTR savedWindowStyle_ = 0;      // 安装自定义标题栏前的原始样式（用于恢复）
+        bool styleSaved_ = false;
+        int frameState_ = -1;                // 上一帧的框架状态（最大化/分屏），变化时重算框架
+        std::vector<Rect> dragRegions_;     // 收集到的可拖动区域（客户坐标 DIP）
         OwnedMinimizePolicy ownedMinimizePolicy_ = OwnedMinimizePolicy::Hide;   // 见 OwnedMinimizePolicy
         bool wasMinimized_ = false;         // 上一状态是否最小化（只有“最小化→还原”才恢复 owned 子窗口）
         bool imePosUpdating_ = false;

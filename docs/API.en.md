@@ -432,6 +432,36 @@ private:
 };
 ```
 
+## Layout participation / draw timing
+
+```cpp
+enum class LayoutParticipation {
+    Normal,            // participates in layout (default)
+    DrawBeforeLayout,  // does not participate: drawn separately before the normal layout tree
+    DrawAfterLayout    // does not participate: drawn after the normal layout tree, before overlays
+};
+void SetLayoutParticipation(LayoutParticipation);
+LayoutParticipation GetLayoutParticipation() const;
+bool ParticipatesInLayout() const;
+```
+
+- Layout containers (ColumnBox/RowBox/GridLayout) **skip** `!ParticipatesInLayout()` elements in Measure/Arrange and in the `ComposeImpl` child recursion.
+- A non-participating element placed in a layout must manage its own position/size; `Window`'s custom title bar uses exactly this (the window places it at `(0,0)`).
+
+## Drag regions (any control)
+
+```cpp
+void SetDraggable(bool on);                 // the whole arrangedRect is a drag region
+void SetDragRegion(const Rect& localRect);  // a local sub-region
+void ClearDragRegion();
+bool HasDragRegion() const;
+Rect GetDragRegion() const;
+bool IsPointInDragRegion(float x, float y) const;
+virtual void CollectDragRegions(std::vector<Rect>& out) const;   // Window collects recursively
+```
+
+- Each frame `Window` collects the tree's drag regions; on a hit `WM_NCHITTEST` returns `HTCAPTION`, so dragging / Aero Snap / double-click maximize are all handled by the system.
+
 ###chapter: Layout | Layout, ColumnBox, RowBox, GridLayout, LayoutHost, Card, Page, PageHost
 
 ## Layout (base)
@@ -659,6 +689,44 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
+    // Backdrop implementation (3 modes) + Win11 system material + unsupported callback
+    enum class BackdropMode {
+        Auto,            // adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp
+        Acrylic,         // force: AccentState acrylic (visible on Win10/11)
+        SystemBackdrop   // force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)
+    };
+    void SetBackdropMode(BackdropMode m);
+    BackdropMode GetBackdropMode() const;
+    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
+    void SetSystemBackdropMaterial(SystemBackdropMaterial m);
+    SystemBackdropMaterial GetSystemBackdropMaterial() const;
+    void SetBackdropUnsupportedHandler(std::function<void()> handler);
+
+    // Custom title bar (control in the "Window tools" chapter)
+    void SetCustomTitleBar(std::shared_ptr<UIElement> bar);   // pass nullptr to restore the native one
+    std::shared_ptr<UIElement> GetCustomTitleBar() const;
+    bool HasCustomTitleBar() const;
+    float GetCustomTitleBarHeight() const;
+    void SetTitleBarVisible(bool on);
+    bool IsTitleBarVisible() const;
+
+    // Border / resizing
+    void SetResizable(bool on);
+    bool IsResizable() const;
+
+    // Corner preference
+    enum class WindowCorner { Default, Square, Round, RoundSmall };
+    void SetWindowCorner(WindowCorner c);
+    WindowCorner GetWindowCorner() const;
+
+    // Window actions (for custom title bar buttons)
+    void Minimize();
+    void Maximize();
+    void Restore();
+    void MaximizeRestore();
+    bool IsMaximizedWindow() const;
+    void BeginSystemDrag();
+
     void SetMouseCapture(UIElement* elem);
     void ReleaseMouseCapture(UIElement* elem);
 };
@@ -678,6 +746,13 @@ class Window {
 - **Modal**: `RunModal` uses the official mechanism — `EnableWindow(owner, FALSE)` + activating the modal window + an `IsDialogMessage` nested loop. **No global hooks are used**, so other processes are unaffected. Clicking the disabled owner produces the standard system hint.
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
 - **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
+- **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
+- **Backdrop modes**: `Auto` / `Acrylic` use the `SetWindowCompositionAttribute` AccentState acrylic; `SystemBackdrop` uses Win11's `DWMWA_SYSTEMBACKDROP_TYPE` (`Mica`/`MicaAlt`/`Acrylic`). If unsupported at runtime (e.g. Win10) the handler registered via `SetBackdropUnsupportedHandler` is called and it falls back to AccentState.
+- **Known limitations (important)**: ZUI currently renders through an `ID2D1HwndRenderTarget` (an opaque redirection surface), so it **cannot display DWM system materials**. Therefore:
+  1) `BackdropMode::Auto` currently uses AccentState on both Win10 and Win11; `SystemBackdrop` is **not visible** until the render target is migrated to DirectComposition (it will look gray/black);
+  2) AccentState acrylic (`AcrylicBlurBehind`) is an undocumented API and makes DWM **skip window transition animations** (minimize/maximize) on both Win10 and Win11 — inherent to that API;
+  3) getting "acrylic + native animations + Mica" together requires migrating rendering from `HwndRenderTarget` to DirectComposition (SwapChain / CompositionSurface), which is planned.
+- **Border / resize / corners**: `SetResizable` controls edge resizing; when snapped, the DWM border/shadow is preserved (`WM_NCCALCSIZE` only insets the snapped edges), and maximizing does not inset. `SetWindowCorner` maps to `DWMWA_WINDOW_CORNER_PREFERENCE`.
 
 ###chapter: Application and multiple windows | Application and multi-window
 
@@ -1380,6 +1455,65 @@ class Image {
 - **Encoding**: `Encode` uses `CreateStreamOnHGlobal` (a growable memory stream, **no temp files**) and returns the encoded bytes; `Save` writes a file directly.
 - **With `Label`**: use `Label::SetImage` + `SetIconSize` to show an icon (see "Basic controls -> Label").
 - **Transform matrix (root cause)**: `Rotated/Mirrored` pivot around the destination rect center. D2D matrix multiplication applies the **left operand first**, so the `Rotation/Scale` overloads that take a `center` must be used; otherwise the image is pushed out of the target rect (rotated/mirrored images appear missing).
+
+###chapter: Window tools | Custom title bar TitleBar / CaptionButton / DefaultTitleBar
+
+Window-level controls live in `ZUIWindowTool.h` (a collection that will later also host a built-in MessageBox, etc.).
+
+```cpp
+class TitleBar : public UIElement {
+    void SetTitle(const std::wstring&);
+    const std::wstring& GetTitle() const;
+    void SetIcon(std::shared_ptr<Image>);        // reuses the image system
+    void SetIconSize(float w, float h);
+    void SetShowIcon(bool);
+    void SetShowTitle(bool);
+    void SetContentPadding(float left, float right = 8.0f);
+    void SetBackgroundColor(Color);  void SetActiveBackgroundColor(Color);
+    void SetTitleColor(Color);       void SetActiveTitleColor(Color);
+    void SetButtonWidth(float);      // also SetButtonHeight / SetRightMargin
+    void SetButtonHeight(float);
+    void SetRightMargin(float);
+    void ClearRightMargin();
+    void SetButtonsEnabled(bool);
+    bool AreButtonsEnabled() const;
+};
+
+class CaptionButton : public UIElement {
+    enum class Kind { Minimize, MaximizeRestore, Close };
+    explicit CaptionButton(Kind kind);
+    void SetHoverColor(Color);      void SetPressedColor(Color);
+    void SetCloseHoverColor(Color); void SetClosePressedColor(Color);
+    void SetGlyphColor(Color);
+    void SetButtonWidth(float);
+    void SetAnimationSpeed(float);
+};
+
+class DefaultTitleBar : public TitleBar {
+    DefaultTitleBar();               // built-in minimize / maximize-restore / close
+    std::shared_ptr<CaptionButton> GetMinButton() const;
+    std::shared_ptr<CaptionButton> GetMaxButton() const;
+    std::shared_ptr<CaptionButton> GetCloseButton() const;
+};
+```
+
+**Usage**:
+
+```cpp
+auto bar = std::make_shared<DefaultTitleBar>();
+bar->SetTitle(L"My Window");
+bar->SetIcon(myImage);                 // optional
+win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr) restores the native one
+```
+
+**Notes and pitfalls**:
+
+- The title bar does **not participate in layout** (Window places it at `(0,0)`), defaults to `DrawAfterLayout`, is **not focusable** (skipped by Tab) and has `UseCache()==true` (repaints only on state change).
+- Buttons are drawn with the system icon font `Segoe Fluent Icons` (Win11) / `Segoe MDL2 Assets` (Win10), matching the system glyphs (minimize `E921`, maximize `E922`, restore `E923`, close `E8BB`); a vector fallback is used when the font is unavailable.
+- Hover/press are animated; minimize/maximize hover light gray, **close hover red** (`#C42B1C`).
+- Buttons report system hit codes (`HTMINBUTTON` / `HTMAXBUTTON` / `HTCLOSE`) from `WM_NCHITTEST`, so **hovering the maximize button shows the system Snap Layouts**; clicks are handled in `WM_NCLBUTTONUP`.
+- The title bar's own rect (excluding buttons) is the window **drag region**; dragging / Aero Snap / double-click maximize are handled by the system.
+- It is **not recommended** to `AddChild` the title bar into a layout (it does not participate); use `Window::SetCustomTitleBar`.
 
 ###chapter: Appendix | Signal list, default values, and common pitfalls
 

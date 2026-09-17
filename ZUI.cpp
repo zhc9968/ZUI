@@ -1,5 +1,6 @@
 ﻿// main.cpp - ZUI 综合自动化布局测试（使用 Connect 自动管理连接）
 #include "ZDataViewer.h"
+#include "ZUIWindowTool.h"
 
 using namespace ZUI;
 
@@ -924,6 +925,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         auto tclose = std::make_shared<Button>(L"关闭本窗口");
         tclose->Connect(tclose->Clicked, [w = toolWin.get()]() { w->Close(); });
         troot->AddChild(tclose);
+    }
+
+    // ---------- 自定义标题栏窗口 ----------
+    if (auto cw = app->CreateWindow(700, 480, L"自定义标题栏窗口")) {
+        auto bar = std::make_shared<DefaultTitleBar>();
+        bar->SetTitle(L"自定义标题栏窗口");
+        bar->SetHeight(34);
+        cw->SetWindowCorner(Window::WindowCorner::Round);   // 圆角偏好（仅一次 DWM 调用）
+        cw->SetResizable(true);
+        cw->SetCustomTitleBar(bar);                          // 安装自定义标题栏（传 nullptr 可恢复原生）
+        auto croot = cw->GetRootColumnBox();
+        croot->AddChild(std::make_shared<Label>(L"自绘标题栏：拖动标题栏移动窗口，右上角三件套与原生一致。"));
+        croot->AddChild(std::make_shared<Label>(L"标题栏不参与布局，且不会被 Tab 聚焦。"));
+        static std::vector<std::shared_ptr<Window>> keep;
+        keep.push_back(cw);
     }
 
     win.SetMinSize(800, 600);
