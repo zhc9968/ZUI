@@ -202,18 +202,19 @@ pre { line-height: 125%; }
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> 阅读辅助 · 查看本页原始 Markdown</button><div class="reading-aid-body"><pre>```cpp
 class Window {
-    static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
-    static DWORD DefaultBackdropColor;            // 0x80FFFFFF
+    static Backdrop DefaultBackdrop;              // None
+    static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // 透明
 
-    bool Create(int width, int height, const std::wstring&amp; title);
+    bool Create(int width, int height, const std::wstring&amp; title);   // 创建后不自动显示，见 Show()
     void Run();
 
     void SetRootLayout(std::shared_ptr&lt;Layout&gt; layout);
     std::shared_ptr&lt;Layout&gt; GetRootLayout() const;
     std::shared_ptr&lt;ColumnBox&gt; GetRootColumnBox() const;
 
-    void SetBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF);
+    void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000);
+    Backdrop GetBackdrop() const;
     void SetBackgroundColor(Color color);
     void SetContextMenu(std::shared_ptr&lt;Menu&gt; menu);
 
@@ -259,18 +260,20 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调
+    // 背景实现方式（用什么 API）
     enum class BackdropMode {
-        Auto,            // 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质
-        Acrylic,         // 强制：AccentState 亚克力（Win10/11 都能显示）
-        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
+        Auto,    // 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState
+        System,  // 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
+        Accent   // 强制：SetWindowCompositionAttribute(AccentState)
     };
     void SetBackdropMode(BackdropMode m);
     BackdropMode GetBackdropMode() const;
-    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
-    void SetSystemBackdropMaterial(SystemBackdropMaterial m);   // 仅 SystemBackdrop 模式生效
-    SystemBackdropMaterial GetSystemBackdropMaterial() const;
-    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);  // 运行时不受支持时回调
+
+    // 事件信号
+    ZSignal&lt;bool*&gt; Closing;           // 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）
+    ZSignal&lt;&gt; BackdropUnsupported;    // 所选实现当前系统不支持
+    ZSignal&lt;&gt; DeviceLost;             // 设备丢失（GPU 移除/重置/交换链失效）
+    ZSignal&lt;HRESULT&gt; RenderingError;  // 渲染致命错误
 
     // 自定义标题栏（控件见“窗口工具”章节）
     void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // 传 nullptr 恢复原生标题栏
@@ -302,11 +305,11 @@ class Window {
 };
 ```
 
-`WindowBackdrop` 取值：`None`、`Gradient`、`TransparentGradient`、`BlurBehind`、`AcrylicBlurBehind`。
+`Backdrop` 取值（表示**要什么效果**）：`None`、`Normal`、`Blur`、`Acrylic`、`Mica`、`MicaAlt`；`BackdropMode`（表示**用什么 API**）：`Auto`、`System`、`Accent`。
 
 **行为与易混点**：
 
-- `Create` 创建窗口、初始化 Direct2D、应用背景，并生成一个默认根布局：带 `margin 20`、`spacing 10` 的 `ColumnBox`。`GetRootColumnBox()` 就是它。
+- `Create` 创建窗口、初始化渲染资源、应用背景，并生成一个默认根布局：带 `margin 20`、`spacing 10` 的 `ColumnBox`（`GetRootColumnBox()` 即它）。**1.8.0 起 `Create` 不再自动显示窗口**，需要显示时由应用调用 `Show()`。
 - `Run()` 进入消息循环，阻塞直到窗口关闭。
 - 窗口内部维护 16ms 定时器驱动动画；`timeBeginPeriod(1)` / `timeEndPeriod(1)` 用于降低定时器抖动。
 - 帧时间 `deltaTime` 被钳制在 `0.033s`，空闲或最小化恢复后不会让动画一帧跳到终点。
@@ -317,31 +320,29 @@ class Window {
 - **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
 - **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
 - **自定义标题栏**：`SetCustomTitleBar(bar)` 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 `(0,0)`、根布局整体下移其高度；传入 `nullptr` 恢复原生标题栏（会发 `SWP_FRAMECHANGED` 全量刷新）。`SetTitleBarVisible(false)` 可隐藏标题栏但保留自定义边框。
-- **背景三模式**：`Auto` / `Acrylic` 走 `SetWindowCompositionAttribute` 的 `AccentState` 亚克力；`SystemBackdrop` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`（`Mica`/`MicaAlt`/`Acrylic`）。运行时不受支持（如 Win10）会调用 `SetBackdropUnsupportedHandler` 注册的回调并回退到 `AccentState`。
-- **已知限制（重要）**：当前 ZUI 的渲染基于 `ID2D1HwndRenderTarget`（不透明重定向表面），**无法显示 DWM 系统材质**。因此：
-  1) `BackdropMode::Auto` 目前在 Win10/Win11 上都走 `AccentState` 路径；`SystemBackdrop` 模式在渲染目标迁移到 DirectComposition 之前**不可见**（会发灰/发黑）；
-  2) `AccentState` 亚克力（`AcrylicBlurBehind`）是未公开 API，会让 DWM **跳过最小化/最大化等窗口过渡动画**（Win10/Win11 均如此），这是该 API 的固有行为；
-  3) 要同时获得"亚克力 + 原生动画 + Mica"，需要把渲染从 `HwndRenderTarget` 迁移到 DirectComposition（SwapChain / CompositionSurface），属于后续规划。
+- **背景（`Backdrop` = 要什么，`BackdropMode` = 用什么 API）**：`Acrylic` 走 DComp `HostBackdropBrush` + 高斯模糊（`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`），Win10 自动回退 `ACRYLICBLURBEHIND`；`Mica`/`MicaAlt` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`；`Blur` 走 `AccentState(BLURBEHIND)`；`Normal` 走 `AccentState(GRADIENT)`。当前实现不支持所请求效果时触发 `BackdropUnsupported` 信号，**不会**用别的效果凑合。
+- **渲染架构（1.8.0）**：Direct2D 1.1 + DXGI flip SwapChain + DirectComposition（`WS_EX_NOREDIRECTIONBITMAP`），支持逐像素透明；进程级共享 D3D11/D2D 设备与 WinRT `ICompositor`。`Create` **不再自动显示窗口**，需应用显式 `Show()`。
 - **边框/调整/圆角**：`SetResizable` 控制拖边缩放；分屏时会保留 DWM 边框/阴影（`WM_NCCALCSIZE` 只内缩被吸附的边），最大化不做内缩。`SetWindowCorner` 映射到 `DWMWA_WINDOW_CORNER_PREFERENCE`。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 9 章 · 窗口 Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 9 章</span><h1>窗口 Window</h1><p class="chapter-summary">创建、背景、标题栏与根布局</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-751ac856', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-bea25785', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">DefaultBackdropColor</span><span class="p">;</span><span class="w">            </span><span class="c1">// 0x80FFFFFF</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Backdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">              </span><span class="c1">// None</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">DefaultBackdropColor</span><span class="p">;</span><span class="w">            </span><span class="c1">// 0</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">DefaultBackgroundColor</span><span class="p">;</span><span class="w">          </span><span class="c1">// 透明</span>
 
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span><span class="w">   </span><span class="c1">// 创建后不自动显示，见 Show()</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">();</span>
 
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRootLayout</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Layout</span><span class="o">&gt;</span><span class="w"> </span><span class="n">layout</span><span class="p">);</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Layout</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetRootLayout</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">ColumnBox</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetRootColumnBox</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdrop</span><span class="p">(</span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">backdrop</span><span class="p">,</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x80FFFFFF</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdrop</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">backdrop</span><span class="p">,</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">tint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x00000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Backdrop</span><span class="w"> </span><span class="nf">GetBackdrop</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="w"> </span><span class="n">color</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetContextMenu</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Menu</span><span class="o">&gt;</span><span class="w"> </span><span class="n">menu</span><span class="p">);</span>
 
@@ -387,18 +388,20 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
 <span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="c1">// 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调</span>
+<span class="w">    </span><span class="c1">// 背景实现方式（用什么 API）</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BackdropMode</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">            </span><span class="c1">// 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质</span>
-<span class="w">        </span><span class="n">Acrylic</span><span class="p">,</span><span class="w">         </span><span class="c1">// 强制：AccentState 亚克力（Win10/11 都能显示）</span>
-<span class="w">        </span><span class="n">SystemBackdrop</span><span class="w">   </span><span class="c1">// 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）</span>
+<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">    </span><span class="c1">// 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState</span>
+<span class="w">        </span><span class="n">System</span><span class="p">,</span><span class="w">  </span><span class="c1">// 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE</span>
+<span class="w">        </span><span class="n">Accent</span><span class="w">   </span><span class="c1">// 强制：SetWindowCompositionAttribute(AccentState)</span>
 <span class="w">    </span><span class="p">};</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropMode</span><span class="p">(</span><span class="n">BackdropMode</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
 <span class="w">    </span><span class="n">BackdropMode</span><span class="w"> </span><span class="nf">GetBackdropMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SystemBackdropMaterial</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Auto</span><span class="p">,</span><span class="w"> </span><span class="n">Mica</span><span class="p">,</span><span class="w"> </span><span class="n">MicaAlt</span><span class="p">,</span><span class="w"> </span><span class="n">Acrylic</span><span class="w"> </span><span class="p">};</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSystemBackdropMaterial</span><span class="p">(</span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="n">m</span><span class="p">);</span><span class="w">   </span><span class="c1">// 仅 SystemBackdrop 模式生效</span>
-<span class="w">    </span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="nf">GetSystemBackdropMaterial</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropUnsupportedHandler</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">handler</span><span class="p">);</span><span class="w">  </span><span class="c1">// 运行时不受支持时回调</span>
+
+<span class="w">    </span><span class="c1">// 事件信号</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">Closing</span><span class="p">;</span><span class="w">           </span><span class="c1">// 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">BackdropUnsupported</span><span class="p">;</span><span class="w">    </span><span class="c1">// 所选实现当前系统不支持</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">DeviceLost</span><span class="p">;</span><span class="w">             </span><span class="c1">// 设备丢失（GPU 移除/重置/交换链失效）</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">HRESULT</span><span class="o">&gt;</span><span class="w"> </span><span class="n">RenderingError</span><span class="p">;</span><span class="w">  </span><span class="c1">// 渲染致命错误</span>
 
 <span class="w">    </span><span class="c1">// 自定义标题栏（控件见“窗口工具”章节）</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCustomTitleBar</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">bar</span><span class="p">);</span><span class="w">   </span><span class="c1">// 传 nullptr 恢复原生标题栏</span>
@@ -429,19 +432,20 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-751ac856" style="display: none;">class Window {
-    static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
-    static DWORD DefaultBackdropColor;            // 0x80FFFFFF
+<pre id="code-bea25785" style="display: none;">class Window {
+    static Backdrop DefaultBackdrop;              // None
+    static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // 透明
 
-    bool Create(int width, int height, const std::wstring&amp; title);
+    bool Create(int width, int height, const std::wstring&amp; title);   // 创建后不自动显示，见 Show()
     void Run();
 
     void SetRootLayout(std::shared_ptr&lt;Layout&gt; layout);
     std::shared_ptr&lt;Layout&gt; GetRootLayout() const;
     std::shared_ptr&lt;ColumnBox&gt; GetRootColumnBox() const;
 
-    void SetBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF);
+    void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000);
+    Backdrop GetBackdrop() const;
     void SetBackgroundColor(Color color);
     void SetContextMenu(std::shared_ptr&lt;Menu&gt; menu);
 
@@ -487,18 +491,20 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调
+    // 背景实现方式（用什么 API）
     enum class BackdropMode {
-        Auto,            // 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质
-        Acrylic,         // 强制：AccentState 亚克力（Win10/11 都能显示）
-        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
+        Auto,    // 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState
+        System,  // 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
+        Accent   // 强制：SetWindowCompositionAttribute(AccentState)
     };
     void SetBackdropMode(BackdropMode m);
     BackdropMode GetBackdropMode() const;
-    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
-    void SetSystemBackdropMaterial(SystemBackdropMaterial m);   // 仅 SystemBackdrop 模式生效
-    SystemBackdropMaterial GetSystemBackdropMaterial() const;
-    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);  // 运行时不受支持时回调
+
+    // 事件信号
+    ZSignal&lt;bool*&gt; Closing;           // 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）
+    ZSignal&lt;&gt; BackdropUnsupported;    // 所选实现当前系统不支持
+    ZSignal&lt;&gt; DeviceLost;             // 设备丢失（GPU 移除/重置/交换链失效）
+    ZSignal&lt;HRESULT&gt; RenderingError;  // 渲染致命错误
 
     // 自定义标题栏（控件见“窗口工具”章节）
     void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // 传 nullptr 恢复原生标题栏
@@ -529,10 +535,10 @@ class Window {
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
 </div>
-<p><code>WindowBackdrop</code> 取值：<code>None</code>、<code>Gradient</code>、<code>TransparentGradient</code>、<code>BlurBehind</code>、<code>AcrylicBlurBehind</code>。</p>
+<p><code>Backdrop</code> 取值（表示<strong>要什么效果</strong>）：<code>None</code>、<code>Normal</code>、<code>Blur</code>、<code>Acrylic</code>、<code>Mica</code>、<code>MicaAlt</code>；<code>BackdropMode</code>（表示<strong>用什么 API</strong>）：<code>Auto</code>、<code>System</code>、<code>Accent</code>。</p>
 <p><strong>行为与易混点</strong>：</p>
 <ul>
-<li><code>Create</code> 创建窗口、初始化 Direct2D、应用背景，并生成一个默认根布局：带 <code>margin 20</code>、<code>spacing 10</code> 的 <code>ColumnBox</code>。<code>GetRootColumnBox()</code> 就是它。</li>
+<li><code>Create</code> 创建窗口、初始化渲染资源、应用背景，并生成一个默认根布局：带 <code>margin 20</code>、<code>spacing 10</code> 的 <code>ColumnBox</code>（<code>GetRootColumnBox()</code> 即它）。<strong>1.8.0 起 <code>Create</code> 不再自动显示窗口</strong>，需要显示时由应用调用 <code>Show()</code>。</li>
 <li><code>Run()</code> 进入消息循环，阻塞直到窗口关闭。</li>
 <li>窗口内部维护 16ms 定时器驱动动画；<code>timeBeginPeriod(1)</code> / <code>timeEndPeriod(1)</code> 用于降低定时器抖动。</li>
 <li>帧时间 <code>deltaTime</code> 被钳制在 <code>0.033s</code>，空闲或最小化恢复后不会让动画一帧跳到终点。</li>
@@ -543,11 +549,8 @@ class Window {
 <li><strong><code>OwnedMinimizePolicy</code></strong>：处理 owned 子窗口被“单独最小化”的情况。<code>None</code> 不处理（会出现老式小瓷砖）；<code>Hide</code> 拦截最小化改为隐藏、父窗口还原/激活时恢复；<code>DisableMinimize</code> 置灰最小化按钮并忽略最小化相关消息。</li>
 <li><strong>裸引用清理</strong>：窗口销毁时会清除其它窗口对它的引用（<code>owner_</code> 与隐藏列表），避免地址被复用后牵连不相干的窗口。</li>
 <li><strong>自定义标题栏</strong>：<code>SetCustomTitleBar(bar)</code> 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 <code>(0,0)</code>、根布局整体下移其高度；传入 <code>nullptr</code> 恢复原生标题栏（会发 <code>SWP_FRAMECHANGED</code> 全量刷新）。<code>SetTitleBarVisible(false)</code> 可隐藏标题栏但保留自定义边框。</li>
-<li><strong>背景三模式</strong>：<code>Auto</code> / <code>Acrylic</code> 走 <code>SetWindowCompositionAttribute</code> 的 <code>AccentState</code> 亚克力；<code>SystemBackdrop</code> 走 Win11 <code>DWMWA_SYSTEMBACKDROP_TYPE</code>（<code>Mica</code>/<code>MicaAlt</code>/<code>Acrylic</code>）。运行时不受支持（如 Win10）会调用 <code>SetBackdropUnsupportedHandler</code> 注册的回调并回退到 <code>AccentState</code>。</li>
-<li><strong>已知限制（重要）</strong>：当前 ZUI 的渲染基于 <code>ID2D1HwndRenderTarget</code>（不透明重定向表面），<strong>无法显示 DWM 系统材质</strong>。因此：
-  1) <code>BackdropMode::Auto</code> 目前在 Win10/Win11 上都走 <code>AccentState</code> 路径；<code>SystemBackdrop</code> 模式在渲染目标迁移到 DirectComposition 之前<strong>不可见</strong>（会发灰/发黑）；
-  2) <code>AccentState</code> 亚克力（<code>AcrylicBlurBehind</code>）是未公开 API，会让 DWM <strong>跳过最小化/最大化等窗口过渡动画</strong>（Win10/Win11 均如此），这是该 API 的固有行为；
-  3) 要同时获得"亚克力 + 原生动画 + Mica"，需要把渲染从 <code>HwndRenderTarget</code> 迁移到 DirectComposition（SwapChain / CompositionSurface），属于后续规划。</li>
+<li><strong>背景（<code>Backdrop</code> = 要什么，<code>BackdropMode</code> = 用什么 API）</strong>：<code>Acrylic</code> 走 DComp <code>HostBackdropBrush</code> + 高斯模糊（<code>DWMWA_USE_HOSTBACKDROPBRUSH</code> + <code>AccentState(HOSTBACKDROP)</code>），Win10 自动回退 <code>ACRYLICBLURBEHIND</code>；<code>Mica</code>/<code>MicaAlt</code> 走 Win11 <code>DWMWA_SYSTEMBACKDROP_TYPE</code>；<code>Blur</code> 走 <code>AccentState(BLURBEHIND)</code>；<code>Normal</code> 走 <code>AccentState(GRADIENT)</code>。当前实现不支持所请求效果时触发 <code>BackdropUnsupported</code> 信号，<strong>不会</strong>用别的效果凑合。</li>
+<li><strong>渲染架构（1.8.0）</strong>：Direct2D 1.1 + DXGI flip SwapChain + DirectComposition（<code>WS_EX_NOREDIRECTIONBITMAP</code>），支持逐像素透明；进程级共享 D3D11/D2D 设备与 WinRT <code>ICompositor</code>。<code>Create</code> <strong>不再自动显示窗口</strong>，需应用显式 <code>Show()</code>。</li>
 <li><strong>边框/调整/圆角</strong>：<code>SetResizable</code> 控制拖边缩放；分屏时会保留 DWM 边框/阴影（<code>WM_NCCALCSIZE</code> 只内缩被吸附的边），最大化不做内缩。<code>SetWindowCorner</code> 映射到 <code>DWMWA_WINDOW_CORNER_PREFERENCE</code>。</li>
 </ul>
 <nav class="chapter-nav"><a class="prev" href="API.8.html"><span class="nav-label">&#8592; 上一章</span><span class="nav-title">菜单</span><span class="nav-desc">MenuItem、Menu 与 MenuWindow</span></a><a class="next" href="API.10.html"><span class="nav-label">下一章 &#8594;</span><span class="nav-title">应用与多窗口</span><span class="nav-desc">Application 与多窗口</span></a></nav>

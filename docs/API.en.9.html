@@ -202,18 +202,19 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>```cpp
 class Window {
-    static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
-    static DWORD DefaultBackdropColor;            // 0x80FFFFFF
+    static Backdrop DefaultBackdrop;              // None
+    static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // transparent
 
-    bool Create(int width, int height, const std::wstring&amp; title);
+    bool Create(int width, int height, const std::wstring&amp; title);   // does NOT auto-show
     void Run();
 
     void SetRootLayout(std::shared_ptr&lt;Layout&gt; layout);
     std::shared_ptr&lt;Layout&gt; GetRootLayout() const;
     std::shared_ptr&lt;ColumnBox&gt; GetRootColumnBox() const;
 
-    void SetBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF);
+    void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000);
+    Backdrop GetBackdrop() const;
     void SetBackgroundColor(Color color);
     void SetContextMenu(std::shared_ptr&lt;Menu&gt; menu);
 
@@ -259,18 +260,20 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // Backdrop implementation (3 modes) + Win11 system material + unsupported callback
+    // Backdrop implementation (which API)
     enum class BackdropMode {
-        Auto,            // adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp
-        Acrylic,         // force: AccentState acrylic (visible on Win10/11)
-        SystemBackdrop   // force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)
+        Auto,    // auto: prefer Win11 host backdrop / system material, fall back to AccentState
+        System,  // force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
+        Accent   // force: SetWindowCompositionAttribute(AccentState)
     };
     void SetBackdropMode(BackdropMode m);
     BackdropMode GetBackdropMode() const;
-    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
-    void SetSystemBackdropMaterial(SystemBackdropMaterial m);
-    SystemBackdropMaterial GetSystemBackdropMaterial() const;
-    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);
+
+    // Event signals
+    ZSignal&lt;bool*&gt; Closing;           // close requested; set *cancel = true to cancel
+    ZSignal&lt;&gt; BackdropUnsupported;    // requested implementation unsupported on this system
+    ZSignal&lt;&gt; DeviceLost;             // device lost
+    ZSignal&lt;HRESULT&gt; RenderingError;  // fatal rendering error
 
     // Custom title bar (control in the "Window tools" chapter)
     void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // pass nullptr to restore the native one
@@ -302,7 +305,7 @@ class Window {
 };
 ```
 
-`WindowBackdrop`: `None`, `Gradient`, `TransparentGradient`, `BlurBehind`, `AcrylicBlurBehind`.
+`Backdrop` (what effect): `None`, `Normal`, `Blur`, `Acrylic`, `Mica`, `MicaAlt`. `BackdropMode` (which API): `Auto`, `System`, `Accent`.
 
 **Behavior and pitfalls:**
 
@@ -317,31 +320,29 @@ class Window {
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
 - **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
 - **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
-- **Backdrop modes**: `Auto` / `Acrylic` use the `SetWindowCompositionAttribute` AccentState acrylic; `SystemBackdrop` uses Win11's `DWMWA_SYSTEMBACKDROP_TYPE` (`Mica`/`MicaAlt`/`Acrylic`). If unsupported at runtime (e.g. Win10) the handler registered via `SetBackdropUnsupportedHandler` is called and it falls back to AccentState.
-- **Known limitations (important)**: ZUI currently renders through an `ID2D1HwndRenderTarget` (an opaque redirection surface), so it **cannot display DWM system materials**. Therefore:
-  1) `BackdropMode::Auto` currently uses AccentState on both Win10 and Win11; `SystemBackdrop` is **not visible** until the render target is migrated to DirectComposition (it will look gray/black);
-  2) AccentState acrylic (`AcrylicBlurBehind`) is an undocumented API and makes DWM **skip window transition animations** (minimize/maximize) on both Win10 and Win11 — inherent to that API;
-  3) getting "acrylic + native animations + Mica" together requires migrating rendering from `HwndRenderTarget` to DirectComposition (SwapChain / CompositionSurface), which is planned.
+- **Backdrop (`Backdrop` = what, `BackdropMode` = which API)**: `Acrylic` uses a DComp `HostBackdropBrush` + Gaussian blur (`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`), falling back to `ACRYLICBLURBEHIND` on Win10; `Mica`/`MicaAlt` use Win11's `DWMWA_SYSTEMBACKDROP_TYPE`; `Blur` uses `AccentState(BLURBEHIND)`; `Normal` uses `AccentState(GRADIENT)`. If the requested effect cannot be realized by the current implementation, `BackdropUnsupported` fires and it does **not** substitute another effect.
+- **Rendering (1.8.0)**: Direct2D 1.1 + DXGI flip SwapChain + DirectComposition (`WS_EX_NOREDIRECTIONBITMAP`), per-pixel transparent; a process-wide shared D3D11/D2D device and WinRT `ICompositor`. `Create` **no longer shows the window**; call `Show()` explicitly.
 - **Border / resize / corners**: `SetResizable` controls edge resizing; when snapped, the DWM border/shadow is preserved (`WM_NCCALCSIZE` only insets the snapped edges), and maximizing does not inset. `SetWindowCorner` maps to `DWMWA_WINDOW_CORNER_PREFERENCE`.</pre></div></div>
 <div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 9 · Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 9</span><h1>Window</h1><p class="chapter-summary">Creation, backdrop, title bar, and root layout</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-2e70bec5', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-fe77d9a2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">        </span><span class="c1">// AcrylicBlurBehind</span>
-<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">DefaultBackdropColor</span><span class="p">;</span><span class="w">            </span><span class="c1">// 0x80FFFFFF</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Backdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">              </span><span class="c1">// None</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">DefaultBackdropColor</span><span class="p">;</span><span class="w">            </span><span class="c1">// 0</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Color</span><span class="w"> </span><span class="n">DefaultBackgroundColor</span><span class="p">;</span><span class="w">          </span><span class="c1">// transparent</span>
 
-<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">Create</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span><span class="w">   </span><span class="c1">// does NOT auto-show</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">();</span>
 
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRootLayout</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Layout</span><span class="o">&gt;</span><span class="w"> </span><span class="n">layout</span><span class="p">);</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Layout</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetRootLayout</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">ColumnBox</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetRootColumnBox</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdrop</span><span class="p">(</span><span class="n">WindowBackdrop</span><span class="w"> </span><span class="n">backdrop</span><span class="p">,</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x80FFFFFF</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdrop</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">backdrop</span><span class="p">,</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">tint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x00000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Backdrop</span><span class="w"> </span><span class="nf">GetBackdrop</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundColor</span><span class="p">(</span><span class="n">Color</span><span class="w"> </span><span class="n">color</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetContextMenu</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Menu</span><span class="o">&gt;</span><span class="w"> </span><span class="n">menu</span><span class="p">);</span>
 
@@ -387,18 +388,20 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
 <span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="c1">// Backdrop implementation (3 modes) + Win11 system material + unsupported callback</span>
+<span class="w">    </span><span class="c1">// Backdrop implementation (which API)</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BackdropMode</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">            </span><span class="c1">// adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp</span>
-<span class="w">        </span><span class="n">Acrylic</span><span class="p">,</span><span class="w">         </span><span class="c1">// force: AccentState acrylic (visible on Win10/11)</span>
-<span class="w">        </span><span class="n">SystemBackdrop</span><span class="w">   </span><span class="c1">// force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)</span>
+<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">    </span><span class="c1">// auto: prefer Win11 host backdrop / system material, fall back to AccentState</span>
+<span class="w">        </span><span class="n">System</span><span class="p">,</span><span class="w">  </span><span class="c1">// force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE</span>
+<span class="w">        </span><span class="n">Accent</span><span class="w">   </span><span class="c1">// force: SetWindowCompositionAttribute(AccentState)</span>
 <span class="w">    </span><span class="p">};</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropMode</span><span class="p">(</span><span class="n">BackdropMode</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
 <span class="w">    </span><span class="n">BackdropMode</span><span class="w"> </span><span class="nf">GetBackdropMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SystemBackdropMaterial</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Auto</span><span class="p">,</span><span class="w"> </span><span class="n">Mica</span><span class="p">,</span><span class="w"> </span><span class="n">MicaAlt</span><span class="p">,</span><span class="w"> </span><span class="n">Acrylic</span><span class="w"> </span><span class="p">};</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSystemBackdropMaterial</span><span class="p">(</span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
-<span class="w">    </span><span class="n">SystemBackdropMaterial</span><span class="w"> </span><span class="nf">GetSystemBackdropMaterial</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropUnsupportedHandler</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">handler</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Event signals</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">Closing</span><span class="p">;</span><span class="w">           </span><span class="c1">// close requested; set *cancel = true to cancel</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">BackdropUnsupported</span><span class="p">;</span><span class="w">    </span><span class="c1">// requested implementation unsupported on this system</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">DeviceLost</span><span class="p">;</span><span class="w">             </span><span class="c1">// device lost</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">HRESULT</span><span class="o">&gt;</span><span class="w"> </span><span class="n">RenderingError</span><span class="p">;</span><span class="w">  </span><span class="c1">// fatal rendering error</span>
 
 <span class="w">    </span><span class="c1">// Custom title bar (control in the "Window tools" chapter)</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCustomTitleBar</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">bar</span><span class="p">);</span><span class="w">   </span><span class="c1">// pass nullptr to restore the native one</span>
@@ -429,19 +432,20 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-2e70bec5" style="display: none;">class Window {
-    static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
-    static DWORD DefaultBackdropColor;            // 0x80FFFFFF
+<pre id="code-fe77d9a2" style="display: none;">class Window {
+    static Backdrop DefaultBackdrop;              // None
+    static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // transparent
 
-    bool Create(int width, int height, const std::wstring&amp; title);
+    bool Create(int width, int height, const std::wstring&amp; title);   // does NOT auto-show
     void Run();
 
     void SetRootLayout(std::shared_ptr&lt;Layout&gt; layout);
     std::shared_ptr&lt;Layout&gt; GetRootLayout() const;
     std::shared_ptr&lt;ColumnBox&gt; GetRootColumnBox() const;
 
-    void SetBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF);
+    void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000);
+    Backdrop GetBackdrop() const;
     void SetBackgroundColor(Color color);
     void SetContextMenu(std::shared_ptr&lt;Menu&gt; menu);
 
@@ -487,18 +491,20 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // Backdrop implementation (3 modes) + Win11 system material + unsupported callback
+    // Backdrop implementation (which API)
     enum class BackdropMode {
-        Auto,            // adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp
-        Acrylic,         // force: AccentState acrylic (visible on Win10/11)
-        SystemBackdrop   // force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)
+        Auto,    // auto: prefer Win11 host backdrop / system material, fall back to AccentState
+        System,  // force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
+        Accent   // force: SetWindowCompositionAttribute(AccentState)
     };
     void SetBackdropMode(BackdropMode m);
     BackdropMode GetBackdropMode() const;
-    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
-    void SetSystemBackdropMaterial(SystemBackdropMaterial m);
-    SystemBackdropMaterial GetSystemBackdropMaterial() const;
-    void SetBackdropUnsupportedHandler(std::function&lt;void()&gt; handler);
+
+    // Event signals
+    ZSignal&lt;bool*&gt; Closing;           // close requested; set *cancel = true to cancel
+    ZSignal&lt;&gt; BackdropUnsupported;    // requested implementation unsupported on this system
+    ZSignal&lt;&gt; DeviceLost;             // device lost
+    ZSignal&lt;HRESULT&gt; RenderingError;  // fatal rendering error
 
     // Custom title bar (control in the "Window tools" chapter)
     void SetCustomTitleBar(std::shared_ptr&lt;UIElement&gt; bar);   // pass nullptr to restore the native one
@@ -529,7 +535,7 @@ class Window {
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
 </div>
-<p><code>WindowBackdrop</code>: <code>None</code>, <code>Gradient</code>, <code>TransparentGradient</code>, <code>BlurBehind</code>, <code>AcrylicBlurBehind</code>.</p>
+<p><code>Backdrop</code> (what effect): <code>None</code>, <code>Normal</code>, <code>Blur</code>, <code>Acrylic</code>, <code>Mica</code>, <code>MicaAlt</code>. <code>BackdropMode</code> (which API): <code>Auto</code>, <code>System</code>, <code>Accent</code>.</p>
 <p><strong>Behavior and pitfalls:</strong></p>
 <ul>
 <li><code>Create</code> creates the window, initializes Direct2D, applies the backdrop, and builds a default root layout: a <code>ColumnBox</code> with <code>margin 20</code> and <code>spacing 10</code>. <code>GetRootColumnBox()</code> returns it.</li>
@@ -543,11 +549,8 @@ class Window {
 <li><strong><code>OwnedMinimizePolicy</code></strong>: how an owned child handles being minimized on its own. <code>None</code> does nothing; <code>Hide</code> intercepts minimize and hides, restoring when the owner restores/activates; <code>DisableMinimize</code> grays out the minimize button and ignores minimize-related messages.</li>
 <li><strong>Dangling cleanup</strong>: on destroy a window clears every reference other windows hold to it (<code>owner_</code> and hidden lists), so address reuse can never affect unrelated windows.</li>
 <li><strong>Custom title bar</strong>: <code>SetCustomTitleBar(bar)</code> installs a non-layout title bar control (see "Window tools"); the window places it at <code>(0,0)</code> and shifts the root layout down by its height. Pass <code>nullptr</code> to restore the native title bar (sends <code>SWP_FRAMECHANGED</code>). <code>SetTitleBarVisible(false)</code> hides it while keeping the custom frame.</li>
-<li><strong>Backdrop modes</strong>: <code>Auto</code> / <code>Acrylic</code> use the <code>SetWindowCompositionAttribute</code> AccentState acrylic; <code>SystemBackdrop</code> uses Win11's <code>DWMWA_SYSTEMBACKDROP_TYPE</code> (<code>Mica</code>/<code>MicaAlt</code>/<code>Acrylic</code>). If unsupported at runtime (e.g. Win10) the handler registered via <code>SetBackdropUnsupportedHandler</code> is called and it falls back to AccentState.</li>
-<li><strong>Known limitations (important)</strong>: ZUI currently renders through an <code>ID2D1HwndRenderTarget</code> (an opaque redirection surface), so it <strong>cannot display DWM system materials</strong>. Therefore:
-  1) <code>BackdropMode::Auto</code> currently uses AccentState on both Win10 and Win11; <code>SystemBackdrop</code> is <strong>not visible</strong> until the render target is migrated to DirectComposition (it will look gray/black);
-  2) AccentState acrylic (<code>AcrylicBlurBehind</code>) is an undocumented API and makes DWM <strong>skip window transition animations</strong> (minimize/maximize) on both Win10 and Win11 — inherent to that API;
-  3) getting "acrylic + native animations + Mica" together requires migrating rendering from <code>HwndRenderTarget</code> to DirectComposition (SwapChain / CompositionSurface), which is planned.</li>
+<li><strong>Backdrop (<code>Backdrop</code> = what, <code>BackdropMode</code> = which API)</strong>: <code>Acrylic</code> uses a DComp <code>HostBackdropBrush</code> + Gaussian blur (<code>DWMWA_USE_HOSTBACKDROPBRUSH</code> + <code>AccentState(HOSTBACKDROP)</code>), falling back to <code>ACRYLICBLURBEHIND</code> on Win10; <code>Mica</code>/<code>MicaAlt</code> use Win11's <code>DWMWA_SYSTEMBACKDROP_TYPE</code>; <code>Blur</code> uses <code>AccentState(BLURBEHIND)</code>; <code>Normal</code> uses <code>AccentState(GRADIENT)</code>. If the requested effect cannot be realized by the current implementation, <code>BackdropUnsupported</code> fires and it does <strong>not</strong> substitute another effect.</li>
+<li><strong>Rendering (1.8.0)</strong>: Direct2D 1.1 + DXGI flip SwapChain + DirectComposition (<code>WS_EX_NOREDIRECTIONBITMAP</code>), per-pixel transparent; a process-wide shared D3D11/D2D device and WinRT <code>ICompositor</code>. <code>Create</code> <strong>no longer shows the window</strong>; call <code>Show()</code> explicitly.</li>
 <li><strong>Border / resize / corners</strong>: <code>SetResizable</code> controls edge resizing; when snapped, the DWM border/shadow is preserved (<code>WM_NCCALCSIZE</code> only insets the snapped edges), and maximizing does not inset. <code>SetWindowCorner</code> maps to <code>DWMWA_WINDOW_CORNER_PREFERENCE</code>.</li>
 </ul>
 <nav class="chapter-nav"><a class="prev" href="API.en.8.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Menus</span><span class="nav-desc">MenuItem, Menu, MenuWindow</span></a><a class="next" href="API.en.10.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Application and multiple windows</span><span class="nav-desc">Application and multi-window</span></a></nav>

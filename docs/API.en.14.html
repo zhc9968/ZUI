@@ -219,11 +219,18 @@ class TitleBar : public UIElement {
     void ClearRightMargin();
     void SetButtonsEnabled(bool);
     bool AreButtonsEnabled() const;
+    // Per-button control (detailed disable API)
+    std::shared_ptr&lt;CaptionButton&gt; GetButton(CaptionButton::Kind) const;
+    void SetButtonEnabled(CaptionButton::Kind, bool);   // gray out, ignore input, don't report the NC button code
+    bool IsButtonEnabled(CaptionButton::Kind) const;
+    void SetButtonVisible(CaptionButton::Kind, bool);   // hidden buttons take no space
+    bool IsButtonVisible(CaptionButton::Kind) const;
 };
 
 class CaptionButton : public UIElement {
     enum class Kind { Minimize, MaximizeRestore, Close };
     explicit CaptionButton(Kind kind);
+    ZSignal&lt;&gt; Clicked;              // default behaviour wired by DefaultTitleBar
     void SetHoverColor(Color);      void SetPressedColor(Color);
     void SetCloseHoverColor(Color); void SetClosePressedColor(Color);
     void SetGlyphColor(Color);
@@ -236,6 +243,9 @@ class DefaultTitleBar : public TitleBar {
     std::shared_ptr&lt;CaptionButton&gt; GetMinButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetMaxButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetCloseButton() const;
+    // convenience: enable/disable, show/hide the three buttons individually
+    void SetMinimizeEnabled(bool);  void SetMaximizeEnabled(bool);  void SetCloseEnabled(bool);
+    void SetMinimizeVisible(bool);  void SetMaximizeVisible(bool);  void SetCloseVisible(bool);
 };
 ```
 
@@ -261,7 +271,7 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-3c3aac42', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-4153d5fc', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TitleBar</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
@@ -279,11 +289,18 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearRightMargin</span><span class="p">();</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonsEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">AreButtonsEnabled</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// Per-button control (detailed disable API)</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetButton</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonEnabled</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w">   </span><span class="c1">// gray out, ignore input, don't report the NC button code</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsButtonEnabled</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonVisible</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w">   </span><span class="c1">// hidden buttons take no space</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsButtonVisible</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">CaptionButton</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Kind</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Minimize</span><span class="p">,</span><span class="w"> </span><span class="n">MaximizeRestore</span><span class="p">,</span><span class="w"> </span><span class="n">Close</span><span class="w"> </span><span class="p">};</span>
 <span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="n">CaptionButton</span><span class="p">(</span><span class="n">Kind</span><span class="w"> </span><span class="n">kind</span><span class="p">);</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">Clicked</span><span class="p">;</span><span class="w">              </span><span class="c1">// default behaviour wired by DefaultTitleBar</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w">      </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPressedColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseHoverColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetClosePressedColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetGlyphColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
@@ -296,9 +313,12 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetMinButton</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetMaxButton</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCloseButton</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// convenience: enable/disable, show/hide the three buttons individually</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMinimizeEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaximizeEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMinimizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaximizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-3c3aac42" style="display: none;">class TitleBar : public UIElement {
+<pre id="code-4153d5fc" style="display: none;">class TitleBar : public UIElement {
     void SetTitle(const std::wstring&amp;);
     const std::wstring&amp; GetTitle() const;
     void SetIcon(std::shared_ptr&lt;Image&gt;);        // reuses the image system
@@ -314,11 +334,18 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
     void ClearRightMargin();
     void SetButtonsEnabled(bool);
     bool AreButtonsEnabled() const;
+    // Per-button control (detailed disable API)
+    std::shared_ptr&lt;CaptionButton&gt; GetButton(CaptionButton::Kind) const;
+    void SetButtonEnabled(CaptionButton::Kind, bool);   // gray out, ignore input, don't report the NC button code
+    bool IsButtonEnabled(CaptionButton::Kind) const;
+    void SetButtonVisible(CaptionButton::Kind, bool);   // hidden buttons take no space
+    bool IsButtonVisible(CaptionButton::Kind) const;
 };
 
 class CaptionButton : public UIElement {
     enum class Kind { Minimize, MaximizeRestore, Close };
     explicit CaptionButton(Kind kind);
+    ZSignal&lt;&gt; Clicked;              // default behaviour wired by DefaultTitleBar
     void SetHoverColor(Color);      void SetPressedColor(Color);
     void SetCloseHoverColor(Color); void SetClosePressedColor(Color);
     void SetGlyphColor(Color);
@@ -331,20 +358,23 @@ class DefaultTitleBar : public TitleBar {
     std::shared_ptr&lt;CaptionButton&gt; GetMinButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetMaxButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetCloseButton() const;
+    // convenience: enable/disable, show/hide the three buttons individually
+    void SetMinimizeEnabled(bool);  void SetMaximizeEnabled(bool);  void SetCloseEnabled(bool);
+    void SetMinimizeVisible(bool);  void SetMaximizeVisible(bool);  void SetCloseVisible(bool);
 };</pre>
 </div>
 <p><strong>Usage</strong>:</p>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-b99cf6d8', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-2c43213e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">DefaultTitleBar</span><span class="o">&gt;</span><span class="p">();</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetTitle</span><span class="p">(</span><span class="sa">L</span><span class="s">"My Window"</span><span class="p">);</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetIcon</span><span class="p">(</span><span class="n">myImage</span><span class="p">);</span><span class="w">                 </span><span class="c1">// optional</span>
 <span class="n">win</span><span class="p">.</span><span class="n">SetCustomTitleBar</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span><span class="w">            </span><span class="c1">// install; win.SetCustomTitleBar(nullptr) restores the native one</span>
 </pre></div>
-<pre id="code-b99cf6d8" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
+<pre id="code-2c43213e" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
 bar-&gt;SetTitle(L"My Window");
 bar-&gt;SetIcon(myImage);                 // optional
 win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr) restores the native one</pre>

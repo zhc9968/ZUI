@@ -216,14 +216,14 @@ pre { line-height: 125%; }
 | `TableView` | `CellClicked` / `CellDoubleClicked` / `HeaderClicked` / `CurrentCellChanged` / `SelectionChangedCells` / `ItemCheckStateChanged` | `int,int` / `int,int` / `int` / `int,int` / `vector&lt;pair&lt;int,int&gt;&gt;` / `int,bool` |
 | `TreeView` | `SelectionChanged` / `NodeClicked` / `ItemDoubleClicked` / `ItemRightClicked` / `HeaderClicked` / `SelectionChangedMulti` / `ExpandChanged` / `ItemCheckStateChanged` | 见上 |
 | `FontManager` | `GlobalFontChanged` | — |
-| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` | 见第 4 章 |
+| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` / `DeviceReset` | 见第 4 章 |
 
 ## 常用默认值速查
 
 | 项 | 值 |
 | --- | --- |
 | 全局字体 | `Segoe UI` / `14.0f` |
-| 窗口默认背景 | `AcrylicBlurBehind` / `0x80FFFFFF` |
+| 窗口默认背景 | `Backdrop::None` / tint `0` |
 | 根布局 margin / spacing | `20` / `10` |
 | 帧时间上限 `deltaTime` | `0.033s` |
 | 窗口定时器 | `16ms`，`timeBeginPeriod(1)` |
@@ -303,6 +303,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     list-&gt;SetSelectedIndex(0);
     root-&gt;AddChild(list);
 
+    win.Show();          // 1.8.0 起 Create 不再自动显示，由应用调用 Show()
     win.Run();
     return 0;
 }
@@ -380,7 +381,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 </tr>
 <tr>
 <td><code>UIZSignals</code></td>
-<td><code>DrawOverlay</code> / <code>GlobalMouseDown</code> / <code>WindowDeactivated</code> / <code>ElementCaptureRequest</code> / <code>ElementCaptureRelease</code> / <code>RepaintRequest</code> / <code>LayoutInvalidated</code></td>
+<td><code>DrawOverlay</code> / <code>GlobalMouseDown</code> / <code>WindowDeactivated</code> / <code>ElementCaptureRequest</code> / <code>ElementCaptureRelease</code> / <code>RepaintRequest</code> / <code>LayoutInvalidated</code> / <code>DeviceReset</code></td>
 <td>见第 4 章</td>
 </tr>
 </tbody>
@@ -400,7 +401,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 </tr>
 <tr>
 <td>窗口默认背景</td>
-<td><code>AcrylicBlurBehind</code> / <code>0x80FFFFFF</code></td>
+<td><code>Backdrop::None</code> / tint <code>0</code></td>
 </tr>
 <tr>
 <td>根布局 margin / spacing</td>
@@ -489,7 +490,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-0a3c1e20', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-1bad4a43', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZDataViewer.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -536,11 +537,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetSelectedIndex</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
 <span class="w">    </span><span class="n">root</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">list</span><span class="p">);</span>
 
+<span class="w">    </span><span class="n">win</span><span class="p">.</span><span class="n">Show</span><span class="p">();</span><span class="w">          </span><span class="c1">// 1.8.0 起 Create 不再自动显示，由应用调用 Show()</span>
 <span class="w">    </span><span class="n">win</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span>
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-0a3c1e20" style="display: none;">#include "ZDataViewer.h"
+<pre id="code-1bad4a43" style="display: none;">#include "ZDataViewer.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -585,6 +587,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     list-&gt;SetSelectedIndex(0);
     root-&gt;AddChild(list);
 
+    win.Show();          // 1.8.0 起 Create 不再自动显示，由应用调用 Show()
     win.Run();
     return 0;
 }</pre>

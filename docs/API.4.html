@@ -302,6 +302,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 | `ElementCaptureRelease` | `UIElement*` | 控件释放鼠标捕获 | 框架内部使用 |
 | `RepaintRequest` | `UIElement*` | 控件请求重绘 | `RequestRepaint()` 的底层 |
 | `LayoutInvalidated` | — | 全局布局失效 | `InvalidateLayout()` 的底层 |
+| `DeviceReset` | — | 渲染设备资源被丢弃/重建（设备丢失、DPI 变化、窗口销毁等） | 订阅者应清理按渲染目标/设备缓存的东西（如 `ImageManager` 的图像位图缓存） |
 
 &gt; 这些是“全局单例信号”，不是某个控件的成员。连接它们时同样建议登记到一个明确的 `ConnectionGroup`，否则需要自行在合适时机断开。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 4 章 · 信号与连接</span></div>
@@ -316,7 +317,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-23485a40', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-da498701', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ConnectionThread</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">CurrentThread</span><span class="p">,</span><span class="w">   </span><span class="c1">// 在触发线程直接执行（默认）</span>
@@ -324,7 +325,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <span class="w">    </span><span class="n">UIThread</span><span class="w">         </span><span class="c1">// 投递到 UI 线程消息循环执行</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-23485a40" style="display: none;">enum class ConnectionThread {
+<pre id="code-da498701" style="display: none;">enum class ConnectionThread {
     CurrentThread,   // 在触发线程直接执行（默认）
     NewThread,       // 每次触发新建分离线程执行
     UIThread         // 投递到 UI 线程消息循环执行
@@ -339,7 +340,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-c5d1ab23', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-fe2a6c80', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Connection</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">Connection</span><span class="p">();</span>
@@ -353,7 +354,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">isConnected</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-c5d1ab23" style="display: none;">class Connection {
+<pre id="code-fe2a6c80" style="display: none;">class Connection {
     Connection();
     Connection(std::shared_ptr&lt;detail::ConnectionState&gt; state);
     ~Connection();                         // 析构自动断开
@@ -374,7 +375,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-4cef93b3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-c7aa514f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ConnectionGroup</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">enable_shared_from_this</span><span class="o">&lt;</span><span class="n">ConnectionGroup</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ConnectionGroup</span><span class="p">();</span>
@@ -384,7 +385,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">addState</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">detail</span><span class="o">::</span><span class="n">ConnectionState</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-4cef93b3" style="display: none;">class ConnectionGroup : public std::enable_shared_from_this&lt;ConnectionGroup&gt; {
+<pre id="code-c7aa514f" style="display: none;">class ConnectionGroup : public std::enable_shared_from_this&lt;ConnectionGroup&gt; {
     ConnectionGroup();
     ~ConnectionGroup();                    // 析构时断开全部
     void disconnectAll();
@@ -400,7 +401,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-1a60d5c3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-183c1129', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="p">...</span><span class="w"> </span><span class="n">TArgs</span><span class="o">&gt;</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">ZSignal</span><span class="w"> </span><span class="p">{</span>
@@ -412,7 +413,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">operator</span><span class="p">()(</span><span class="n">TArgs</span><span class="p">...</span><span class="w"> </span><span class="n">targs</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// Fire 的语法糖</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-1a60d5c3" style="display: none;">template &lt;typename... TArgs&gt;
+<pre id="code-183c1129" style="display: none;">template &lt;typename... TArgs&gt;
 class ZSignal {
     using SlotType = std::function&lt;void(TArgs...)&gt;;
     Connection connect(SlotType slot,
@@ -437,12 +438,12 @@ class ZSignal {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-794218c6', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-086f22f3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">btn</span><span class="p">.</span><span class="n">get</span><span class="p">();</span><span class="w">   </span><span class="c1">// 原始指针；信号是 btn 的成员，btn 析构时连接自动失效</span>
 <span class="n">btn</span><span class="o">-&gt;</span><span class="n">Connect</span><span class="p">(</span><span class="n">btn</span><span class="o">-&gt;</span><span class="n">Clicked</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">b</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">SetText</span><span class="p">(</span><span class="sa">L</span><span class="s">"..."</span><span class="p">);</span><span class="w"> </span><span class="p">});</span>
 </pre></div>
-<pre id="code-794218c6" style="display: none;">auto b = btn.get();   // 原始指针；信号是 btn 的成员，btn 析构时连接自动失效
+<pre id="code-086f22f3" style="display: none;">auto b = btn.get();   // 原始指针；信号是 btn 的成员，btn 析构时连接自动失效
 btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });</pre>
 </div>
 </div>
@@ -498,6 +499,12 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });</pre>
 <td>—</td>
 <td>全局布局失效</td>
 <td><code>InvalidateLayout()</code> 的底层</td>
+</tr>
+<tr>
+<td><code>DeviceReset</code></td>
+<td>—</td>
+<td>渲染设备资源被丢弃/重建（设备丢失、DPI 变化、窗口销毁等）</td>
+<td>订阅者应清理按渲染目标/设备缓存的东西（如 <code>ImageManager</code> 的图像位图缓存）</td>
 </tr>
 </tbody>
 </table>

@@ -216,14 +216,14 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 | `TableView` | `CellClicked` / `CellDoubleClicked` / `HeaderClicked` / `CurrentCellChanged` / `SelectionChangedCells` / `ItemCheckStateChanged` | `int,int` / `int,int` / `int` / `int,int` / `vector&lt;pair&lt;int,int&gt;&gt;` / `int,bool` |
 | `TreeView` | `SelectionChanged` / `NodeClicked` / `ItemDoubleClicked` / `ItemRightClicked` / `HeaderClicked` / `SelectionChangedMulti` / `ExpandChanged` / `ItemCheckStateChanged` | see above |
 | `FontManager` | `GlobalFontChanged` | — |
-| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` | see Chapter 4 |
+| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` / `DeviceReset` | see Chapter 4 |
 
 ## Default values
 
 | Item | Value |
 | --- | --- |
 | Global font | `Segoe UI` / `14.0f` |
-| Default window backdrop | `AcrylicBlurBehind` / `0x80FFFFFF` |
+| Default window backdrop | `Backdrop::None` / tint `0` |
 | Root layout margin / spacing | `20` / `10` |
 | `deltaTime` cap | `0.033s` |
 | Window timer | `16ms`, `timeBeginPeriod(1)` |
@@ -301,6 +301,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     list-&gt;SetSelectedIndex(0);
     root-&gt;AddChild(list);
 
+    win.Show();          // since 1.8.0 Create no longer auto-shows; call Show()
     win.Run();
     return 0;
 }
@@ -378,7 +379,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 </tr>
 <tr>
 <td><code>UIZSignals</code></td>
-<td><code>DrawOverlay</code> / <code>GlobalMouseDown</code> / <code>WindowDeactivated</code> / <code>ElementCaptureRequest</code> / <code>ElementCaptureRelease</code> / <code>RepaintRequest</code> / <code>LayoutInvalidated</code></td>
+<td><code>DrawOverlay</code> / <code>GlobalMouseDown</code> / <code>WindowDeactivated</code> / <code>ElementCaptureRequest</code> / <code>ElementCaptureRelease</code> / <code>RepaintRequest</code> / <code>LayoutInvalidated</code> / <code>DeviceReset</code></td>
 <td>see Chapter 4</td>
 </tr>
 </tbody>
@@ -398,7 +399,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 </tr>
 <tr>
 <td>Default window backdrop</td>
-<td><code>AcrylicBlurBehind</code> / <code>0x80FFFFFF</code></td>
+<td><code>Backdrop::None</code> / tint <code>0</code></td>
 </tr>
 <tr>
 <td>Root layout margin / spacing</td>
@@ -487,7 +488,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-6948ab4d', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-c9ff1fbf', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">"ZDataViewer.h"</span>
 <span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">ZUI</span><span class="p">;</span>
@@ -532,11 +533,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="n">list</span><span class="o">-&gt;</span><span class="n">SetSelectedIndex</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
 <span class="w">    </span><span class="n">root</span><span class="o">-&gt;</span><span class="n">AddChild</span><span class="p">(</span><span class="n">list</span><span class="p">);</span>
 
+<span class="w">    </span><span class="n">win</span><span class="p">.</span><span class="n">Show</span><span class="p">();</span><span class="w">          </span><span class="c1">// since 1.8.0 Create no longer auto-shows; call Show()</span>
 <span class="w">    </span><span class="n">win</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span>
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-6948ab4d" style="display: none;">#include "ZDataViewer.h"
+<pre id="code-c9ff1fbf" style="display: none;">#include "ZDataViewer.h"
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -579,6 +581,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     list-&gt;SetSelectedIndex(0);
     root-&gt;AddChild(list);
 
+    win.Show();          // since 1.8.0 Create no longer auto-shows; call Show()
     win.Run();
     return 0;
 }</pre>

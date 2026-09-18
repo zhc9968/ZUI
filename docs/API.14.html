@@ -217,13 +217,20 @@ class TitleBar : public UIElement {
     void SetButtonHeight(float);
     void SetRightMargin(float);
     void ClearRightMargin();         // 恢复默认（右上角齐平，默认右边距 1px）
-    void SetButtonsEnabled(bool);    // 三件套是否可点击
+    void SetButtonsEnabled(bool);    // 三件套是否可点击（总开关）
     bool AreButtonsEnabled() const;
+    // 按按钮类型单独控制（详细禁用 API）
+    std::shared_ptr&lt;CaptionButton&gt; GetButton(CaptionButton::Kind) const;
+    void SetButtonEnabled(CaptionButton::Kind, bool);   // 置灰、不响应、不报告系统按钮码
+    bool IsButtonEnabled(CaptionButton::Kind) const;
+    void SetButtonVisible(CaptionButton::Kind, bool);   // 隐藏后不占位
+    bool IsButtonVisible(CaptionButton::Kind) const;
 };
 
 class CaptionButton : public UIElement {
     enum class Kind { Minimize, MaximizeRestore, Close };
     explicit CaptionButton(Kind kind);
+    ZSignal&lt;&gt; Clicked;                // 点击信号；默认行为由 DefaultTitleBar 接线
     void SetHoverColor(Color);        void SetPressedColor(Color);
     void SetCloseHoverColor(Color);   void SetClosePressedColor(Color);
     void SetGlyphColor(Color);
@@ -236,6 +243,9 @@ class DefaultTitleBar : public TitleBar {
     std::shared_ptr&lt;CaptionButton&gt; GetMinButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetMaxButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetCloseButton() const;
+    // 便捷：单独启用/禁用、显示/隐藏三件套
+    void SetMinimizeEnabled(bool);  void SetMaximizeEnabled(bool);  void SetCloseEnabled(bool);
+    void SetMinimizeVisible(bool);  void SetMaximizeVisible(bool);  void SetCloseVisible(bool);
 };
 ```
 
@@ -261,7 +271,7 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-d153971b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-31860bd7', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TitleBar</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
@@ -277,13 +287,20 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonHeight</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRightMargin</span><span class="p">(</span><span class="kt">float</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ClearRightMargin</span><span class="p">();</span><span class="w">         </span><span class="c1">// 恢复默认（右上角齐平，默认右边距 1px）</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonsEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">    </span><span class="c1">// 三件套是否可点击</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonsEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">    </span><span class="c1">// 三件套是否可点击（总开关）</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">AreButtonsEnabled</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 按按钮类型单独控制（详细禁用 API）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetButton</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonEnabled</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w">   </span><span class="c1">// 置灰、不响应、不报告系统按钮码</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsButtonEnabled</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonVisible</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w">   </span><span class="c1">// 隐藏后不占位</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsButtonVisible</span><span class="p">(</span><span class="n">CaptionButton</span><span class="o">::</span><span class="n">Kind</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">CaptionButton</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Kind</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Minimize</span><span class="p">,</span><span class="w"> </span><span class="n">MaximizeRestore</span><span class="p">,</span><span class="w"> </span><span class="n">Close</span><span class="w"> </span><span class="p">};</span>
 <span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="n">CaptionButton</span><span class="p">(</span><span class="n">Kind</span><span class="w"> </span><span class="n">kind</span><span class="p">);</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">Clicked</span><span class="p">;</span><span class="w">                </span><span class="c1">// 点击信号；默认行为由 DefaultTitleBar 接线</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetHoverColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetPressedColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseHoverColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span><span class="w">   </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetClosePressedColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetGlyphColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
@@ -296,9 +313,12 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetMinButton</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetMaxButton</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">CaptionButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetCloseButton</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 便捷：单独启用/禁用、显示/隐藏三件套</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMinimizeEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaximizeEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseEnabled</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMinimizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaximizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-d153971b" style="display: none;">class TitleBar : public UIElement {
+<pre id="code-31860bd7" style="display: none;">class TitleBar : public UIElement {
     void SetTitle(const std::wstring&amp;);
     const std::wstring&amp; GetTitle() const;
     void SetIcon(std::shared_ptr&lt;Image&gt;);        // 复用图像系统
@@ -312,13 +332,20 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
     void SetButtonHeight(float);
     void SetRightMargin(float);
     void ClearRightMargin();         // 恢复默认（右上角齐平，默认右边距 1px）
-    void SetButtonsEnabled(bool);    // 三件套是否可点击
+    void SetButtonsEnabled(bool);    // 三件套是否可点击（总开关）
     bool AreButtonsEnabled() const;
+    // 按按钮类型单独控制（详细禁用 API）
+    std::shared_ptr&lt;CaptionButton&gt; GetButton(CaptionButton::Kind) const;
+    void SetButtonEnabled(CaptionButton::Kind, bool);   // 置灰、不响应、不报告系统按钮码
+    bool IsButtonEnabled(CaptionButton::Kind) const;
+    void SetButtonVisible(CaptionButton::Kind, bool);   // 隐藏后不占位
+    bool IsButtonVisible(CaptionButton::Kind) const;
 };
 
 class CaptionButton : public UIElement {
     enum class Kind { Minimize, MaximizeRestore, Close };
     explicit CaptionButton(Kind kind);
+    ZSignal&lt;&gt; Clicked;                // 点击信号；默认行为由 DefaultTitleBar 接线
     void SetHoverColor(Color);        void SetPressedColor(Color);
     void SetCloseHoverColor(Color);   void SetClosePressedColor(Color);
     void SetGlyphColor(Color);
@@ -331,20 +358,23 @@ class DefaultTitleBar : public TitleBar {
     std::shared_ptr&lt;CaptionButton&gt; GetMinButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetMaxButton() const;
     std::shared_ptr&lt;CaptionButton&gt; GetCloseButton() const;
+    // 便捷：单独启用/禁用、显示/隐藏三件套
+    void SetMinimizeEnabled(bool);  void SetMaximizeEnabled(bool);  void SetCloseEnabled(bool);
+    void SetMinimizeVisible(bool);  void SetMaximizeVisible(bool);  void SetCloseVisible(bool);
 };</pre>
 </div>
 <p><strong>用法</strong>：</p>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-022694ab', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-ea939167', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">DefaultTitleBar</span><span class="o">&gt;</span><span class="p">();</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetTitle</span><span class="p">(</span><span class="sa">L</span><span class="s">"我的窗口"</span><span class="p">);</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetIcon</span><span class="p">(</span><span class="n">myImage</span><span class="p">);</span><span class="w">                 </span><span class="c1">// 可选</span>
 <span class="n">win</span><span class="p">.</span><span class="n">SetCustomTitleBar</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span><span class="w">            </span><span class="c1">// 安装；win.SetCustomTitleBar(nullptr) 恢复原生</span>
 </pre></div>
-<pre id="code-022694ab" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
+<pre id="code-ea939167" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
 bar-&gt;SetTitle(L"我的窗口");
 bar-&gt;SetIcon(myImage);                 // 可选
 win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr) 恢复原生</pre>
