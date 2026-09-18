@@ -223,6 +223,7 @@ btn->Connect(btn->Clicked, [b]() { b->SetText(L"..."); });
 | `ElementCaptureRelease` | `UIElement*` | a control releases capture | framework-internal |
 | `RepaintRequest` | `UIElement*` | a control requests repaint | backs `RequestRepaint()` |
 | `LayoutInvalidated` | — | global layout invalidation | backs `InvalidateLayout()` |
+| `DeviceReset` | — | render device resources discarded/recreated (device loss, DPI change, window destroy) | subscribers should clear device/render-target-keyed caches (e.g. `ImageManager` bitmap caches) |
 
 > These are global singleton signals, not members of a control. When connecting them, register the connection in a well-defined `ConnectionGroup` or disconnect it yourself at the right time.
 
@@ -382,11 +383,11 @@ The base class of all visual elements. A custom control derives from it and impl
 | `GetChildRenderTransform(child)` | Render transform for a child (page transitions) |
 | `OnFontChanged()` | Font changed; default rebuilds layout |
 
-## Callback members (`std::function`)
+## Event signals (`ZSignal`)
 
-`MouseEnterHandler`, `MouseLeaveHandler`, `MouseMoveHandler`, `MouseDownHandler`, `MouseUpHandler`, `KeyDownHandler`, `KeyUpHandler`, `CharHandler`, `FocusHandler`, `BlurHandler`.
+`MouseEnter`, `MouseLeave`, `MouseMove(float,float)`, `MouseDown(float,float)`, `MouseUp(float,float)`, `KeyDown(WPARAM,LPARAM)`, `KeyUp(WPARAM,LPARAM)`, `Char(wchar_t)`, `Focused`, `Blurred`.
 
-> These allow attaching callbacks without subclassing; they are invoked alongside the `OnXxx` virtuals.
+> Since 1.8.0 these events are `ZSignal`s instead of raw `std::function` callbacks; connect with `Connect(elem->MouseDown, ...)` (connections auto-disconnect when the element is destroyed). They are still invoked alongside the `OnXxx` virtuals.
 
 ## Parent, visibility, context menu, connections
 
@@ -632,18 +633,19 @@ class MenuWindow {
 
 ```cpp
 class Window {
-    static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
-    static DWORD DefaultBackdropColor;            // 0x80FFFFFF
+    static Backdrop DefaultBackdrop;              // None
+    static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // transparent
 
-    bool Create(int width, int height, const std::wstring& title);
+    bool Create(int width, int height, const std::wstring& title);   // does NOT auto-show
     void Run();
 
     void SetRootLayout(std::shared_ptr<Layout> layout);
     std::shared_ptr<Layout> GetRootLayout() const;
     std::shared_ptr<ColumnBox> GetRootColumnBox() const;
 
-    void SetBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF);
+    void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000);
+    Backdrop GetBackdrop() const;
     void SetBackgroundColor(Color color);
     void SetContextMenu(std::shared_ptr<Menu> menu);
 
@@ -689,18 +691,20 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // Backdrop implementation (3 modes) + Win11 system material + unsupported callback
+    // Backdrop implementation (which API)
     enum class BackdropMode {
-        Auto,            // adaptive: same as Acrylic under the current renderer; will prefer the system material once migrated to DComp
-        Acrylic,         // force: AccentState acrylic (visible on Win10/11)
-        SystemBackdrop   // force: Win11 DWMWA_SYSTEMBACKDROP_TYPE (fails on Win10)
+        Auto,    // auto: prefer Win11 host backdrop / system material, fall back to AccentState
+        System,  // force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
+        Accent   // force: SetWindowCompositionAttribute(AccentState)
     };
     void SetBackdropMode(BackdropMode m);
     BackdropMode GetBackdropMode() const;
-    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
-    void SetSystemBackdropMaterial(SystemBackdropMaterial m);
-    SystemBackdropMaterial GetSystemBackdropMaterial() const;
-    void SetBackdropUnsupportedHandler(std::function<void()> handler);
+
+    // Event signals
+    ZSignal<bool*> Closing;           // close requested; set *cancel = true to cancel
+    ZSignal<> BackdropUnsupported;    // requested implementation unsupported on this system
+    ZSignal<> DeviceLost;             // device lost
+    ZSignal<HRESULT> RenderingError;  // fatal rendering error
 
     // Custom title bar (control in the "Window tools" chapter)
     void SetCustomTitleBar(std::shared_ptr<UIElement> bar);   // pass nullptr to restore the native one
@@ -732,7 +736,7 @@ class Window {
 };
 ```
 
-`WindowBackdrop`: `None`, `Gradient`, `TransparentGradient`, `BlurBehind`, `AcrylicBlurBehind`.
+`Backdrop` (what effect): `None`, `Normal`, `Blur`, `Acrylic`, `Mica`, `MicaAlt`. `BackdropMode` (which API): `Auto`, `System`, `Accent`.
 
 **Behavior and pitfalls:**
 
@@ -747,11 +751,8 @@ class Window {
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
 - **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
 - **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
-- **Backdrop modes**: `Auto` / `Acrylic` use the `SetWindowCompositionAttribute` AccentState acrylic; `SystemBackdrop` uses Win11's `DWMWA_SYSTEMBACKDROP_TYPE` (`Mica`/`MicaAlt`/`Acrylic`). If unsupported at runtime (e.g. Win10) the handler registered via `SetBackdropUnsupportedHandler` is called and it falls back to AccentState.
-- **Known limitations (important)**: ZUI currently renders through an `ID2D1HwndRenderTarget` (an opaque redirection surface), so it **cannot display DWM system materials**. Therefore:
-  1) `BackdropMode::Auto` currently uses AccentState on both Win10 and Win11; `SystemBackdrop` is **not visible** until the render target is migrated to DirectComposition (it will look gray/black);
-  2) AccentState acrylic (`AcrylicBlurBehind`) is an undocumented API and makes DWM **skip window transition animations** (minimize/maximize) on both Win10 and Win11 — inherent to that API;
-  3) getting "acrylic + native animations + Mica" together requires migrating rendering from `HwndRenderTarget` to DirectComposition (SwapChain / CompositionSurface), which is planned.
+- **Backdrop (`Backdrop` = what, `BackdropMode` = which API)**: `Acrylic` uses a DComp `HostBackdropBrush` + Gaussian blur (`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`), falling back to `ACRYLICBLURBEHIND` on Win10; `Mica`/`MicaAlt` use Win11's `DWMWA_SYSTEMBACKDROP_TYPE`; `Blur` uses `AccentState(BLURBEHIND)`; `Normal` uses `AccentState(GRADIENT)`. If the requested effect cannot be realized by the current implementation, `BackdropUnsupported` fires and it does **not** substitute another effect.
+- **Rendering (1.8.0)**: Direct2D 1.1 + DXGI flip SwapChain + DirectComposition (`WS_EX_NOREDIRECTIONBITMAP`), per-pixel transparent; a process-wide shared D3D11/D2D device and WinRT `ICompositor`. `Create` **no longer shows the window**; call `Show()` explicitly.
 - **Border / resize / corners**: `SetResizable` controls edge resizing; when snapped, the DWM border/shadow is preserved (`WM_NCCALCSIZE` only insets the snapped edges), and maximizing does not inset. `SetWindowCorner` maps to `DWMWA_WINDOW_CORNER_PREFERENCE`.
 
 ###chapter: Application and multiple windows | Application and multi-window
@@ -803,7 +804,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **Modal / owned windows**: `Window::SetOwner(owner)` creates an owned child (stays above and minimizes with the owner); `Window::RunModal(owner)` runs a window modally (disables the owner, nested loop, restores on close). While modal, clicking the disabled owner **flashes** the modal window.
 - **Window handle & dangling**: elements store the owning window as an **id** (not a raw pointer); after the window is destroyed `GetWindow()` returns `nullptr`, eliminating crashes from elements holding a dangling window pointer.
 - **Shared resources**: the `ID2D1Factory` and the system timer period (`timeBeginPeriod`) are managed by the application core and shared by all windows.
-- **Backward compatible**: the single-window style still works — `Window win; win.Create(...); win.Run();` (`Run()` forwards to the app-level loop).
+- **Backward compatible**: the single-window style still works — `Window win; win.Create(...); win.Show(); win.Run();` (since 1.8.0 `Create` no longer auto-shows; call `Show()`); `Run()` forwards to the app-level loop.
 
 ## Multi-window pitfalls
 
@@ -1477,11 +1478,18 @@ class TitleBar : public UIElement {
     void ClearRightMargin();
     void SetButtonsEnabled(bool);
     bool AreButtonsEnabled() const;
+    // Per-button control (detailed disable API)
+    std::shared_ptr<CaptionButton> GetButton(CaptionButton::Kind) const;
+    void SetButtonEnabled(CaptionButton::Kind, bool);   // gray out, ignore input, don't report the NC button code
+    bool IsButtonEnabled(CaptionButton::Kind) const;
+    void SetButtonVisible(CaptionButton::Kind, bool);   // hidden buttons take no space
+    bool IsButtonVisible(CaptionButton::Kind) const;
 };
 
 class CaptionButton : public UIElement {
     enum class Kind { Minimize, MaximizeRestore, Close };
     explicit CaptionButton(Kind kind);
+    ZSignal<> Clicked;              // default behaviour wired by DefaultTitleBar
     void SetHoverColor(Color);      void SetPressedColor(Color);
     void SetCloseHoverColor(Color); void SetClosePressedColor(Color);
     void SetGlyphColor(Color);
@@ -1494,6 +1502,9 @@ class DefaultTitleBar : public TitleBar {
     std::shared_ptr<CaptionButton> GetMinButton() const;
     std::shared_ptr<CaptionButton> GetMaxButton() const;
     std::shared_ptr<CaptionButton> GetCloseButton() const;
+    // convenience: enable/disable, show/hide the three buttons individually
+    void SetMinimizeEnabled(bool);  void SetMaximizeEnabled(bool);  void SetCloseEnabled(bool);
+    void SetMinimizeVisible(bool);  void SetMaximizeVisible(bool);  void SetCloseVisible(bool);
 };
 ```
 
@@ -1533,14 +1544,14 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 | `TableView` | `CellClicked` / `CellDoubleClicked` / `HeaderClicked` / `CurrentCellChanged` / `SelectionChangedCells` / `ItemCheckStateChanged` | `int,int` / `int,int` / `int` / `int,int` / `vector<pair<int,int>>` / `int,bool` |
 | `TreeView` | `SelectionChanged` / `NodeClicked` / `ItemDoubleClicked` / `ItemRightClicked` / `HeaderClicked` / `SelectionChangedMulti` / `ExpandChanged` / `ItemCheckStateChanged` | see above |
 | `FontManager` | `GlobalFontChanged` | — |
-| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` | see Chapter 4 |
+| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` / `DeviceReset` | see Chapter 4 |
 
 ## Default values
 
 | Item | Value |
 | --- | --- |
 | Global font | `Segoe UI` / `14.0f` |
-| Default window backdrop | `AcrylicBlurBehind` / `0x80FFFFFF` |
+| Default window backdrop | `Backdrop::None` / tint `0` |
 | Root layout margin / spacing | `20` / `10` |
 | `deltaTime` cap | `0.033s` |
 | Window timer | `16ms`, `timeBeginPeriod(1)` |
@@ -1618,6 +1629,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     list->SetSelectedIndex(0);
     root->AddChild(list);
 
+    win.Show();          // since 1.8.0 Create no longer auto-shows; call Show()
     win.Run();
     return 0;
 }

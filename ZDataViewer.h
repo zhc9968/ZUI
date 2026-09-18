@@ -584,13 +584,13 @@ namespace ZUI {
             return nullptr;
         }
 
-        void OnMouseEnter() override { isHovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
+        void OnMouseEnter() override { isHovered_ = true; RequestRepaint(); MouseEnter.Fire(); }
         void OnMouseLeave() override {
             isHovered_ = false;
             hoveredIndex_ = -1;
             isScrollBarHovered_ = false;
             RequestRepaint();
-            if (MouseLeaveHandler) MouseLeaveHandler();
+            MouseLeave.Fire();
         }
         void OnMouseMove(float x, float y) override {
             if (isDraggingScroll_) {
@@ -646,7 +646,7 @@ namespace ZUI {
                 SetToolTip((hp && it != itemTips_.end()) ? it->second : std::wstring());
             }
             RequestRepaint();
-            if (MouseMoveHandler) MouseMoveHandler(x, y);
+            MouseMove.Fire(x, y);
         }
         void OnMouseDown(float x, float y) override {
             if (!arrangedRect_.Contains(x, y)) return;
@@ -696,11 +696,11 @@ namespace ZUI {
                 }
                 if (selectionMode_ == SelectionMode::None) {
                     ItemClicked(idx);
-                    if (MouseDownHandler) MouseDownHandler(x, y);
+                    MouseDown.Fire(x, y);
                     return;
                 }
                 DWORD now = GetTickCount();
-                bool isDouble = (now - lastClickTick_ < 400 && lastClickIndex_ == idx);
+                bool isDouble = (now - lastClickTick_ < GetDoubleClickTime() && lastClickIndex_ == idx);
                 lastClickTick_ = now;
                 lastClickIndex_ = idx;
                 bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
@@ -728,7 +728,7 @@ namespace ZUI {
                 ItemClicked(idx);
                 if (isDouble) ItemDoubleClicked(idx);
             }
-            if (MouseDownHandler) MouseDownHandler(x, y);
+            MouseDown.Fire(x, y);
         }
         void OnMouseUp(float x, float y) override {
             if (marqueeActive_) {
@@ -743,7 +743,7 @@ namespace ZUI {
                 RequestRepaint();
                 return;
             }
-            if (MouseUpHandler) MouseUpHandler(x, y);
+            MouseUp.Fire(x, y);
         }
         bool OnMouseWheel(float deltaX, float deltaY) override {
             if (maxScrollY_ > 0) {
@@ -773,7 +773,7 @@ namespace ZUI {
             default:
                 break;
             }
-            if (KeyDownHandler) KeyDownHandler(key, lParam);
+            KeyDown.Fire(key, lParam);
         }
         // 首字母定位（type-ahead）
         void OnChar(wchar_t ch) override {
@@ -791,9 +791,10 @@ namespace ZUI {
                 for (auto& c : t) if (c >= L'A' && c <= L'Z') c = (wchar_t)(c + 32);
                 if (t.rfind(typeAheadChars_, 0) == 0 && !IsItemDisabled(i)) { SetSelectedIndex(i); break; }
             }
+            Char.Fire(ch);
         }
-        void OnFocus() override { RequestRepaint(); if (FocusHandler) FocusHandler(); }
-        void OnBlur() override { RequestRepaint(); if (BlurHandler) BlurHandler(); }
+        void OnFocus() override { RequestRepaint(); Focused.Fire(); }
+        void OnBlur() override { RequestRepaint(); Blurred.Fire(); }
 
         void UpdateAnimation(float deltaTime) override {
             if (fabs(targetScrollOffsetY_ - scrollOffsetY_) > 0.1f) {
@@ -1334,6 +1335,9 @@ namespace ZUI {
             std::unordered_set<int> nd;
             for (int r : disabledRows_) if (r >= 0 && r < rowCount_) nd.insert(oldToNew[r]);
             disabledRows_ = std::move(nd);
+            std::unordered_set<int> nck;
+            for (int r : checkedRows_) if (r >= 0 && r < rowCount_) nck.insert(oldToNew[r]);
+            checkedRows_ = std::move(nck);
             std::unordered_map<long long, D2D1_COLOR_F> nc;
             for (auto& kv : cellTextColors_) {
                 int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000);
@@ -1702,7 +1706,7 @@ namespace ZUI {
             return nullptr;
         }
 
-        void OnMouseEnter() override { RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
+        void OnMouseEnter() override { RequestRepaint(); MouseEnter.Fire(); }
         void OnMouseLeave() override {
             hoveredRow_ = -1;
             hoveredCol_ = -1;
@@ -1710,7 +1714,7 @@ namespace ZUI {
             isHorizontalHovered_ = false;
             SetCursor(LoadCursor(nullptr, IDC_ARROW));
             RequestRepaint();
-            if (MouseLeaveHandler) MouseLeaveHandler();
+            MouseLeave.Fire();
         }
         void OnMouseMove(float x, float y) override {
             if (isResizingColumn_) {
@@ -1789,7 +1793,7 @@ namespace ZUI {
                 SetToolTip((hoveredRow_ >= 0 && it != cellTips_.end()) ? it->second : std::wstring());
             }
             RequestRepaint();
-            if (MouseMoveHandler) MouseMoveHandler(x, y);
+            MouseMove.Fire(x, y);
         }
         void OnMouseDown(float x, float y) override {
             if (!arrangedRect_.Contains(x, y)) return;
@@ -1880,7 +1884,7 @@ namespace ZUI {
                 }
                 if (IsRowDisabled(row)) { pressActive_ = false; return; }
                 DWORD now = GetTickCount();
-                bool isDouble = (now - lastClickTick_ < 400 && lastClickRow_ == row && lastClickCol_ == col);
+                bool isDouble = (now - lastClickTick_ < GetDoubleClickTime() && lastClickRow_ == row && lastClickCol_ == col);
                 lastClickTick_ = now;
                 lastClickRow_ = row;
                 lastClickCol_ = col;
@@ -1888,7 +1892,7 @@ namespace ZUI {
                 CellClicked(row, col);
                 if (isDouble) CellDoubleClicked(row, col);
             }
-            if (MouseDownHandler) MouseDownHandler(x, y);
+            MouseDown.Fire(x, y);
         }
         void OnMouseUp(float x, float y) override {
             if (marqueeActive_) { marqueeActive_ = false; pressActive_ = false; RequestRepaint(); return; }
@@ -1896,7 +1900,7 @@ namespace ZUI {
             if (isResizingColumn_) { isResizingColumn_ = false; resizeColumnIndex_ = -1; RequestRepaint(); return; }
             if (isDraggingVertical_) { isDraggingVertical_ = false; RequestRepaint(); return; }
             if (isDraggingHorizontal_) { isDraggingHorizontal_ = false; RequestRepaint(); return; }
-            if (MouseUpHandler) MouseUpHandler(x, y);
+            MouseUp.Fire(x, y);
         }
         bool OnMouseWheel(float deltaX, float deltaY) override {
             bool handled = false;
@@ -1928,10 +1932,10 @@ namespace ZUI {
             default: return;
             }
             SetCurrentCell(row, col);
-            if (KeyDownHandler) KeyDownHandler(key, lParam);
+            KeyDown.Fire(key, lParam);
         }
-        void OnFocus() override { RequestRepaint(); if (FocusHandler) FocusHandler(); }
-        void OnBlur() override { RequestRepaint(); if (BlurHandler) BlurHandler(); }
+        void OnFocus() override { RequestRepaint(); Focused.Fire(); }
+        void OnBlur() override { RequestRepaint(); Blurred.Fire(); }
 
         void UpdateAnimation(float deltaTime) override {
             if (fabs(targetScrollOffsetX_ - scrollOffsetX_) > 0.1f) {
@@ -3289,6 +3293,7 @@ namespace ZUI {
         }
 
         void OnMouseMove(float x, float y) override {
+            MouseMove.Fire(x, y);
             if (isResizingColumn_) {
                 float dx = x - resizeStartMouseX_;
                 float newWidth = max(DefaultMinColumnWidth, resizeStartColumnWidth_ + dx);
@@ -3374,6 +3379,7 @@ namespace ZUI {
         }
 
         void OnMouseDown(float x, float y) override {
+            MouseDown.Fire(x, y);
             if (!arrangedRect_.Contains(x, y)) return;
 
             float headerOffset = headerVisible_ ? headerHeight_ : 0;
@@ -3476,7 +3482,7 @@ namespace ZUI {
 
             if (nodeAt) {
                 DWORD now = GetTickCount();
-                bool isDouble = (now - lastClickTick_ < 400 && lastClickIndex_ == idx);
+                bool isDouble = (now - lastClickTick_ < GetDoubleClickTime() && lastClickIndex_ == idx);
                 lastClickTick_ = now;
                 lastClickIndex_ = idx;
 
@@ -3516,6 +3522,7 @@ namespace ZUI {
         }
 
         void OnMouseUp(float x, float y) override {
+            MouseUp.Fire(x, y);
             if (marqueeActive_) {
                 marqueeActive_ = false;
                 pressActive_ = false;
@@ -3532,12 +3539,15 @@ namespace ZUI {
             if (isDraggingHorizontal_) { isDraggingHorizontal_ = false; RequestRepaint(); return; }
         }
 
+        void OnMouseEnter() override { MouseEnter.Fire(); }
+
         void OnMouseLeave() override {
             hoveredNode_ = nullptr;
             isVerticalHovered_ = false;
             isHorizontalHovered_ = false;
             SetToolTip(std::wstring());
             SetCursor(LoadCursor(nullptr, IDC_ARROW));
+            MouseLeave.Fire();
             RequestRepaint();
         }
 
@@ -3587,10 +3597,11 @@ namespace ZUI {
             default:
                 break;
             }
+            KeyDown.Fire(key, lParam);
         }
 
-        void OnFocus() override { RequestRepaint(); if (FocusHandler) FocusHandler(); }
-        void OnBlur() override { RequestRepaint(); if (BlurHandler) BlurHandler(); }
+        void OnFocus() override { RequestRepaint(); Focused.Fire(); }
+        void OnBlur() override { RequestRepaint(); Blurred.Fire(); }
 
         void UpdateAnimation(float deltaTime) override {
             if (fabs(targetScrollOffsetY_ - scrollOffsetY_) > 0.1f) {

@@ -110,6 +110,55 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 ## 更新日志
 
+### 2026-09-19 — 渲染迁移到 DirectComposition + 背景/信号 API 重整（v1.8.0）
+
+**渲染：迁移到 Direct2D 1.1 + DXGI flip SwapChain + DirectComposition**
+
+- `Window` 不再使用 `ID2D1HwndRenderTarget`，改为 `ID2D1DeviceContext` + `IDXGISwapChain1`（`CreateSwapChainForComposition`）+ DComp 视觉树，窗口加 `WS_EX_NOREDIRECTIONBITMAP`，内容经 DComp 提交、支持逐像素透明。
+- `AppCore` 进程级共享 `ID3D11Device → IDXGIDevice → ID2D1Device` 与 WinRT `ICompositor`，多窗口复用。
+- 设备丢失/DPI 变化/尺寸变化走统一的资源丢弃与重建（`DiscardDeviceResources` / `ResizeSwapChain`），并新增 `DeviceLost` / `RenderingError` 信号。
+
+**亚克力：改用 DComp `HostBackdropBrush` + 高斯模糊**
+
+- 亚克力由 DComp 背景层（`ICompositor3::CreateHostBackdropBrush`，回退 `ICompositor2::CreateBackdropBrush`，外包高斯模糊效果）采样宿主背景绘制，配合 `DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`；不再依赖会随窗口框架失效的 `DWMWA_SYSTEMBACKDROP_TYPE`。
+- 附带手写的 `IGraphicsEffect` / `IGraphicsEffectD2D1Interop` 封装（无需 Win2D），依赖新增 `d2d1effects_2.h` 与 `dxguid.lib`。
+
+**背景 API 重整（表示“要什么” vs “用什么 API”）**
+
+- 新增 `Backdrop { None, Normal, Blur, Acrylic, Mica, MicaAlt }`：表示**要什么效果**。
+- `BackdropMode { Auto, System, Accent }`：表示**用什么 API 实现**。
+- `SetBackdrop(Backdrop, tint = 0)` / `GetBackdrop()`、`SetBackdropMode` / `GetBackdropMode()`。
+- 删除旧的 `WindowBackdrop` / `SystemBackdropMaterial`（含义与命名混淆）。
+
+**回调 → 信号（统一用信号槽）**
+
+- `UIElement` 的事件由裸 `std::function` 成员改为信号：`MouseEnter / MouseLeave / MouseMove / MouseDown / MouseUp / KeyDown / KeyUp / Char / Focused / Blurred`。
+- `MenuItem::Clicked`、`CaptionButton::Clicked`（默认行为由 `DefaultTitleBar` 接线，自定义标题栏可自行连接/拦截）。
+- 新增 `Window::Closing`（`ZSignal<bool*>`，槽可置 `*cancel=true` 取消关闭，用于“关闭前询问保存”）、`Window::BackdropUnsupported` / `Window::DeviceLost` / `Window::RenderingError`。
+- 全局 `UIZSignals::DeviceReset`：渲染设备资源被丢弃/重建时触发，供订阅者清理按设备缓存（`ImageManager` 据此清图像位图缓存，修复旧渲染目标指针悬垂与位图泄漏）。
+- 删除 `SetBackdropUnsupportedHandler` / `SetDeviceLostHandler` / `SetRenderingErrorHandler`。
+
+**窗口**
+
+- `Window::Create` **不再自动显示**，何时显示由应用 `Show()` 决定。
+- 自定义标题栏新增**每个按钮**的启用/可见控制：`TitleBar::GetButton / SetButtonEnabled / IsButtonEnabled / SetButtonVisible / IsButtonVisible`；`DefaultTitleBar` 便捷封装 `SetMinimizeEnabled / SetMaximizeEnabled / SetCloseEnabled` 及对应 `...Visible`。
+- `DWMWA_BORDER_COLOR` 默认改为系统默认（不再硬编码灰色）。
+
+**修复与清理**
+
+- 组合框弹出列表的 hover/点击判定改用与绘制一致的宽度（`ListWidth()`），修右侧超出区域点不到。
+- `TableView::SortByColumn` 排序后同步重映射 `checkedRows_`。
+- 双击判定改用系统 `GetDoubleClickTime()`（三处）。
+- `ScrollViewer::Arrange` 用 `SetVisibleNoInvalidate()` 避免布局循环；`DrawTextWithEllipsis` 截断由 O(n²) 改为二分。
+- `MenuWindow` 多显示器定位改用 `MonitorFromPoint` + `GetMonitorInfo`。
+- 清理多项兜底/临时逻辑（`PageHost` 调试特例、无用的 `animationIdleFrames_` 等）。
+
+**测试程序（`ZUI.cpp`）**
+
+- 主窗口改为**自定义标题栏**。
+- 移除独立的小工具窗口，多窗口 / owned / 模态演示移入主窗口的**“多窗口”页**。
+- 版本号提升到 **1.8.0**（新增 `ZUI_VERSION_STRING` 等宏，demo 标题引用）。
+
 ### 2026-09-16 — 自定义标题栏（ZUIWindowTool）与背景三模式
 
 **新增：自定义标题栏（新文件 `ZUIWindowTool.h`）**

@@ -5,14 +5,25 @@
 using namespace ZUI;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    // 演示程序自己的默认背景：亚克力 + 半透明白色着色。
+    // 库的默认是 Backdrop::None（不替应用决定），所以不透明/着色都由应用这里指定。
+    Window::SetDefaultBackdrop(Backdrop::Acrylic, 0x80FFFFFF);
+    const wchar_t* kTitle = L"ZUI 自动化布局综合测试 " ZUI_VERSION_STRING;
     Window win;
-    if (!win.Create(1000, 700, L"ZUI 自动化布局综合测试 1.5.1")) {
+    if (!win.Create(1000, 700, kTitle)) {
         MessageBoxW(nullptr, L"窗口创建失败", L"错误", MB_ICONERROR);
         return 1;
     }
 
-    // 背景效果由应用显式指定（库不替应用做决定）：亚克力 + 半透明白色着色
-    win.SetBackdrop(Backdrop::Acrylic, 0x80FFFFFF);
+    // 主窗口使用自定义标题栏（拖动标题栏移动窗口，右上角三件套与原生一致）
+    win.SetWindowCorner(Window::WindowCorner::Round);
+    win.SetResizable(true);
+    {
+        auto bar = std::make_shared<DefaultTitleBar>();
+        bar->SetTitle(kTitle);
+        bar->SetHeight(34);
+        win.SetCustomTitleBar(bar);
+    }
 
     // 创建全局右键菜单（与信号无关）
     auto globalMenu = std::make_shared<Menu>();
@@ -57,6 +68,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     navList->AddItem(L"树形视图");
     navList->AddItem(L"树形增强");
     navList->AddItem(L"图像");
+    navList->AddItem(L"多窗口");
     navList->SetSelectedIndex(0);
     mainRow->AddChild(navList);
 
@@ -831,6 +843,82 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         grid8->AddChild(std::make_shared<Label>(L"提示：可从文件/资源/DLL/base64 加载，支持缩放、旋转、镜像、裁剪、编码保存。"), 3, 0, 1, 4);
     }
 
+    // ---------- 页面9：多窗口（原独立工具窗口的内容） ----------
+    auto page9 = std::make_shared<Page>();
+    auto grid9 = page9->GetLayoutAs<GridLayout>();
+    if (grid9) {
+        grid9->SetSpacing(10, 10);
+        auto title9 = std::make_shared<Label>(L"多窗口 / owned 子窗口 / 模态");
+        title9->SetTextColor(Color::FromArgb(255, 40, 40, 40));
+        grid9->AddChild(title9, 0, 0, 1, 2);
+
+        auto ownedPolicy = std::make_shared<Window::OwnedMinimizePolicy>(Window::OwnedMinimizePolicy::Hide);
+        auto tcombo = std::make_shared<ComboBox>();
+        tcombo->AddItem(L"方案1：不处理");
+        tcombo->AddItem(L"方案2：最小化则隐藏");
+        tcombo->AddItem(L"方案3：禁用最小化");
+        tcombo->SetPlaceholder(L"选择 owned 子窗口的最小化方案");
+        tcombo->Connect(tcombo->SelectionChanged, [w = &win, ownedPolicy](int idx) {
+            if (idx < 0) return;
+            *ownedPolicy = (Window::OwnedMinimizePolicy)idx;
+            for (auto* c : w->GetOwnedWindows()) c->SetOwnedMinimizePolicy(*ownedPolicy);
+            });
+        tcombo->SetSelectedIndex(1);
+        grid9->AddChild(tcombo, 1, 0, 1, 2);
+
+        auto tbtn = std::make_shared<Button>(L"新建独立窗口");
+        tbtn->Connect(tbtn->Clicked, []() {
+            static int n = 0;
+            auto w = Application::Instance().CreateWindow(360, 240, L"动态窗口");
+            if (w) {
+                w->GetRootColumnBox()->AddChild(std::make_shared<Label>(L"动态创建的窗口 " + std::to_wstring(++n)));
+                static std::vector<std::shared_ptr<Window>> keep;
+                keep.push_back(w);
+                w->Show();
+            }
+            });
+        grid9->AddChild(tbtn, 2, 0);
+
+        auto tchildBtn = std::make_shared<Button>(L"子窗口 (owned)");
+        tchildBtn->Connect(tchildBtn->Clicked, [w = &win, ownedPolicy]() {
+            auto c = Application::Instance().CreateWindow(360, 240, L"子窗口 (owned)", w);
+            if (c) {
+                c->SetOwnedMinimizePolicy(*ownedPolicy);
+                c->GetRootColumnBox()->AddChild(std::make_shared<Label>(L"这是主窗口的 owned 子窗口"));
+                static std::vector<std::shared_ptr<Window>> keep;
+                keep.push_back(c);
+                c->Show();
+            }
+            });
+        grid9->AddChild(tchildBtn, 2, 1);
+
+        auto tshowBtn = std::make_shared<Button>(L"显示并置顶所有子窗口");
+        tshowBtn->Connect(tshowBtn->Clicked, [w = &win]() {
+            for (auto* c : w->GetOwnedWindows()) { c->Show(); c->Raise(); }
+            });
+        grid9->AddChild(tshowBtn, 3, 0);
+
+        auto tmodalBtn = std::make_shared<Button>(L"模态窗口");
+        tmodalBtn->Connect(tmodalBtn->Clicked, [w = &win]() {
+            auto m = Application::Instance().CreateWindow(320, 200, L"模态窗口", w);
+            if (!m) return;
+            auto r = m->GetRootColumnBox();
+            r->AddChild(std::make_shared<Label>(L"模态窗口：所有者被禁用，关闭后恢复"));
+            auto ok = std::make_shared<Button>(L"关闭");
+            ok->Connect(ok->Clicked, [mp = m.get()]() { mp->Close(); });
+            r->AddChild(ok);
+            static std::vector<std::shared_ptr<Window>> keep;
+            keep.push_back(m);
+            m->Show();
+            m->RunModal(w);
+            });
+        grid9->AddChild(tmodalBtn, 3, 1);
+
+        auto tclose = std::make_shared<Button>(L"关闭主窗口");
+        tclose->Connect(tclose->Clicked, [w = &win]() { w->Close(); });
+        grid9->AddChild(tclose, 4, 0, 1, 2);
+    }
+
     // 所有页面加入 PageHost
     mainHost->AddPage(page1);
     mainHost->AddPage(page2);
@@ -840,6 +928,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     mainHost->AddPage(page6);
     mainHost->AddPage(page7);
     mainHost->AddPage(page8);
+    mainHost->AddPage(page9);
 
     // 主页面导航：记录当前索引，根据相对位置设置上下方向
     auto currentMainIndex = std::make_shared<int>(0);
@@ -855,80 +944,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         mainHost->NavigateTo(index);
         });
 
-    // ---------- 多窗口验证：第二个独立窗口 ----------
+    // ---------- 多窗口验证：Application（多窗口相关演示已移入主窗口"多窗口"页） ----------
     auto app = &Application::Instance();
-    std::shared_ptr<Window> toolWin = app->CreateWindow(440, 380, L"ZUI 工具窗口（多窗口测试）");
-    if (toolWin) {
-        auto troot = toolWin->GetRootColumnBox();
-        troot->SetSpacing(10);
-        troot->AddChild(std::make_shared<Label>(L"这是一个独立的窗口，与主窗口互不干扰。"));
-
-        auto tcombo = std::make_shared<ComboBox>();
-        tcombo->AddItem(L"方案1：不处理");
-        tcombo->AddItem(L"方案2：最小化则隐藏");
-        tcombo->AddItem(L"方案3：禁用最小化");
-        tcombo->SetPlaceholder(L"选择 owned 子窗口的最小化方案");
-        auto ownedPolicy = std::make_shared<Window::OwnedMinimizePolicy>(Window::OwnedMinimizePolicy::Hide);
-        tcombo->Connect(tcombo->SelectionChanged, [w = toolWin.get(), ownedPolicy](int idx) {
-            if (idx < 0) return;
-            *ownedPolicy = (Window::OwnedMinimizePolicy)idx;
-            for (auto* c : w->GetOwnedWindows()) c->SetOwnedMinimizePolicy(*ownedPolicy);
-            });
-        tcombo->SetSelectedIndex(1);
-        troot->AddChild(tcombo);
-
-        auto tbtn = std::make_shared<Button>(L"新建窗口");
-        tbtn->Connect(tbtn->Clicked, [app]() {
-            static int n = 0;
-            auto w = app->CreateWindow(360, 240, L"动态窗口");
-            if (w) {
-                w->GetRootColumnBox()->AddChild(std::make_shared<Label>(L"动态创建的窗口 " + std::to_wstring(++n)));
-                static std::vector<std::shared_ptr<Window>> keep;   // 保持存活
-                keep.push_back(w);
-            }
-            });
-        troot->AddChild(tbtn);
-
-        // 父子（owned）窗口：始终位于本窗口之上，随本窗口最小化
-        auto tchildBtn = std::make_shared<Button>(L"子窗口(owned)");
-        tchildBtn->Connect(tchildBtn->Clicked, [w = toolWin.get(), ownedPolicy]() {
-            auto c = Application::Instance().CreateWindow(360, 240, L"子窗口 (owned)", w);
-            if (c) {
-                c->SetOwnedMinimizePolicy(*ownedPolicy);
-                c->GetRootColumnBox()->AddChild(std::make_shared<Label>(L"这是工具窗口的 owned 子窗口"));
-                static std::vector<std::shared_ptr<Window>> keep;
-                keep.push_back(c);
-            }
-            });
-        troot->AddChild(tchildBtn);
-
-        // 显示并置顶所有 owned 子窗口
-        auto tshowBtn = std::make_shared<Button>(L"显示并置顶所有子窗口");
-        tshowBtn->Connect(tshowBtn->Clicked, [w = toolWin.get()]() {
-            for (auto* c : w->GetOwnedWindows()) { c->Show(); c->Raise(); }
-            });
-        troot->AddChild(tshowBtn);
-
-        // 模态窗口：禁用所有者，关闭后恢复
-        auto tmodalBtn = std::make_shared<Button>(L"模态窗口");
-        tmodalBtn->Connect(tmodalBtn->Clicked, [w = toolWin.get()]() {
-            auto m = Application::Instance().CreateWindow(320, 200, L"模态窗口", w);
-            if (!m) return;
-            auto r = m->GetRootColumnBox();
-            r->AddChild(std::make_shared<Label>(L"模态窗口：所有者被禁用，关闭后恢复"));
-            auto ok = std::make_shared<Button>(L"关闭");
-            ok->Connect(ok->Clicked, [mp = m.get()]() { mp->Close(); });
-            r->AddChild(ok);
-            static std::vector<std::shared_ptr<Window>> keep;
-            keep.push_back(m);
-            m->RunModal(w);   // 阻塞直到本窗口关闭（嵌套消息循环）
-            });
-        troot->AddChild(tmodalBtn);
-
-        auto tclose = std::make_shared<Button>(L"关闭本窗口");
-        tclose->Connect(tclose->Clicked, [w = toolWin.get()]() { w->Close(); });
-        troot->AddChild(tclose);
-    }
 
     // ---------- 自定义标题栏窗口 ----------
     if (auto cw = app->CreateWindow(700, 480, L"自定义标题栏窗口")) {
@@ -937,15 +954,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         bar->SetHeight(34);
         cw->SetWindowCorner(Window::WindowCorner::Round);   // 圆角偏好（仅一次 DWM 调用）
         cw->SetResizable(true);
-        cw->SetBackdrop(Backdrop::Acrylic, 0x80FFFFFF);      // 应用显式设置背景
-        cw->SetCustomTitleBar(bar);                          // 安装自定义标题栏（传 nullptr 可恢复原生）
+        cw->SetCustomTitleBar(bar);                          // 安装自定义标题栏（传 nullptr 可恢复原生）s
         auto croot = cw->GetRootColumnBox();
         croot->AddChild(std::make_shared<Label>(L"自绘标题栏：拖动标题栏移动窗口，右上角三件套与原生一致。"));
         croot->AddChild(std::make_shared<Label>(L"标题栏不参与布局，且不会被 Tab 聚焦。"));
         static std::vector<std::shared_ptr<Window>> keep;
         keep.push_back(cw);
+        cw->Show();
     }
 
+    win.Show();            // 显示由应用决定
     win.SetMinSize(800, 600);
     win.Run();
 

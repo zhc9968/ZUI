@@ -37,23 +37,25 @@ namespace ZUI {
         DWRITE_TEXT_METRICS metrics;
         measureLayout->GetMetrics(&metrics);
 
-        // 如果宽度超出，截断并添加省略号
+        // 如果宽度超出，二分截断并添加省略号（避免逐字符重排的 O(n²) 开销）
         if (metrics.width > maxWidth && displayText.length() > 3) {
-            std::wstring suffix = L"...";
-            while (displayText.length() > 1) {
-                displayText = displayText.substr(0, displayText.length() - 1);
-                std::wstring testText = displayText + suffix;
+            const std::wstring suffix = L"...";
+            int len = (int)displayText.length();
+            int lo = 0, hi = len - 1, best = -1;
+            while (lo <= hi) {
+                int mid = (lo + hi) / 2;
+                std::wstring test = displayText.substr(0, mid) + suffix;
                 ComPtr<IDWriteTextLayout> testLayout;
-                dwriteFactory->CreateTextLayout(testText.c_str(), (UINT32)testText.length(),
+                dwriteFactory->CreateTextLayout(test.c_str(), (UINT32)test.length(),
                     fmt, maxWidth, maxHeight, &testLayout);
                 if (!testLayout) break;
                 if (forceNoWrap) testLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-                testLayout->GetMetrics(&metrics);
-                if (metrics.width <= maxWidth) {
-                    displayText = testText;
-                    break;
-                }
+                DWRITE_TEXT_METRICS tm;
+                testLayout->GetMetrics(&tm);
+                if (tm.width <= maxWidth) { best = mid; lo = mid + 1; }
+                else hi = mid - 1;
             }
+            displayText = (best >= 0) ? (displayText.substr(0, best) + suffix) : suffix;
         }
 
         // 准备画刷
@@ -525,9 +527,9 @@ namespace ZUI {
             return hovered_ ? (hoverProgress_ < 1.0f - epsilon) : (hoverProgress_ > epsilon);
         }
 
-        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
-        void OnMouseLeave() override { hovered_ = false; isPressed_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
-        void OnMouseDown(float x, float y) override { if (!IsEffectivelyEnabled()) return; isPressed_ = true; lastRepeatTick_ = GetTickCount(); RequestRepaint(); if (MouseDownHandler) MouseDownHandler(x, y); }
+        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); MouseEnter.Fire(); }
+        void OnMouseLeave() override { hovered_ = false; isPressed_ = false; RequestRepaint(); MouseLeave.Fire(); }
+        void OnMouseDown(float x, float y) override { if (!IsEffectivelyEnabled()) return; isPressed_ = true; lastRepeatTick_ = GetTickCount(); RequestRepaint(); MouseDown.Fire(x, y); }
         void OnMouseUp(float x, float y) override {
             if (!IsEffectivelyEnabled()) return;
             if (isPressed_) {
@@ -536,12 +538,13 @@ namespace ZUI {
             }
             isPressed_ = false;
             RequestRepaint();
-            if (MouseUpHandler) MouseUpHandler(x, y);
+            MouseUp.Fire(x, y);
         }
         bool IsFocusable() const override { return true; }
         void OnKeyDown(WPARAM key, LPARAM lParam) override {
             if (!IsEffectivelyEnabled()) return;
             if ((key == VK_SPACE || key == VK_RETURN) && !isPressed_) { isPressed_ = true; lastRepeatTick_ = GetTickCount(); RequestRepaint(); }
+            KeyDown.Fire(key, lParam);
         }
         void OnKeyUp(WPARAM key, LPARAM lParam) override {
             if (!IsEffectivelyEnabled()) return;
@@ -551,6 +554,7 @@ namespace ZUI {
                 isPressed_ = false;
                 RequestRepaint();
             }
+            KeyUp.Fire(key, lParam);
         }
 
         // 字体变化时，label 也要跟着变
@@ -846,7 +850,7 @@ namespace ZUI {
             ResetCursorBlink();
             EnsureCursorVisible();
             RequestRepaint();
-            if (MouseDownHandler) MouseDownHandler(x, y);
+            MouseDown.Fire(x, y);
         }
         void OnMouseMove(float x, float y) override {
             if (focused_ && (GetKeyState(VK_LBUTTON) & 0x8000)) {
@@ -858,7 +862,7 @@ namespace ZUI {
                 EnsureCursorVisible();
                 RequestRepaint();
             }
-            if (MouseMoveHandler) MouseMoveHandler(x, y);
+            MouseMove.Fire(x, y);
         }
         void OnKeyDown(WPARAM key, LPARAM lParam) override {
             if (!focused_) return;
@@ -878,7 +882,7 @@ namespace ZUI {
             }
 
             if (readOnly_ && (key == VK_BACK || key == VK_DELETE)) {
-                if (KeyDownHandler) KeyDownHandler(key, lParam);
+                KeyDown.Fire(key, lParam);
                 return;
             }
 
@@ -944,7 +948,7 @@ namespace ZUI {
             case VK_RETURN: ReturnPressed(); break;
             default: break;
             }
-            if (KeyDownHandler) KeyDownHandler(key, lParam);
+            KeyDown.Fire(key, lParam);
         }
         void OnChar(wchar_t ch) override {
             if (!focused_ || readOnly_) return;
@@ -959,22 +963,22 @@ namespace ZUI {
             PushUndoState();
             TextChanged(text_);
             ResetCursorBlink(); EnsureCursorVisible(); InvalidateLayout(); RequestRepaint();
-            if (CharHandler) CharHandler(ch);
+            Char.Fire(ch);
         }
         void OnFocus() override {
             focused_ = true; showCursor_ = true; cursorBlinkTime_ = 0.0f;
             EnsureCursorVisible();
             RequestRepaint();
-            if (FocusHandler) FocusHandler();
+            Focused.Fire();
         }
         void OnBlur() override {
             focused_ = false; showCursor_ = false; cursorBlinkTime_ = 0.0f;
             selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
             RequestRepaint();
-            if (BlurHandler) BlurHandler();
+            Blurred.Fire();
         }
-        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
-        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
+        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); MouseEnter.Fire(); }
+        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); MouseLeave.Fire(); }
         void UpdateAnimation(float deltaTime) override {
             if (focused_) {
                 cursorBlinkTime_ += deltaTime;
@@ -1827,18 +1831,18 @@ namespace ZUI {
                 (editable_ && focused_ && cursorBlinkInterval_ > 0.0f);
         }
 
-        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
-        void OnMouseLeave() override { hovered_ = false; hoveredItemIndex_ = -1; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
+        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); MouseEnter.Fire(); }
+        void OnMouseLeave() override { hovered_ = false; hoveredItemIndex_ = -1; RequestRepaint(); MouseLeave.Fire(); }
 
         void OnMouseMove(float x, float y) override {
             if (!expanded_) {
                 hoveredItemIndex_ = -1;
-                if (MouseMoveHandler) MouseMoveHandler(x, y);
+                MouseMove.Fire(x, y);
                 return;
             }
 
             float listY = expandUp_ ? arrangedRect_.y - listViewHeight_ : arrangedRect_.y + arrangedRect_.height;
-            if (x >= arrangedRect_.x && x < arrangedRect_.x + arrangedRect_.width &&
+            if (x >= arrangedRect_.x && x < arrangedRect_.x + ListWidth() &&
                 y >= listY && y < listY + listViewHeight_) {
                 float adjustedY = y - listY + listScrollOffset_;
                 int idx = (int)(adjustedY / listItemHeight_);
@@ -1849,7 +1853,7 @@ namespace ZUI {
                 hoveredItemIndex_ = -1;
             }
             RequestRepaint();
-            if (MouseMoveHandler) MouseMoveHandler(x, y);
+            MouseMove.Fire(x, y);
         }
 
         void OnMouseDown(float x, float y) override {
@@ -1872,19 +1876,19 @@ namespace ZUI {
                 else {
                     CollapseInternal();
                 }
-                if (MouseDownHandler) MouseDownHandler(x, y);
+                MouseDown.Fire(x, y);
                 return;
             }
 
             ExpandInternal();
             PlaceCaretFromX(x);
-            if (MouseDownHandler) MouseDownHandler(x, y);
+            MouseDown.Fire(x, y);
         }
 
         void OnMouseUp(float x, float y) override {
             if (justExpanded_) {
                 justExpanded_ = false;
-                if (MouseUpHandler) MouseUpHandler(x, y);
+                MouseUp.Fire(x, y);
                 return;
             }
 
@@ -1903,7 +1907,7 @@ namespace ZUI {
                 CollapseInternal();
             }
             RequestRepaint();
-            if (MouseUpHandler) MouseUpHandler(x, y);
+            MouseUp.Fire(x, y);
         }
 
         bool OnMouseWheel(float deltaX, float deltaY) override {
@@ -1925,7 +1929,7 @@ namespace ZUI {
                         ResetCursorBlink();
                         if (filterEnabled_) ApplyFilter(); else RequestRepaint();
                     }
-                    if (KeyDownHandler) KeyDownHandler(key, lParam);
+                    KeyDown.Fire(key, lParam);
                     return;
                 case VK_DELETE:
                     if (caretPos_ >= 0 && caretPos_ < (int)editText_.size()) {
@@ -1961,15 +1965,15 @@ namespace ZUI {
                 }
                 if (key == VK_RETURN) { CollapseInternal(); return; }
             }
-            if (KeyDownHandler) KeyDownHandler(key, lParam);
+            KeyDown.Fire(key, lParam);
         }
 
-        void OnFocus() override { focused_ = true; ResetCursorBlink(); RequestRepaint(); if (FocusHandler) FocusHandler(); }
+        void OnFocus() override { focused_ = true; ResetCursorBlink(); RequestRepaint(); Focused.Fire(); }
         void OnBlur() override {
             focused_ = false;
             if (expanded_) CollapseInternal();
             RequestRepaint();
-            if (BlurHandler) BlurHandler();
+            Blurred.Fire();
         }
         void OnChar(wchar_t ch) override {
             if (!editable_ || !focused_) return;
@@ -1984,6 +1988,7 @@ namespace ZUI {
                 if (!expanded_ && !items_.empty()) ExpandInternal();
             }
             else RequestRepaint();
+            Char.Fire(ch);
         }
 
         void CollectExpandedComboBoxes(std::vector<ComboBox*>& list) override {
@@ -2050,7 +2055,7 @@ namespace ZUI {
         int GetItemIndexFromPoint(float x, float y) const {
             if (!expanded_) return -1;
             float listY = expandUp_ ? arrangedRect_.y - listViewHeight_ : arrangedRect_.y + arrangedRect_.height;
-            if (x < arrangedRect_.x || x > arrangedRect_.x + arrangedRect_.width ||
+            if (x < arrangedRect_.x || x > arrangedRect_.x + ListWidth() ||
                 y < listY || y > listY + listViewHeight_) return -1;
             float adjustedY = y - listY + listScrollOffset_;
             int idx = (int)(adjustedY / listItemHeight_);
@@ -2293,20 +2298,21 @@ namespace ZUI {
                 (hovered_ ? (hoverProgress_ < 1.0f - epsilon) : (hoverProgress_ > epsilon));
         }
 
-        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
-        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
+        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); MouseEnter.Fire(); }
+        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); MouseLeave.Fire(); }
         void OnMouseDown(float x, float y) override {
             if (!IsEffectivelyEnabled()) return;
             indeterminate_ = false;
             isOn_ = !isOn_;
             Toggled(isOn_);
             RequestRepaint();
-            if (MouseDownHandler) MouseDownHandler(x, y);
+            MouseDown.Fire(x, y);
         }
         bool IsFocusable() const override { return true; }
         void OnKeyDown(WPARAM key, LPARAM lParam) override {
             if (!IsEffectivelyEnabled()) return;
             if (key == VK_SPACE || key == VK_RETURN) { indeterminate_ = false; isOn_ = !isOn_; Toggled(isOn_); RequestRepaint(); }
+            KeyDown.Fire(key, lParam);
         }
 
         void ReleaseDeviceResources() override {
@@ -2732,20 +2738,20 @@ namespace ZUI {
                 Rect vRect(finalRect.x + finalRect.width - scrollBarWidth_, finalRect.y,
                     scrollBarWidth_, viewportHeight);
                 vScrollBar_->Arrange(vRect);
-                vScrollBar_->SetVisible(true);
+                vScrollBar_->SetVisibleNoInvalidate(true);
             }
             else {
-                vScrollBar_->SetVisible(false);
+                vScrollBar_->SetVisibleNoInvalidate(false);
                 isVerticalHovered_ = false; // 不可见时确保无悬停
             }
             if (showHorizontalScrollBar_) {
                 Rect hRect(finalRect.x, finalRect.y + finalRect.height - scrollBarWidth_,
                     viewportWidth, scrollBarWidth_);
                 hScrollBar_->Arrange(hRect);
-                hScrollBar_->SetVisible(true);
+                hScrollBar_->SetVisibleNoInvalidate(true);
             }
             else {
-                hScrollBar_->SetVisible(false);
+                hScrollBar_->SetVisibleNoInvalidate(false);
                 isHorizontalHovered_ = false;
             }
 
@@ -2815,10 +2821,12 @@ namespace ZUI {
                 UIElement* hit = content_->HitTest(x, y);
                 if (hit) hit->OnMouseMove(x, y);
             }
+            MouseMove.Fire(x, y);
         }
 
         void OnMouseDown(float x, float y) override {
             lastMouseX_ = x; lastMouseY_ = y;
+            MouseDown.Fire(x, y);
             if (vScrollBar_ && vScrollBar_->IsVisible() && vScrollBar_->HitTest(x, y)) {
                 vScrollBar_->OnMouseDown(x, y);
                 return;
@@ -2834,6 +2842,7 @@ namespace ZUI {
         }
 
         void OnMouseUp(float x, float y) override {
+            MouseUp.Fire(x, y);
             if (isDraggingVertical_ || isDraggingHorizontal_ || isTrackScrolling_) {
                 isDraggingVertical_ = false;
                 isDraggingHorizontal_ = false;
@@ -2851,6 +2860,7 @@ namespace ZUI {
             isVerticalHovered_ = false;
             isHorizontalHovered_ = false;
             if (content_) content_->OnMouseLeave();
+            MouseLeave.Fire();
             RequestRepaint();
         }
 
@@ -3302,25 +3312,25 @@ namespace ZUI {
             return (hovered_ ? (hoverProgress_ < 1.0f - epsilon) : (hoverProgress_ > epsilon));
         }
 
-        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
-        void OnMouseLeave() override { hovered_ = false; if (!isDragging_) { RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); } }
+        void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; RequestRepaint(); MouseEnter.Fire(); }
+        void OnMouseLeave() override { hovered_ = false; if (!isDragging_) { RequestRepaint(); MouseLeave.Fire(); } }
         void OnMouseDown(float x, float y) override {
             if (!IsEffectivelyEnabled()) return;
             isDragging_ = true;
             UpdateValueFromMouse(x);
             RequestRepaint();
-            if (MouseDownHandler) MouseDownHandler(x, y);
+            MouseDown.Fire(x, y);
         }
         void OnMouseMove(float x, float y) override {
             if (isDragging_) { UpdateValueFromMouse(x); RequestRepaint(); }
-            if (MouseMoveHandler) MouseMoveHandler(x, y);
+            MouseMove.Fire(x, y);
         }
         void OnMouseUp(float x, float y) override {
             if (isDragging_) {
                 isDragging_ = false;
                 SliderReleased(value_);
                 RequestRepaint();
-                if (MouseUpHandler) MouseUpHandler(x, y);
+                MouseUp.Fire(x, y);
             }
         }
         bool IsFocusable() const override { return true; }
@@ -3331,6 +3341,7 @@ namespace ZUI {
             else if (key == VK_RIGHT || key == VK_UP) SetValue(value_ + d);
             else if (key == VK_HOME) SetValue(min_);
             else if (key == VK_END) SetValue(max_);
+            KeyDown.Fire(key, lParam);
         }
 
         void ReleaseDeviceResources() override {
@@ -3530,11 +3541,12 @@ namespace ZUI {
         void OnKeyDown(WPARAM key, LPARAM lParam) override {
             if (!IsEffectivelyEnabled()) return;
             if (key == VK_SPACE || key == VK_RETURN) Toggle();
+            KeyDown.Fire(key, lParam);
         }
         bool IsFocusable() const override { return true; }
-        void OnMouseDown(float x, float y) override { Toggle(); if (MouseDownHandler) MouseDownHandler(x, y); }
-        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); if (MouseEnterHandler) MouseEnterHandler(); }
-        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); if (MouseLeaveHandler) MouseLeaveHandler(); }
+        void OnMouseDown(float x, float y) override { Toggle(); MouseDown.Fire(x, y); }
+        void OnMouseEnter() override { hovered_ = true; RequestRepaint(); MouseEnter.Fire(); }
+        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); MouseLeave.Fire(); }
 
         void UpdateAnimation(float dt) override {
             if (fabs(target_ - progress_) > 0.001f) {

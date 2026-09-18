@@ -110,6 +110,55 @@ Key points:
 
 ## Changelog
 
+### 2026-09-19 — Rendering migrated to DirectComposition + backdrop/signal API overhaul (v1.8.0)
+
+**Rendering: migrated to Direct2D 1.1 + DXGI flip SwapChain + DirectComposition**
+
+- `Window` no longer uses `ID2D1HwndRenderTarget`; it now uses an `ID2D1DeviceContext` + `IDXGISwapChain1` (`CreateSwapChainForComposition`) + a DComp visual tree, with `WS_EX_NOREDIRECTIONBITMAP`, so content is submitted via DComp and per-pixel transparency is supported.
+- `AppCore` shares a process-wide `ID3D11Device → IDXGIDevice → ID2D1Device` and WinRT `ICompositor` across windows.
+- Device loss / DPI change / resize go through a unified discard-and-recreate path (`DiscardDeviceResources` / `ResizeSwapChain`); new `DeviceLost` / `RenderingError` signals.
+
+**Acrylic: switched to the DComp `HostBackdropBrush` + Gaussian blur**
+
+- Acrylic is now drawn by a DComp background layer (`ICompositor3::CreateHostBackdropBrush`, falling back to `ICompositor2::CreateBackdropBrush`, wrapped in a Gaussian blur effect) that samples the host backdrop, together with `DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`; it no longer relies on `DWMWA_SYSTEMBACKDROP_TYPE`, which breaks as the window frame changes.
+- Includes a hand-written `IGraphicsEffect` / `IGraphicsEffectD2D1Interop` wrapper (no Win2D); new dependency on `d2d1effects_2.h` and `dxguid.lib`.
+
+**Backdrop API overhaul ("what" vs "which API")**
+
+- New `Backdrop { None, Normal, Blur, Acrylic, Mica, MicaAlt }`: **what effect you want**.
+- `BackdropMode { Auto, System, Accent }`: **which API implements it**.
+- `SetBackdrop(Backdrop, tint = 0)` / `GetBackdrop()`, `SetBackdropMode` / `GetBackdropMode()`.
+- Removed the old `WindowBackdrop` / `SystemBackdropMaterial` (confusing names/semantics).
+
+**Callbacks → signals**
+
+- `UIElement` events changed from raw `std::function` members to signals: `MouseEnter / MouseLeave / MouseMove / MouseDown / MouseUp / KeyDown / KeyUp / Char / Focused / Blurred`.
+- `MenuItem::Clicked`, `CaptionButton::Clicked` (default behaviour wired by `DefaultTitleBar`; custom title bars can connect/intercept themselves).
+- New `Window::Closing` (`ZSignal<bool*>`, set `*cancel=true` to cancel, e.g. "confirm before close"), `Window::BackdropUnsupported` / `Window::DeviceLost` / `Window::RenderingError`.
+- Global `UIZSignals::DeviceReset`: fired when render device resources are discarded/recreated, so subscribers can clear device-keyed caches (`ImageManager` clears image bitmap caches, fixing dangling render-target keys and bitmap leaks).
+- Removed `SetBackdropUnsupportedHandler` / `SetDeviceLostHandler` / `SetRenderingErrorHandler`.
+
+**Window**
+
+- `Window::Create` **no longer shows the window automatically**; the app decides when to `Show()`.
+- Custom title bar: added **per-button** enable/visible control: `TitleBar::GetButton / SetButtonEnabled / IsButtonEnabled / SetButtonVisible / IsButtonVisible`; `DefaultTitleBar` convenience `SetMinimizeEnabled / SetMaximizeEnabled / SetCloseEnabled` and `...Visible`.
+- `DWMWA_BORDER_COLOR` now defaults to the system default (no hard-coded grey).
+
+**Fixes and cleanup**
+
+- ComboBox popup hover/click hit-testing now uses the same width as drawing (`ListWidth()`), fixing the unreachable overhang on the right.
+- `TableView::SortByColumn` remaps `checkedRows_` after sorting.
+- Double-click detection now uses the system `GetDoubleClickTime()` (three places).
+- `ScrollViewer::Arrange` uses `SetVisibleNoInvalidate()` to avoid a layout loop; `DrawTextWithEllipsis` truncation changed from O(n²) to binary search.
+- `MenuWindow` positioning now uses `MonitorFromPoint` + `GetMonitorInfo`.
+- Removed several fallback/temporary bits (debug-only `PageHost` special case, unused `animationIdleFrames_`, etc.).
+
+**Demo (`ZUI.cpp`)**
+
+- The main window now uses a **custom title bar**.
+- The separate small tool window was removed; the multi-window / owned / modal demos moved into a new **"Multi-window" page** of the main window.
+- Version bumped to **1.8.0** (new `ZUI_VERSION_STRING` etc. macros, referenced by the demo title).
+
 ### 2026-09-16 — Custom title bar (ZUIWindowTool) and backdrop modes
 
 **New: custom title bar (new file `ZUIWindowTool.h`)**

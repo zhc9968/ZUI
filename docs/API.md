@@ -224,6 +224,7 @@ btn->Connect(btn->Clicked, [b]() { b->SetText(L"..."); });
 | `ElementCaptureRelease` | `UIElement*` | 控件释放鼠标捕获 | 框架内部使用 |
 | `RepaintRequest` | `UIElement*` | 控件请求重绘 | `RequestRepaint()` 的底层 |
 | `LayoutInvalidated` | — | 全局布局失效 | `InvalidateLayout()` 的底层 |
+| `DeviceReset` | — | 渲染设备资源被丢弃/重建（设备丢失、DPI 变化、窗口销毁等） | 订阅者应清理按渲染目标/设备缓存的东西（如 `ImageManager` 的图像位图缓存） |
 
 > 这些是“全局单例信号”，不是某个控件的成员。连接它们时同样建议登记到一个明确的 `ConnectionGroup`，否则需要自行在合适时机断开。
 
@@ -390,11 +391,11 @@ struct FontSpec {
 | `GetChildRenderTransform(child)` | 子元素的渲染变换（用于页面切换等） |
 | `OnFontChanged()` | 字体变化；默认重建布局 |
 
-## 回调成员（`std::function`）
+## 事件信号（`ZSignal`）
 
-`MouseEnterHandler`、`MouseLeaveHandler`、`MouseMoveHandler`、`MouseDownHandler`、`MouseUpHandler`、`KeyDownHandler`、`KeyUpHandler`、`CharHandler`、`FocusHandler`、`BlurHandler`。
+`MouseEnter`、`MouseLeave`、`MouseMove(float,float)`、`MouseDown(float,float)`、`MouseUp(float,float)`、`KeyDown(WPARAM,LPARAM)`、`KeyUp(WPARAM,LPARAM)`、`Char(wchar_t)`、`Focused`、`Blurred`。
 
-> 这是“不继承也能挂回调”的替代方案；它们与 `OnXxx` 虚函数都会在内部被调用，互不冲突。
+> 1.8.0 起这些事件由裸 `std::function` 回调改为 `ZSignal`，用 `Connect(elem->MouseDown, ...)` 连接（连接随元素析构自动断开）。它们与 `OnXxx` 虚函数都会被内部触发，互不冲突。
 
 ## 父子、可见性、右键菜单与连接
 
@@ -641,18 +642,19 @@ class MenuWindow {
 
 ```cpp
 class Window {
-    static WindowBackdrop DefaultBackdrop;        // AcrylicBlurBehind
-    static DWORD DefaultBackdropColor;            // 0x80FFFFFF
+    static Backdrop DefaultBackdrop;              // None
+    static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // 透明
 
-    bool Create(int width, int height, const std::wstring& title);
+    bool Create(int width, int height, const std::wstring& title);   // 创建后不自动显示，见 Show()
     void Run();
 
     void SetRootLayout(std::shared_ptr<Layout> layout);
     std::shared_ptr<Layout> GetRootLayout() const;
     std::shared_ptr<ColumnBox> GetRootColumnBox() const;
 
-    void SetBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF);
+    void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000);
+    Backdrop GetBackdrop() const;
     void SetBackgroundColor(Color color);
     void SetContextMenu(std::shared_ptr<Menu> menu);
 
@@ -698,18 +700,20 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // 背景实现方式（三模式）+ Win11 系统材质 + 不支持回调
+    // 背景实现方式（用什么 API）
     enum class BackdropMode {
-        Auto,            // 运行时自适应：当前渲染架构下等同 Acrylic；将来迁移 DComp 后 Win11 会优先系统材质
-        Acrylic,         // 强制：AccentState 亚克力（Win10/11 都能显示）
-        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
+        Auto,    // 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState
+        System,  // 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
+        Accent   // 强制：SetWindowCompositionAttribute(AccentState)
     };
     void SetBackdropMode(BackdropMode m);
     BackdropMode GetBackdropMode() const;
-    enum class SystemBackdropMaterial { Auto, Mica, MicaAlt, Acrylic };
-    void SetSystemBackdropMaterial(SystemBackdropMaterial m);   // 仅 SystemBackdrop 模式生效
-    SystemBackdropMaterial GetSystemBackdropMaterial() const;
-    void SetBackdropUnsupportedHandler(std::function<void()> handler);  // 运行时不受支持时回调
+
+    // 事件信号
+    ZSignal<bool*> Closing;           // 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）
+    ZSignal<> BackdropUnsupported;    // 所选实现当前系统不支持
+    ZSignal<> DeviceLost;             // 设备丢失（GPU 移除/重置/交换链失效）
+    ZSignal<HRESULT> RenderingError;  // 渲染致命错误
 
     // 自定义标题栏（控件见“窗口工具”章节）
     void SetCustomTitleBar(std::shared_ptr<UIElement> bar);   // 传 nullptr 恢复原生标题栏
@@ -741,11 +745,11 @@ class Window {
 };
 ```
 
-`WindowBackdrop` 取值：`None`、`Gradient`、`TransparentGradient`、`BlurBehind`、`AcrylicBlurBehind`。
+`Backdrop` 取值（表示**要什么效果**）：`None`、`Normal`、`Blur`、`Acrylic`、`Mica`、`MicaAlt`；`BackdropMode`（表示**用什么 API**）：`Auto`、`System`、`Accent`。
 
 **行为与易混点**：
 
-- `Create` 创建窗口、初始化 Direct2D、应用背景，并生成一个默认根布局：带 `margin 20`、`spacing 10` 的 `ColumnBox`。`GetRootColumnBox()` 就是它。
+- `Create` 创建窗口、初始化渲染资源、应用背景，并生成一个默认根布局：带 `margin 20`、`spacing 10` 的 `ColumnBox`（`GetRootColumnBox()` 即它）。**1.8.0 起 `Create` 不再自动显示窗口**，需要显示时由应用调用 `Show()`。
 - `Run()` 进入消息循环，阻塞直到窗口关闭。
 - 窗口内部维护 16ms 定时器驱动动画；`timeBeginPeriod(1)` / `timeEndPeriod(1)` 用于降低定时器抖动。
 - 帧时间 `deltaTime` 被钳制在 `0.033s`，空闲或最小化恢复后不会让动画一帧跳到终点。
@@ -756,11 +760,8 @@ class Window {
 - **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
 - **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
 - **自定义标题栏**：`SetCustomTitleBar(bar)` 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 `(0,0)`、根布局整体下移其高度；传入 `nullptr` 恢复原生标题栏（会发 `SWP_FRAMECHANGED` 全量刷新）。`SetTitleBarVisible(false)` 可隐藏标题栏但保留自定义边框。
-- **背景三模式**：`Auto` / `Acrylic` 走 `SetWindowCompositionAttribute` 的 `AccentState` 亚克力；`SystemBackdrop` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`（`Mica`/`MicaAlt`/`Acrylic`）。运行时不受支持（如 Win10）会调用 `SetBackdropUnsupportedHandler` 注册的回调并回退到 `AccentState`。
-- **已知限制（重要）**：当前 ZUI 的渲染基于 `ID2D1HwndRenderTarget`（不透明重定向表面），**无法显示 DWM 系统材质**。因此：
-  1) `BackdropMode::Auto` 目前在 Win10/Win11 上都走 `AccentState` 路径；`SystemBackdrop` 模式在渲染目标迁移到 DirectComposition 之前**不可见**（会发灰/发黑）；
-  2) `AccentState` 亚克力（`AcrylicBlurBehind`）是未公开 API，会让 DWM **跳过最小化/最大化等窗口过渡动画**（Win10/Win11 均如此），这是该 API 的固有行为；
-  3) 要同时获得"亚克力 + 原生动画 + Mica"，需要把渲染从 `HwndRenderTarget` 迁移到 DirectComposition（SwapChain / CompositionSurface），属于后续规划。
+- **背景（`Backdrop` = 要什么，`BackdropMode` = 用什么 API）**：`Acrylic` 走 DComp `HostBackdropBrush` + 高斯模糊（`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`），Win10 自动回退 `ACRYLICBLURBEHIND`；`Mica`/`MicaAlt` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`；`Blur` 走 `AccentState(BLURBEHIND)`；`Normal` 走 `AccentState(GRADIENT)`。当前实现不支持所请求效果时触发 `BackdropUnsupported` 信号，**不会**用别的效果凑合。
+- **渲染架构（1.8.0）**：Direct2D 1.1 + DXGI flip SwapChain + DirectComposition（`WS_EX_NOREDIRECTIONBITMAP`），支持逐像素透明；进程级共享 D3D11/D2D 设备与 WinRT `ICompositor`。`Create` **不再自动显示窗口**，需应用显式 `Show()`。
 - **边框/调整/圆角**：`SetResizable` 控制拖边缩放；分屏时会保留 DWM 边框/阴影（`WM_NCCALCSIZE` 只内缩被吸附的边），最大化不做内缩。`SetWindowCorner` 映射到 `DWMWA_WINDOW_CORNER_PREFERENCE`。
 
 ###chapter: 应用与多窗口 | Application 与多窗口
@@ -806,13 +807,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 - **重绘 / 布局按窗口路由**：每个元素记录所属窗口（`UIElement::GetWindow()`）；`RequestRepaint()` / `InvalidateLayout()` 只作用于所属窗口，窗口之间不会互相触发重绘。
 - **DPI 每窗口**：当前 DPI 缩放是**线程本地**的，渲染每个窗口前会设置该窗口自己的缩放，所以混合 DPI 的多窗口也能正确 `Snap`。
-- **激活 / 失活按窗口**：`Window` 提供实例信号 `Activated` / `Deactivated` / `Closed`；全局 `UIZSignals::WindowDeactivated` 现在带 `Window*` 参数、`GlobalMouseDown` 带 `Window*`。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。
+- **激活 / 失活按窗口**：`Window` 提供实例信号 `Activated` / `Deactivated` / `Closed`，以及 `Closing`（`bool*`，置 `*cancel=true` 可取消关闭）、`BackdropUnsupported` / `DeviceLost` / `RenderingError`；全局 `UIZSignals::WindowDeactivated` 带 `Window*` 参数、`GlobalMouseDown` 带 `Window*`。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。
 - **叠加绘制按窗口**：全局 `UIZSignals::DrawOverlay` 现在带 `Window*`（以及渲染目标）参数；订阅者**必须**用 `GetWindow()` 过滤，否则会把 A 窗口的下拉/弹层画到 B 窗口上（这是多窗口下最典型的串扰）。ZUI 自带控件已按此处理。
 - **鼠标捕获**：Win32 `SetCapture` 只用于“按住鼠标”的拖拽，松开立即释放（元素级逻辑捕获不受影响）。修复了“ComboBox 展开后一直持有系统鼠标捕获、导致其它窗口无法使用”的问题。
 - **模态 / 父子窗口**：`Window::SetOwner(owner)` 建立 owned 子窗口（始终在所有者之上、随其最小化）；`Window::RunModal(owner)` 以模态运行（禁用所有者、嵌套消息循环、关闭后恢复）。模态期间点击被禁用的所有者窗口，模态窗口会**闪烁**提示。
 - **窗口句柄与悬垂**：元素内部用**窗口 id** 记录所属窗口（而不是裸指针），窗口销毁后 `GetWindow()` 返回 `nullptr`，从根本上避免“元素持有已销毁窗口指针”导致的崩溃。
 - **共享资源**：`ID2D1Factory` 与系统计时器精度（`timeBeginPeriod`）由应用核心统一管理，多窗口共享。
-- **向后兼容**：单窗口写法仍然有效——`Window win; win.Create(...); win.Run();`；`Run()` 会转发到应用级消息循环。
+- **向后兼容**：单窗口写法仍然有效——`Window win; win.Create(...); win.Show(); win.Run();`（1.8.0 起 `Create` 不再自动显示，需显式 `Show()`）；`Run()` 会转发到应用级消息循环。
 
 ## 多窗口常见坑
 
@@ -1547,13 +1548,20 @@ class TitleBar : public UIElement {
     void SetButtonHeight(float);
     void SetRightMargin(float);
     void ClearRightMargin();         // 恢复默认（右上角齐平，默认右边距 1px）
-    void SetButtonsEnabled(bool);    // 三件套是否可点击
+    void SetButtonsEnabled(bool);    // 三件套是否可点击（总开关）
     bool AreButtonsEnabled() const;
+    // 按按钮类型单独控制（详细禁用 API）
+    std::shared_ptr<CaptionButton> GetButton(CaptionButton::Kind) const;
+    void SetButtonEnabled(CaptionButton::Kind, bool);   // 置灰、不响应、不报告系统按钮码
+    bool IsButtonEnabled(CaptionButton::Kind) const;
+    void SetButtonVisible(CaptionButton::Kind, bool);   // 隐藏后不占位
+    bool IsButtonVisible(CaptionButton::Kind) const;
 };
 
 class CaptionButton : public UIElement {
     enum class Kind { Minimize, MaximizeRestore, Close };
     explicit CaptionButton(Kind kind);
+    ZSignal<> Clicked;                // 点击信号；默认行为由 DefaultTitleBar 接线
     void SetHoverColor(Color);        void SetPressedColor(Color);
     void SetCloseHoverColor(Color);   void SetClosePressedColor(Color);
     void SetGlyphColor(Color);
@@ -1566,6 +1574,9 @@ class DefaultTitleBar : public TitleBar {
     std::shared_ptr<CaptionButton> GetMinButton() const;
     std::shared_ptr<CaptionButton> GetMaxButton() const;
     std::shared_ptr<CaptionButton> GetCloseButton() const;
+    // 便捷：单独启用/禁用、显示/隐藏三件套
+    void SetMinimizeEnabled(bool);  void SetMaximizeEnabled(bool);  void SetCloseEnabled(bool);
+    void SetMinimizeVisible(bool);  void SetMaximizeVisible(bool);  void SetCloseVisible(bool);
 };
 ```
 
@@ -1605,14 +1616,14 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
 | `TableView` | `CellClicked` / `CellDoubleClicked` / `HeaderClicked` / `CurrentCellChanged` / `SelectionChangedCells` / `ItemCheckStateChanged` | `int,int` / `int,int` / `int` / `int,int` / `vector<pair<int,int>>` / `int,bool` |
 | `TreeView` | `SelectionChanged` / `NodeClicked` / `ItemDoubleClicked` / `ItemRightClicked` / `HeaderClicked` / `SelectionChangedMulti` / `ExpandChanged` / `ItemCheckStateChanged` | 见上 |
 | `FontManager` | `GlobalFontChanged` | — |
-| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` | 见第 4 章 |
+| `UIZSignals` | `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` / `ElementCaptureRequest` / `ElementCaptureRelease` / `RepaintRequest` / `LayoutInvalidated` / `DeviceReset` | 见第 4 章 |
 
 ## 常用默认值速查
 
 | 项 | 值 |
 | --- | --- |
 | 全局字体 | `Segoe UI` / `14.0f` |
-| 窗口默认背景 | `AcrylicBlurBehind` / `0x80FFFFFF` |
+| 窗口默认背景 | `Backdrop::None` / tint `0` |
 | 根布局 margin / spacing | `20` / `10` |
 | 帧时间上限 `deltaTime` | `0.033s` |
 | 窗口定时器 | `16ms`，`timeBeginPeriod(1)` |
@@ -1692,6 +1703,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     list->SetSelectedIndex(0);
     root->AddChild(list);
 
+    win.Show();          // 1.8.0 起 Create 不再自动显示，由应用调用 Show()
     win.Run();
     return 0;
 }

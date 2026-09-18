@@ -55,6 +55,9 @@ namespace ZUI {
 
         explicit CaptionButton(Kind kind) : kind_(kind) {}
 
+        // 点击信号（由 DefaultTitleBar 连接默认行为；自定义标题栏可自行连接/拦截）
+        ZSignal<> Clicked;
+
         void SetKind(Kind k) { kind_ = k; RequestRepaint(); }
         Kind GetKind() const { return kind_; }
         void SetHoverColor(Color c) { hoverColor_ = c; RequestRepaint(); }
@@ -144,13 +147,7 @@ namespace ZUI {
             pressed_ = false;
             RequestRepaint();
             if (!IsEffectivelyEnabled()) return;
-            if (Window* w = GetWindow()) {
-                switch (kind_) {
-                case Kind::Minimize:        w->Minimize(); break;
-                case Kind::MaximizeRestore: w->MaximizeRestore(); break;
-                case Kind::Close:           w->Close(); break;
-                }
-            }
+            Clicked.Fire();
         }
         void SetAnimationSpeed(float s) { animSpeed_ = max(0.1f, s); }
         void SetPressedVisual(bool p) { pressed_ = p; RequestRepaint(); }   // 只改视觉，不触发动作
@@ -247,6 +244,7 @@ namespace ZUI {
             float right = finalRect.x + finalRect.width - rightMargin;
             for (auto it = buttons_.rbegin(); it != buttons_.rend(); ++it) {
                 auto& b = *it;
+                if (!b->IsVisible()) continue;   // 隐藏的按钮不占位
                 if (!b->HasCustomWidth()) b->SetButtonWidth(btnW);
                 float bw = b->GetButtonWidth();
                 b->SetHeight(btnH);
@@ -290,6 +288,29 @@ namespace ZUI {
             RequestRepaint();
         }
         bool AreButtonsEnabled() const { return buttonsEnabled_; }
+
+        // ---- 按按钮类型单独控制（详细禁用 API） ----
+        std::shared_ptr<CaptionButton> GetButton(CaptionButton::Kind k) const {
+            for (auto& b : buttons_) if (b && b->GetKind() == k) return b;
+            return nullptr;
+        }
+        // 单独禁用/启用某个按钮：置灰、不响应鼠标、不报告系统按钮码
+        void SetButtonEnabled(CaptionButton::Kind k, bool on) {
+            if (auto b = GetButton(k)) b->SetEnabled(on);
+            RequestRepaint();
+        }
+        bool IsButtonEnabled(CaptionButton::Kind k) const {
+            auto b = GetButton(k);
+            return b && b->IsEffectivelyEnabled();
+        }
+        // 单独显示/隐藏某个按钮：隐藏后不再占位（布局自动重排）
+        void SetButtonVisible(CaptionButton::Kind k, bool on) {
+            if (auto b = GetButton(k)) { b->SetVisible(on); InvalidateLayout(); RequestRepaint(); }
+        }
+        bool IsButtonVisible(CaptionButton::Kind k) const {
+            auto b = GetButton(k);
+            return b && b->IsVisible();
+        }
 
         bool HasActiveAnimation() const override {
             for (auto& b : buttons_) if (b && b->HasActiveAnimation()) return true;
@@ -408,10 +429,22 @@ namespace ZUI {
             AddButton(minBtn_);
             AddButton(maxBtn_);
             AddButton(closeBtn_);
+            // 默认行为在这里接线（按钮本身只发 Clicked；自定义标题栏可自行改写/拦截）
+            Connect(minBtn_->Clicked, [this]() { if (Window* w = GetWindow()) w->Minimize(); });
+            Connect(maxBtn_->Clicked, [this]() { if (Window* w = GetWindow()) w->MaximizeRestore(); });
+            Connect(closeBtn_->Clicked, [this]() { if (Window* w = GetWindow()) w->Close(); });
         }
         std::shared_ptr<CaptionButton> GetMinButton() const { return minBtn_; }
         std::shared_ptr<CaptionButton> GetMaxButton() const { return maxBtn_; }
         std::shared_ptr<CaptionButton> GetCloseButton() const { return closeBtn_; }
+
+        // 便捷：单独启用/禁用、显示/隐藏三件套
+        void SetMinimizeEnabled(bool on) { SetButtonEnabled(CaptionButton::Kind::Minimize, on); }
+        void SetMaximizeEnabled(bool on) { SetButtonEnabled(CaptionButton::Kind::MaximizeRestore, on); }
+        void SetCloseEnabled(bool on) { SetButtonEnabled(CaptionButton::Kind::Close, on); }
+        void SetMinimizeVisible(bool on) { SetButtonVisible(CaptionButton::Kind::Minimize, on); }
+        void SetMaximizeVisible(bool on) { SetButtonVisible(CaptionButton::Kind::MaximizeRestore, on); }
+        void SetCloseVisible(bool on) { SetButtonVisible(CaptionButton::Kind::Close, on); }
 
     private:
         std::shared_ptr<CaptionButton> minBtn_, maxBtn_, closeBtn_;
