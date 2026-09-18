@@ -11,6 +11,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
+    // 背景效果由应用显式指定（库不替应用做决定）：亚克力 + 半透明白色着色
+    win.SetBackdrop(Backdrop::Acrylic, 0x80FFFFFF);
+
     // 创建全局右键菜单（与信号无关）
     auto globalMenu = std::make_shared<Menu>();
     globalMenu->AddItem(L"显示信息", []() {
@@ -934,6 +937,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         bar->SetHeight(34);
         cw->SetWindowCorner(Window::WindowCorner::Round);   // 圆角偏好（仅一次 DWM 调用）
         cw->SetResizable(true);
+        cw->SetBackdrop(Backdrop::Acrylic, 0x80FFFFFF);      // 应用显式设置背景
         cw->SetCustomTitleBar(bar);                          // 安装自定义标题栏（传 nullptr 可恢复原生）
         auto croot = cw->GetRootColumnBox();
         croot->AddChild(std::make_shared<Label>(L"自绘标题栏：拖动标题栏移动窗口，右上角三件套与原生一致。"));

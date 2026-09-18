@@ -2,6 +2,17 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <d2d1helper.h>
+#include <d2d1_1.h>
+#include <d3d11.h>
+#include <dxgi1_2.h>
+#include <dcomp.h>
+#include <roapi.h>
+#include <dispatcherqueue.h>
+#include <wrl.h>
+#include <wrl/wrappers/corewrappers.h>
+#include <windows.ui.composition.h>
+#include <windows.ui.composition.desktop.h>
+#include <windows.ui.composition.interop.h>
 #include <dwrite.h>
 #include <dwmapi.h>
 #include <string>
@@ -38,6 +49,10 @@
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dcomp.lib")
+#pragma comment(lib, "windowsapp.lib")
 
 // Windows 头把 CreateWindow 定义为宏，这里取消，避免与 Application::CreateWindow 冲突
 #ifdef CreateWindow
@@ -96,6 +111,8 @@
 namespace ZUI {
 
     using Microsoft::WRL::ComPtr;
+    using namespace ABI::Windows::UI::Composition;
+    using namespace ABI::Windows::UI::Composition::Desktop;
 
     template<typename T>
     T clamp(T value, T low, T high) {
@@ -150,28 +167,21 @@ namespace ZUI {
         SIZE_T cbData;
     };
 
-    // ---------- 背景效果枚举 ----------
-    enum class WindowBackdrop {
-        None = ACCENT_DISABLED,
-        Gradient = ACCENT_ENABLE_GRADIENT,
-        TransparentGradient = ACCENT_ENABLE_TRANSPARENTGRADIENT,
-        BlurBehind = ACCENT_ENABLE_BLURBEHIND,
-        AcrylicBlurBehind = ACCENT_ENABLE_ACRYLICBLURBEHIND
+    // ---------- 背景效果（要什么，与实现无关） ----------
+    enum class Backdrop {
+        None,       // 不使用系统背景效果
+        Normal,     // 普通不透明窗口
+        Blur,       // 毛玻璃
+        Acrylic,    // 亚克力
+        Mica,       // 云母（仅 Win11 系统材质）
+        MicaAlt     // 云母变体（仅 Win11 系统材质）
     };
 
-    // 背景实现方式（三模式）
+    // ---------- 背景实现方式（用什么 API） ----------
     enum class BackdropMode {
-        Auto,            // 运行时判断：优先 Win11 系统材质，不支持则回退 AccentState 亚克力
-        Acrylic,         // 强制：AccentState 亚克力（Win10/11 均可用；Win10 上动画会被跳过）
-        SystemBackdrop   // 强制：Win11 的 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用会失败）
-    };
-
-    // Win11 系统材质类型（仅 SystemBackdrop 模式生效）
-    enum class SystemBackdropMaterial {
-        Auto,       // 按 WindowBackdrop 推断
-        Mica,       // DWMSBT_MAINWINDOW
-        MicaAlt,    // DWMSBT_TABBEDWINDOW
-        Acrylic     // DWMSBT_TRANSIENTWINDOW
+        Auto,    // 运行时自动选择：优先 Win11 系统材质，不支持则回退 AccentState
+        System,  // 强制 Win11 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
+        Accent   // 强制 SetWindowCompositionAttribute(AccentState)
     };
 
     // ---------- 基础类型 ----------
@@ -2599,6 +2609,39 @@ namespace ZUI {
                 return d2dFactory_.Get();
             }
 
+            // 共享 D2D 1.1 设备（由 D3D11 设备创建），多窗口共用；失败返回 nullptr
+            ID2D1Device* GetD2DDevice() {
+                if (!d2dDevice_) {
+                    D3D_FEATURE_LEVEL fl[]{ D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0 };
+                    if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
+                        D3D11_CREATE_DEVICE_BGRA_SUPPORT, fl, ARRAYSIZE(fl), D3D11_SDK_VERSION,
+                        d3dDevice_.GetAddressOf(), nullptr, nullptr))) return nullptr;
+                    if (FAILED(d3dDevice_.As(&dxgiDevice_))) return nullptr;
+                    ComPtr<ID2D1Factory1> f1;
+                    if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory1),
+                        nullptr, reinterpret_cast<void**>(f1.GetAddressOf())))) return nullptr;
+                    if (FAILED(f1->CreateDevice(dxgiDevice_.Get(), d2dDevice_.GetAddressOf()))) return nullptr;
+                }
+                return d2dDevice_.Get();
+            }
+            IDXGIDevice* GetDXGIDevice() { if (!dxgiDevice_) GetD2DDevice(); return dxgiDevice_.Get(); }
+
+            // 共享 WinRT Compositor（每 UI 线程一个），失败返回 nullptr
+            ICompositor* GetCompositor() {
+                if (!compositor_) {
+                    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);   // Compositor 需要 STA
+                    DispatcherQueueOptions opts{ sizeof(DispatcherQueueOptions), DQTYPE_THREAD_CURRENT, DQTAT_COM_STA };
+                    if (FAILED(CreateDispatcherQueueController(opts, reinterpret_cast<PDISPATCHERQUEUECONTROLLER*>(&dqController_)))) return nullptr;
+                    Microsoft::WRL::ComPtr<IInspectable> insp;
+                    if (FAILED(RoActivateInstance(
+                        Microsoft::WRL::Wrappers::HStringReference(
+                            RuntimeClass_Windows_UI_Composition_Compositor).Get(),
+                        insp.GetAddressOf()))) return nullptr;
+                    if (FAILED(insp->QueryInterface(IID_PPV_ARGS(&compositor_)))) return nullptr;
+                }
+                return compositor_.Get();
+            }
+
             void AddWindow(Window* w) {
                 if (w && std::find(windows_.begin(), windows_.end(), w) == windows_.end())
                     windows_.push_back(w);
@@ -2652,6 +2695,11 @@ namespace ZUI {
             AppCore() { timeBeginPeriod(1); }
             ~AppCore() { timeEndPeriod(1); }
             ComPtr<ID2D1Factory> d2dFactory_;
+            ComPtr<ID3D11Device> d3dDevice_;
+            ComPtr<IDXGIDevice> dxgiDevice_;
+            ComPtr<ID2D1Device> d2dDevice_;
+            ComPtr<ICompositor> compositor_;
+            IUnknown* dqController_ = nullptr;
             std::vector<Window*> windows_;
             std::unordered_map<int, Window*> windowsById_;
             int nextWindowId_ = 1;
@@ -2663,8 +2711,8 @@ namespace ZUI {
     // ---------- 窗口 ----------
     class Window {
     public:
-        inline static WindowBackdrop DefaultBackdrop = WindowBackdrop::AcrylicBlurBehind;
-        inline static DWORD DefaultBackdropColor = 0x80FFFFFF;
+        inline static Backdrop DefaultBackdrop = Backdrop::None;
+        inline static DWORD DefaultBackdropColor = 0x00000000;
         inline static Color DefaultBackgroundColor = Color(0, 0, 0, 0);
 
         Window() : core_(&detail::AppCore::Instance()), hwnd_(nullptr), d2dFactory_(nullptr), renderTarget_(nullptr),
@@ -2690,27 +2738,33 @@ namespace ZUI {
             if (mouseCaptureElement_ == elem) mouseCaptureElement_ = nullptr;
         }
 
-        void SetBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF) {
+        // 背景效果：Backdrop=要什么（亚克力/云母/普通/毛玻璃…），tint=ARGB 着色（不需要可省略）
+        void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000) {
             backdrop_ = backdrop;
-            backdropColor_ = color;
+            backdropColor_ = tint;
             ApplyBackdrop();
         }
-        // ---- 背景实现方式（三模式）+ Win11 材质 + 不支持回调 ----
+        Backdrop GetBackdrop() const { return backdrop_; }
+        // 背景实现方式：用什么 API（Auto / System / Accent）
         void SetBackdropMode(BackdropMode m) { backdropMode_ = m; ApplyBackdrop(); }
         BackdropMode GetBackdropMode() const { return backdropMode_; }
-        void SetSystemBackdropMaterial(SystemBackdropMaterial m) { systemBackdropMaterial_ = m; ApplyBackdrop(); }
-        SystemBackdropMaterial GetSystemBackdropMaterial() const { return systemBackdropMaterial_; }
-        // 所选方案在当前系统运行时不受支持时调用（例如 Win10 上强制 SystemBackdrop）
-        void SetBackdropUnsupportedHandler(std::function<void()> handler) {
-            backdropUnsupportedHandler_ = std::move(handler);
-        }
+        // 当前是否在用系统材质（Win11 Mica/Acrylic）；false 表示走了 AccentState 路径
+        bool IsSystemBackdropActive() const { return systemBackdropActive_; }
+
+        // 信号：所选方案在当前系统运行时不受支持（例如 Win10 上强制 System 云母）
+        ZSignal<> BackdropUnsupported;
+        // 信号：设备丢失（GPU 移除/重置/交换链失效）；槽内可重建自有 GPU 资源
+        ZSignal<> DeviceLost;
+        // 信号：渲染致命错误（非设备丢失类）
+        ZSignal<HRESULT> RenderingError;
+
         void SetBackgroundColor(Color color) {
             backgroundColor_ = color;
             InvalidateRect(hwnd_, nullptr, FALSE);
         }
-        static void SetDefaultBackdrop(WindowBackdrop backdrop, DWORD color = 0x80FFFFFF) {
+        static void SetDefaultBackdrop(Backdrop backdrop, DWORD tint = 0x00000000) {
             DefaultBackdrop = backdrop;
-            DefaultBackdropColor = color;
+            DefaultBackdropColor = tint;
         }
 
         bool Create(int width, int height, const std::wstring& title) {
@@ -2749,7 +2803,7 @@ namespace ZUI {
             DWORD style = WS_OVERLAPPEDWINDOW;
             if (owner_ && ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize)
                 style &= ~WS_MINIMIZEBOX;   // 方案4：创建时就置灰最小化按钮
-            hwnd_ = CreateWindowExW(0, L"ZUIWindowClass", title.c_str(), style,
+            hwnd_ = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP, L"ZUIWindowClass", title.c_str(), style,
                 CW_USEDEFAULT, CW_USEDEFAULT, physicalWidth, physicalHeight,
                 hwndOwner, nullptr, GetModuleHandle(nullptr), this);
             if (!hwnd_) return false;
@@ -2760,6 +2814,7 @@ namespace ZUI {
             d2dFactory_ = core_->GetFactory();   // 共享工厂（进程级）
             if (!d2dFactory_) return false;
             if (FAILED(CreateDeviceResources())) return false;
+            if (FAILED(CreateCompositionBackend())) return false;
 
             id_ = core_->RegisterWindow(this);
 
@@ -2873,19 +2928,11 @@ namespace ZUI {
             bool wasCustom = customFrame_;
             customFrame_ = (customTitleBar_ != nullptr);
             if (!customTitleBar_) customTitleBarHeight_ = 0.0f;
-            if (hwnd_ && customFrame_ != wasCustom) {
-                if (customFrame_) {
-                    // 去掉系统 caption（与其它自绘标题栏窗口一致）；客户区即为整窗
-                    if (!styleSaved_) { savedWindowStyle_ = GetWindowLongPtr(hwnd_, GWL_STYLE); styleSaved_ = true; }
-                    SetWindowStyleFlag(WS_CAPTION, false);
-                } else {
-                    if (styleSaved_) { SetWindowLongPtr(hwnd_, GWL_STYLE, savedWindowStyle_); styleSaved_ = false; }
-                }
-            }
+            // 自定义边框不摘掉 WS_CAPTION，而是靠 WM_NCCALCSIZE 把客户区扩展到整窗。
+            // 保留 WS_CAPTION，DWM 才会继续把窗口当普通窗口处理：最小化/最大化过渡动画、
+            // Aero Snap、圆角与阴影都正常。摘掉 WS_CAPTION 会让 DWM 跳过过渡动画。
             ApplyWindowCorner();
-            if (hwnd_) {
-                // 关键：发送“框架更改”(SWP_FRAMECHANGED) 让系统重新计算非客户区，
-                // 取消自定义标题栏时才能把原来的系统标题栏刷回来；不能只 InvalidateRect。
+            if (hwnd_ && customFrame_ != wasCustom) {
                 SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
                 layoutNeeded_ = true;
@@ -3135,25 +3182,6 @@ namespace ZUI {
             for (auto* c : elem->GetChildren()) CollectNonParticipating(c, phase, out);
         }
 
-        // 当前“框架状态”位掩码：bit0=最大化，bit1..4=贴左/上/右/下工作区边缘。
-        // 用于在 最大化/还原/分屏 状态变化时发一次 SWP_FRAMECHANGED 重算框架。
-        int ComputeFrameState() {
-            int s = IsZoomed(hwnd_) ? 1 : 0;
-            if (!IsZoomed(hwnd_)) {
-                HMONITOR mon = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
-                MONITORINFO mi = { sizeof(MONITORINFO) };
-                if (GetMonitorInfoW(mon, &mi)) {
-                    RECT wr; GetWindowRect(hwnd_, &wr);
-                    const int kTol = 2;
-                    if (wr.left <= mi.rcWork.left + kTol) s |= 2;
-                    if (wr.top <= mi.rcWork.top + kTol) s |= 4;
-                    if (wr.right >= mi.rcWork.right - kTol) s |= 8;
-                    if (wr.bottom >= mi.rcWork.bottom - kTol) s |= 16;
-                }
-            }
-            return s;
-        }
-
         // 由 UIElement 直接路由，多窗口互不干扰
         void MarkRepaint(UIElement* elem) { if (elem) pendingRepaint_.insert(elem); }
         void MarkLayoutInvalidated() { layoutInvalidated_ = true; }
@@ -3322,34 +3350,17 @@ namespace ZUI {
                 // 自定义边框：客户区覆盖整个窗口 → 去掉系统标题栏。
                 // 只在 wParam==TRUE（计算客户区）时接管，wParam==FALSE 交给 DefWindowProc。
                 if (customFrame_ && wParam == TRUE) {
-                    // 最大化：客户区 = 窗口 = 工作区，不额外留边（与原生一致；
-                    // 也保证顶端那条仍在客户区内，鼠标贴顶下拖能还原窗口）。
-                    if (IsZoomed(hwnd_)) return 0;
-
                     NCCALCSIZE_PARAMS* p = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
-                    // 内缩量用“实际可见边框厚度”（通常 1px），避免用 sizing frame(≈8px) 造成大空隙/白条
-                    int bx = 1, by = 1;
-                    UINT bthick = 1;
-                    if (SUCCEEDED(DwmGetWindowAttribute(hwnd_, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &bthick, sizeof(bthick))) && bthick > 0) {
-                        bx = by = (int)bthick;
+                    // 最大化：客户区 = 工作区。窗口矩形比工作区大一圈（不可见 resize 边框在屏幕外），
+                    // 直接用窗口矩形会把内容推出屏幕。
+                    if (IsZoomed(hwnd_)) {
+                        HMONITOR mon = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
+                        MONITORINFO mi = { sizeof(MONITORINFO) };
+                        if (GetMonitorInfoW(mon, &mi)) p->rgrc[0] = mi.rcWork;
+                        return 0;
                     }
-                    else {
-                        int sysDpi = GetDpiForSystem(); if (!sysDpi) sysDpi = 96;
-                        bx = MulDiv(GetSystemMetrics(SM_CXSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER), dpi_, sysDpi);
-                        by = MulDiv(GetSystemMetrics(SM_CYSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER), dpi_, sysDpi);
-                    }
-                    // 非最大化：若被吸附到工作区边缘，则只内缩被吸附的那几条边，
-                    // 把“吸附边框”区域留给 DWM，让它能画出边框/圆角阴影。
-                    HMONITOR mon = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
-                    MONITORINFO mi = { sizeof(MONITORINFO) };
-                    if (GetMonitorInfoW(mon, &mi)) {
-                        RECT wr; GetWindowRect(hwnd_, &wr);
-                        const int kTol = 2;   // 容差，避免取整误差漏判
-                        if (wr.left   <= mi.rcWork.left   + kTol) p->rgrc[0].left   += bx;
-                        if (wr.top    <= mi.rcWork.top    + kTol) p->rgrc[0].top    += by;
-                        if (wr.right  >= mi.rcWork.right  - kTol) p->rgrc[0].right  -= bx;
-                        if (wr.bottom >= mi.rcWork.bottom - kTol) p->rgrc[0].bottom -= by;
-                    }
+                    // 非最大化：客户区 = 窗口矩形（无条件，不做贴边内缩）。
+                    // DWM 自己处理吸附边框/阴影；条件性内缩会导致尺寸突变与偏移。
                     return 0;
                 }
                 break;
@@ -3403,15 +3414,6 @@ namespace ZUI {
                 break;
             case WM_SIZE:
                 UpdateTimerState();
-                // 最大化/还原/分屏 状态变化 → 发一次框架更新，让内缩与 DWM 边框/阴影重算
-                if (customFrame_ && !IsIconic(hwnd_)) {
-                    int fs = ComputeFrameState();
-                    if (fs != frameState_) {
-                        frameState_ = fs;
-                        SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
-                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-                    }
-                }
                 if (wParam == SIZE_MINIMIZED) {
                     // 方案4：禁用最小化的 owned 子窗口，最小化相关消息一律不处理
                     if (owner_ && ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize) return 0;
@@ -3437,10 +3439,11 @@ namespace ZUI {
                     if (currentHovered_) { currentHovered_->OnMouseLeave(); currentHovered_ = nullptr; }
                     return 0;
                 }
-                if (renderTarget_) {
+                {
                     RECT rc; GetClientRect(hwnd_, &rc);
-                    D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
-                    renderTarget_->Resize(size);
+                    clientWidthDip_ = (rc.right - rc.left) * 96.0f / dpi_;
+                    clientHeightDip_ = (rc.bottom - rc.top) * 96.0f / dpi_;
+                    if (swapChain_) ResizeSwapChain((UINT)(rc.right - rc.left), (UINT)(rc.bottom - rc.top));
                 }
                 return 0;
             case WM_ACTIVATE:
@@ -4066,41 +4069,68 @@ namespace ZUI {
             }
             lastActiveAnimElements_ = activeAnimScratch_;   // 复用成员缓冲与容量
 
-            // 4. 合成绘制
+            // 4. 合成绘制（D2D 1.1 DeviceContext -> 交换链后备缓冲 -> Present）
             SetGlobalDpiScale(dpi_ / 96.0f);
-            renderTarget_->BeginDraw();
-            renderTarget_->Clear(backgroundColor_.ToD2D());
+            HRESULT hr = E_FAIL;
+            if (SUCCEEDED(EnsureSwapBackBuffer())) {
+                renderTarget_->SetTarget(swapBackBuffer_);
+                renderTarget_->SetDpi((FLOAT)dpi_, (FLOAT)dpi_);
+                renderTarget_->BeginDraw();
+                {
+                    // 清屏：优先用应用显式设置的背景色；否则用 SetBackdrop 传入的 tint 做半透明底。
+                    // 库不内置任何默认色；tint 为 0（全透明）时清成透明，让系统材质/桌面透出。
+                    D2D1_COLOR_F clearCol = backgroundColor_.ToD2D();
+                    if (clearCol.a < 0.001f && ((backdropColor_ >> 24) & 0xFF) != 0) {
+                        clearCol = D2D1::ColorF(
+                            ((backdropColor_ >> 16) & 0xFF) / 255.0f,
+                            ((backdropColor_ >> 8) & 0xFF) / 255.0f,
+                            (backdropColor_ & 0xFF) / 255.0f,
+                            ((backdropColor_ >> 24) & 0xFF) / 255.0f);
+                    }
+                    renderTarget_->Clear(clearCol);
+                }
 
-            if (rootElement_ || customTitleBar_) {
                 D2D1_SIZE_F rsz = renderTarget_->GetSize();
-                D2D1_RECT_F full = D2D1::RectF(0, 0, rsz.width, rsz.height);
-                std::vector<UIElement*> beforeElems, afterElems;
-                if (rootElement_) {
-                    CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawBeforeLayout, beforeElems);
-                    CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawAfterLayout, afterElems);
+                if (rsz.width <= 0.0f || rsz.height <= 0.0f)
+                    rsz = D2D1::SizeF(clientWidthDip_, clientHeightDip_);
+
+                if (rootElement_ || customTitleBar_) {
+                    D2D1_RECT_F full = D2D1::RectF(0, 0, rsz.width, rsz.height);
+                    std::vector<UIElement*> beforeElems, afterElems;
+                    if (rootElement_) {
+                        CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawBeforeLayout, beforeElems);
+                        CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawAfterLayout, afterElems);
+                    }
+                    if (customTitleBar_) {
+                        if (customTitleBar_->GetLayoutParticipation() == UIElement::LayoutParticipation::DrawBeforeLayout)
+                            beforeElems.push_back(customTitleBar_.get());
+                        else
+                            afterElems.push_back(customTitleBar_.get());
+                    }
+                    for (auto* e : beforeElems) ComposeImpl(e, renderTarget_, full, true);
+                    if (rootElement_) ComposeImpl(rootElement_.get(), renderTarget_, full, true);
+                    for (auto* e : afterElems) ComposeImpl(e, renderTarget_, full, true);
                 }
-                if (customTitleBar_) {
-                    if (customTitleBar_->GetLayoutParticipation() == UIElement::LayoutParticipation::DrawBeforeLayout)
-                        beforeElems.push_back(customTitleBar_.get());
-                    else
-                        afterElems.push_back(customTitleBar_.get());
+
+                UIZSignals::DrawOverlay(this, renderTarget_);
+                DrawFocusAndTooltip(renderTarget_);
+                focusDirty_ = false;
+
+                hr = renderTarget_->EndDraw();
+                renderTarget_->SetTarget(nullptr);
+
+                if (SUCCEEDED(hr) && swapChain_) {
+                    DXGI_PRESENT_PARAMETERS pp{};
+                    hr = swapChain_->Present1(1, 0, &pp);
                 }
-                for (auto* e : beforeElems) ComposeImpl(e, renderTarget_, full, true);
-                if (rootElement_) ComposeImpl(rootElement_.get(), renderTarget_, full, true);
-                for (auto* e : afterElems) ComposeImpl(e, renderTarget_, full, true);
             }
 
-            UIZSignals::DrawOverlay(this, renderTarget_);
-
-            DrawFocusAndTooltip(renderTarget_);
-            focusDirty_ = false;
-
-            HRESULT hr = renderTarget_->EndDraw();
-            if (hr == D2DERR_RECREATE_TARGET) {
+            if (hr == D2DERR_RECREATE_TARGET || hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
                 DiscardDeviceResources();
-                if (FAILED(CreateDeviceResources())) {
-                    MessageBoxW(hwnd_, L"设备资源重建失败", L"错误", MB_ICONERROR);
-                    DestroyWindow(hwnd_);
+                DeviceLost.Fire();
+                if (FAILED(CreateDeviceResources()) || FAILED(CreateCompositionBackend())) {
+                    // 库不替应用决定如何善后：只发信号，由应用决定提示/关闭/重建
+                    RenderingError.Fire(hr);
                     EndPaint(hwnd_, &ps);
                     return;
                 }
@@ -4266,22 +4296,102 @@ namespace ZUI {
 
         HRESULT CreateDeviceResources() {
             if (renderTarget_) return S_OK;
-            RECT rc; GetClientRect(hwnd_, &rc);
-            D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
-            D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
-                D2D1_RENDER_TARGET_TYPE_DEFAULT,
-                D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED),
+            ID2D1Device* dev = core_ ? core_->GetD2DDevice() : nullptr;
+            if (!dev) return E_FAIL;
+            if (FAILED(dev->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &renderTarget_))) return E_FAIL;
+            renderTarget_->SetDpi((FLOAT)dpi_, (FLOAT)dpi_);
+            renderTarget_->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+            renderTarget_->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+            return S_OK;
+        }
+
+        HRESULT CreateSwapChain(UINT w, UINT h) {
+            if (swapChain_) return ResizeSwapChain(w, h);
+            IDXGIDevice* dxgi = core_ ? core_->GetDXGIDevice() : nullptr;
+            if (!dxgi) return E_FAIL;
+            ComPtr<IDXGIAdapter> adapter;
+            if (FAILED(dxgi->GetAdapter(&adapter))) return E_FAIL;
+            ComPtr<IDXGIFactory2> factory;
+            if (FAILED(adapter->GetParent(IID_PPV_ARGS(&factory)))) return E_FAIL;
+            DXGI_SWAP_CHAIN_DESC1 desc{};
+            desc.Width = w; desc.Height = h;
+            desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+            desc.SampleDesc.Count = 1;
+            desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+            desc.BufferCount = 2;
+            desc.Scaling = DXGI_SCALING_STRETCH;
+            desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+            desc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+            return factory->CreateSwapChainForComposition(dxgi, &desc, nullptr, &swapChain_);
+        }
+
+        HRESULT ResizeSwapChain(UINT w, UINT h) {
+            if (!swapChain_) return E_FAIL;
+            if (renderTarget_) { renderTarget_->SetTarget(nullptr); renderTarget_->Flush(); }
+            if (swapBackBuffer_) { swapBackBuffer_->Release(); swapBackBuffer_ = nullptr; }
+            return swapChain_->ResizeBuffers(0, w, h, DXGI_FORMAT_UNKNOWN, 0);
+        }
+
+        HRESULT EnsureSwapBackBuffer() {
+            if (swapBackBuffer_) return S_OK;
+            if (!swapChain_ || !renderTarget_) return E_FAIL;
+            ComPtr<IDXGISurface> bb;
+            if (FAILED(swapChain_->GetBuffer(0, IID_PPV_ARGS(&bb)))) return E_FAIL;
+            D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
+                D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
                 (FLOAT)dpi_, (FLOAT)dpi_);
-            HRESULT hr = d2dFactory_->CreateHwndRenderTarget(props, D2D1::HwndRenderTargetProperties(hwnd_, size), &renderTarget_);
-            if (SUCCEEDED(hr)) {
-                renderTarget_->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-                renderTarget_->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);   // 必须改回 GRAYSCALE
-            }
-            return hr;
+            return renderTarget_->CreateBitmapFromDxgiSurface(bb.Get(), &props, &swapBackBuffer_);
+        }
+
+        HRESULT CreateCompositionBackend() {
+            if (contentVisual_) return S_OK;
+            compositor_ = core_ ? core_->GetCompositor() : nullptr;
+            if (!compositor_) return E_FAIL;
+            ComPtr<ICompositorDesktopInterop> interop;
+            if (FAILED(compositor_->QueryInterface(IID_PPV_ARGS(&interop)))) return E_FAIL;
+            if (FAILED(interop->CreateDesktopWindowTarget(hwnd_, TRUE, &dcompTarget_))) return E_FAIL;
+            if (FAILED(compositor_->CreateSpriteVisual(&rootVisual_))) return E_FAIL;
+            ComPtr<IVisual2> r2;
+            if (SUCCEEDED(rootVisual_->QueryInterface(IID_PPV_ARGS(&r2)))) r2->put_RelativeSizeAdjustment({ 1.f, 1.f });
+
+            RECT rc; GetClientRect(hwnd_, &rc);
+            clientWidthDip_ = (rc.right - rc.left) * 96.0f / dpi_;
+            clientHeightDip_ = (rc.bottom - rc.top) * 96.0f / dpi_;
+            if (FAILED(CreateSwapChain((UINT)(rc.right - rc.left), (UINT)(rc.bottom - rc.top)))) return E_FAIL;
+
+            ComPtr<ICompositionSurface> surf;
+            ComPtr<ICompositorInterop> cinterop;
+            if (FAILED(compositor_->QueryInterface(IID_PPV_ARGS(&cinterop)))) return E_FAIL;
+            if (FAILED(cinterop->CreateCompositionSurfaceForSwapChain(swapChain_, &surf))) return E_FAIL;
+            ComPtr<ICompositionSurfaceBrush> brush;
+            if (FAILED(compositor_->CreateSurfaceBrushWithSurface(surf.Get(), &brush))) return E_FAIL;
+            brush->put_HorizontalAlignmentRatio(0.f);
+            brush->put_VerticalAlignmentRatio(0.f);
+            if (FAILED(compositor_->CreateSpriteVisual(&contentVisual_))) return E_FAIL;
+            ComPtr<IVisual2> c2;
+            if (SUCCEEDED(contentVisual_->QueryInterface(IID_PPV_ARGS(&c2)))) c2->put_RelativeSizeAdjustment({ 1.f, 1.f });
+            contentVisual_->put_Brush(reinterpret_cast<ICompositionBrush*>(brush.Get()));
+
+            ComPtr<ICompositionTarget> ct;
+            if (FAILED(dcompTarget_->QueryInterface(IID_PPV_ARGS(&ct)))) return E_FAIL;
+            ct->put_Root(reinterpret_cast<IVisual*>(rootVisual_));
+            ComPtr<IContainerVisual> container;
+            if (FAILED(rootVisual_->QueryInterface(IID_PPV_ARGS(&container)))) return E_FAIL;
+            ComPtr<IVisualCollection> children;
+            container->get_Children(&children);
+            children->InsertAtTop(reinterpret_cast<IVisual*>(contentVisual_));
+            return S_OK;
         }
 
         void DiscardDeviceResources() {
-            if (renderTarget_) { renderTarget_->Release(); renderTarget_ = nullptr; }
+            if (renderTarget_) { renderTarget_->SetTarget(nullptr); renderTarget_->Flush(); renderTarget_->Release(); renderTarget_ = nullptr; }
+            if (swapBackBuffer_) { swapBackBuffer_->Release(); swapBackBuffer_ = nullptr; }
+            if (contentVisual_) { contentVisual_->Release(); contentVisual_ = nullptr; }
+            if (rootVisual_) { rootVisual_->Release(); rootVisual_ = nullptr; }
+            if (dcompTarget_) { dcompTarget_->Release(); dcompTarget_ = nullptr; }
+            if (swapChain_) { swapChain_->Release(); swapChain_ = nullptr; }
+            compositor_ = nullptr;   // 共享对象，不 Release
             if (rootElement_) {
                 // 释放所有元素的缓存和设备资源
                 std::function<void(UIElement*)> releaseRecursive = [&](UIElement* elem) {
@@ -4295,40 +4405,15 @@ namespace ZUI {
             }
         }
 
-        void ApplyBackdrop() {
-            if (!hwnd_) return;
-
-            // 当前 ZUI 的渲染（HwndRenderTarget / 重定向表面）无法显示 DWM 系统材质，
-            // 因此 Auto 仍走 AccentState 亚克力；只有显式 SystemBackdrop 才尝试系统材质
-            // （等渲染迁移到 DirectComposition 后，Auto 再优先系统材质）。
-            const bool trySystem = (backdropMode_ == BackdropMode::SystemBackdrop);
-            if (trySystem && backdrop_ != WindowBackdrop::None) {
-                int type = DWMSBT_AUTO;
-                switch (systemBackdropMaterial_) {
-                case SystemBackdropMaterial::Mica:    type = DWMSBT_MAINWINDOW; break;
-                case SystemBackdropMaterial::MicaAlt: type = DWMSBT_TABBEDWINDOW; break;
-                case SystemBackdropMaterial::Acrylic: type = DWMSBT_TRANSIENTWINDOW; break;
-                default:
-                    type = (backdrop_ == WindowBackdrop::AcrylicBlurBehind) ? DWMSBT_TRANSIENTWINDOW : DWMSBT_MAINWINDOW;
-                    break;
-                }
-                HRESULT hrType = DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type));
-                if (SUCCEEDED(hrType)) return;   // 系统材质已生效
-                // 运行时不受支持 → 回调（强制的 SystemBackdrop 也回退到 AccentState 路径）
-                if (backdropUnsupportedHandler_) backdropUnsupportedHandler_();
-            }
-
-            // AccentState 路径（Win10 / 回退）：先清掉可能已生效的系统材质，避免叠加
-            int noneType = DWMSBT_NONE;
-            DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &noneType, sizeof(noneType));
-
+        // 应用 AccentState（Win10 / Win11 无系统材质时的实现方式）
+        void ApplyAccentState(ACCENT_STATE state) {
             HMODULE hUser = GetModuleHandleW(L"user32.dll");
             if (!hUser) return;
             auto pSetWindowCompositionAttribute = (BOOL(WINAPI*)(HWND, void*))GetProcAddress(hUser, "SetWindowCompositionAttribute");
             if (!pSetWindowCompositionAttribute) return;
 
             ACCENT_POLICY accent = {};
-            accent.AccentState = (ACCENT_STATE)backdrop_;
+            accent.AccentState = state;
             accent.GradientColor = backdropColor_;
             accent.AccentFlags = 0;
             accent.AnimationId = 0;
@@ -4338,6 +4423,69 @@ namespace ZUI {
             data.pvData = &accent;
             data.cbData = sizeof(accent);
             pSetWindowCompositionAttribute(hwnd_, &data);
+        }
+
+        void ApplyBackdrop() {
+            if (!hwnd_) return;
+
+            // 每种效果分别由哪些 API 实现（不做“换一种效果凑合”的近似）：
+            //   None    : 关闭
+            //   Normal  : AccentState 不透明纯色
+            //   Blur    : AccentState(BLURBEHIND)
+            //   Acrylic : Win11 系统 Acrylic，或 AccentState(ACRYLICBLURBEHIND)
+            //   Mica    : 仅 Win11 系统材质(MAINWINDOW)
+            //   MicaAlt : 仅 Win11 系统材质(TABBEDWINDOW)
+            const bool systemCan = (backdrop_ == Backdrop::Acrylic ||
+                                    backdrop_ == Backdrop::Mica ||
+                                    backdrop_ == Backdrop::MicaAlt);
+            const bool accentCan = (backdrop_ == Backdrop::None ||
+                                    backdrop_ == Backdrop::Normal ||
+                                    backdrop_ == Backdrop::Blur ||
+                                    backdrop_ == Backdrop::Acrylic);
+            const bool allowSystem = (backdropMode_ == BackdropMode::Auto || backdropMode_ == BackdropMode::System);
+            const bool allowAccent = (backdropMode_ == BackdropMode::Auto || backdropMode_ == BackdropMode::Accent);
+
+            // 优先系统材质（Win11）
+            if (allowSystem && systemCan) {
+                int type = DWMSBT_NONE;
+                switch (backdrop_) {
+                case Backdrop::Mica:    type = DWMSBT_MAINWINDOW; break;
+                case Backdrop::MicaAlt: type = DWMSBT_TABBEDWINDOW; break;
+                case Backdrop::Acrylic: type = DWMSBT_TRANSIENTWINDOW; break;
+                default: break;
+                }
+                if (SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type)))) {
+                    systemBackdropActive_ = true;
+                    return;
+                }
+                systemBackdropActive_ = false;
+                if (backdropMode_ == BackdropMode::System) {
+                    BackdropUnsupported.Fire();   // 强制系统实现但当前系统不支持：通知，不擅自近似
+                    return;
+                }
+            }
+
+            // AccentState（Win10 / 回退）
+            if (allowAccent && accentCan) {
+                int noneType = DWMSBT_NONE;
+                DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &noneType, sizeof(noneType));
+                systemBackdropActive_ = false;
+                ACCENT_STATE state = ACCENT_DISABLED;
+                switch (backdrop_) {
+                case Backdrop::Normal:  state = ACCENT_ENABLE_GRADIENT; break;
+                case Backdrop::Blur:    state = ACCENT_ENABLE_BLURBEHIND; break;
+                case Backdrop::Acrylic: state = ACCENT_ENABLE_ACRYLICBLURBEHIND; break;
+                default:                state = ACCENT_DISABLED; break;
+                }
+                ApplyAccentState(state);
+                return;
+            }
+
+            // 所请求的效果当前没有任何可用 API 实现：关闭系统材质并通知
+            int noneType = DWMSBT_NONE;
+            DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &noneType, sizeof(noneType));
+            systemBackdropActive_ = false;
+            BackdropUnsupported.Fire();
         }
 
         void ApplyTitleBarColors() {
@@ -4454,7 +4602,14 @@ namespace ZUI {
         detail::AppCore* core_ = nullptr;
         int id_ = 0;
         ID2D1Factory* d2dFactory_;
-        ID2D1HwndRenderTarget* renderTarget_;
+        ID2D1DeviceContext* renderTarget_;      // D2D 1.1 设备上下文（替代 HwndRenderTarget）
+        IDXGISwapChain1* swapChain_ = nullptr;
+        ID2D1Bitmap1* swapBackBuffer_ = nullptr;
+        ICompositor* compositor_ = nullptr;     // 共享（AppCore 生命周期）
+        IDesktopWindowTarget* dcompTarget_ = nullptr;
+        ISpriteVisual* rootVisual_ = nullptr;
+        ISpriteVisual* contentVisual_ = nullptr;
+        float clientWidthDip_ = 0.0f, clientHeightDip_ = 0.0f;
         std::shared_ptr<Layout> rootElement_;
         UIElement* currentHovered_;
         UIElement* pressedElement_;
@@ -4472,10 +4627,9 @@ namespace ZUI {
         int customMinWidth_, customMinHeight_;
         std::chrono::steady_clock::time_point lastTime_;
         bool layoutNeeded_;
-        WindowBackdrop backdrop_;
+        Backdrop backdrop_;
         BackdropMode backdropMode_ = BackdropMode::Auto;
-        SystemBackdropMaterial systemBackdropMaterial_ = SystemBackdropMaterial::Auto;
-        std::function<void()> backdropUnsupportedHandler_;
+        bool systemBackdropActive_ = false;
         DWORD backdropColor_;
         Color backgroundColor_;
         bool animationTimerActive_;   // 常驻定时器，始终 true
@@ -4492,9 +4646,6 @@ namespace ZUI {
         bool resizable_ = true;
         WindowCorner corner_ = WindowCorner::Default;
         bool customFrame_ = false;          // 是否处于自定义边框模式
-        LONG_PTR savedWindowStyle_ = 0;      // 安装自定义标题栏前的原始样式（用于恢复）
-        bool styleSaved_ = false;
-        int frameState_ = -1;                // 上一帧的框架状态（最大化/分屏），变化时重算框架
         std::vector<Rect> dragRegions_;     // 收集到的可拖动区域（客户坐标 DIP）
         OwnedMinimizePolicy ownedMinimizePolicy_ = OwnedMinimizePolicy::Hide;   // 见 OwnedMinimizePolicy
         bool wasMinimized_ = false;         // 上一状态是否最小化（只有“最小化→还原”才恢复 owned 子窗口）
