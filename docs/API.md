@@ -147,22 +147,19 @@ enum class ConnectionThread {
 ## Connection
 
 ```cpp
-class Connection {
+class Connection {                  // Qt QMetaObject::Connection 风格的“被动句柄”
     Connection();
-    Connection(std::shared_ptr<detail::ConnectionState> state);
-    ~Connection();                         // 析构自动断开
-    Connection(const Connection&) = delete;
-    Connection& operator=(const Connection&) = delete;
-    Connection(Connection&&) noexcept;
-    Connection& operator=(Connection&&) noexcept;
-    void disconnect();
+    ~Connection();                  // 注意：析构【不】自动断开
+    Connection(const Connection&) = default;   // 可拷贝
+    void disconnect();              // 显式断开这一条
     bool isConnected() const;
+    explicit operator bool() const;
 };
 ```
 
-- **只能移动、不能拷贝**：拷贝被删除，避免同一连接被断开多次。
-- 析构即断开；把 `Connection` 存为局部变量会在离开作用域时断开——如果你的槽要长期存在，**不要**把返回值存到临时变量里然后让它析构。推荐用 `UIElement::Connect(...)`，它会把连接登记进元素的 `ConnectionGroup`。
-- `disconnect()` 主动断开；`isConnected()` 查询是否仍有效。
+- **被动句柄**：析构**不会**自动断开，所以忽略返回值（`elem->Connect(sig, slot);`）是安全的；要单独断开就 `conn.disconnect()`。
+- 自动断连由元素的 `ConnectionGroup` 负责（元素析构时统一断开）。
+- `isConnected()` / `operator bool` 查询是否仍有效。
 
 ## ConnectionGroup
 
@@ -310,7 +307,8 @@ struct FontSpec {
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | 绘制（**必须实现**）。用 `GetArrangedRect()` 里的绝对坐标绘制。 |
 | `virtual const std::vector<UIElement*>& GetChildren() const` | 子元素列表（返回引用，容器需维护自己的视图缓冲）。**返回的是元素内部缓冲的引用**：有效期到“该元素的子列表/可见性变化或再次调用其 `GetChildren()`”；遍历期间**不要对同一个元素再次调用 `GetChildren()`**（递归子元素用的是各自的缓冲，安全）。 |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | 是否使用离屏缓存（默认 true）。 |
-| `virtual std::optional<D2D1_RECT_F> GetClipRect() const` | 返回子元素裁剪区（绝对坐标）；返回 `nullopt` 表示不裁剪。 |
+| `virtual std::optional<D2D1_RECT_F> GetClipRect() const` | 返回子元素裁剪区（绝对坐标）；返回 `nullopt` 表示不裁剪。默认返回 `SetClipRect(...)` 设置的值。 |
+| `void SetClipRect(const std::optional<Rect>&)` | 设置该元素子树的裁剪矩形（如 `ScrollViewer` 用它把内容裁到视口）。 |
 | `void RequestRepaint()` | 请求重绘；底层触发全局 `RepaintRequest`。 |
 
 > **Measure/Arrange 的契约**：`Measure(可用空间)` 只描述“我想要多大”，不要在里面改父布局状态；`Arrange(finalRect)` 才是“我被放到了哪里”，绘制永远基于 `arrangedRect_`。
@@ -408,7 +406,7 @@ struct FontSpec {
 | `void SetContextMenu(std::shared_ptr<Menu>)` / `GetContextMenu()` | 右键菜单 |
 | `virtual bool OnContextMenu(float,float)` | 右键钩子；返回 true 表示已处理，不再弹默认菜单 |
 | `void SetBleed(float)` / `float GetBleed() const` | 缓存出血（默认 `4.0f`） |
-| `template<typename Signal, typename Slot> void Connect(Signal&, Slot&&)` | 连接信号，自动登记进本元素的 `ConnectionGroup`；**不返回 `Connection`**（连接随元素析构断开；若要手动断开请直接用 `signal.connect(...)`） |
+| `template<typename Signal, typename Slot> Connection Connect(Signal&, Slot&&)` | 连接信号：连接登记进本元素的 `ConnectionGroup`（元素析构时自动断开），并返回 Qt 风格的**被动 `Connection` 句柄**（析构不断连）。忽略返回值安全；要单独断开写 `auto c = Connect(...); c.disconnect();` |
 
 ## 字体接口
 
@@ -581,17 +579,21 @@ class Page : public LayoutHost {
 ```cpp
 class PageHost : public UIElement {
     enum class TransitionDirection { Left, Right, Up, Down };
+    enum class TransitionEasing { Linear, EaseInOut, EaseOut };   // 过渡缓动
 
     void AddPage(std::shared_ptr<Page> page);
     void NavigateTo(int index);
     void SetTransitionDirection(TransitionDirection dir);
+    void SetTransitionEasing(TransitionEasing e);   // 默认 EaseInOut（缓入缓出，平滑）
+    TransitionEasing GetTransitionEasing() const;
     void SetAnimationDuration(float seconds);   // 下限 0.01s，默认 0.3s
     int GetCurrentIndex() const;
     std::shared_ptr<Page> GetCurrentPage() const;
 };
 ```
 
-- `NavigateTo` 触发滑动切换；动画期间只更新“源页”和“目标页”，动画结束后只更新当前页（避免同一页每帧被更新两次导致内嵌动画变快）。
+- `NavigateTo` 触发**滑动**切换，并可按 `TransitionEasing` 做缓动：默认 `EaseInOut`（Smoothstep，平滑）；`Linear` 为旧的匀速行为；`EaseOut` 为缓出。
+- 动画期间只更新“源页”和“目标页”，动画结束后只更新当前页（避免同一页每帧被更新两次导致内嵌动画变快）。
 - 非当前页的缓存会在切换结束后释放，以节省显存。
 - **注意**：切换过程中不要假设 `GetCurrentIndex()` 已变为目标值——它在动画结束后才更新。
 
@@ -722,6 +724,8 @@ class Window {
     float GetCustomTitleBarHeight() const;
     void SetTitleBarVisible(bool on);                         // 隐藏/显示（保留自定义边框）
     bool IsTitleBarVisible() const;
+    void SetTitle(const std::wstring& title);                 // 原生标题栏文字（自定义标题栏用 TitleBar::SetTitle）
+    void SetIcon(HICON bigIcon, HICON smallIcon);             // 原生标题栏图标（WM_SETICON）
 
     // 边框 / 调整
     void SetResizable(bool on);

@@ -110,6 +110,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 ## 更新日志
 
+### 2026-09-19 — 1.8.0 后续修复与完善（v1.8.1）
+
+**背景**
+- DComp 亚克力背景层改为**可运行时重建**（新增 `UpdateDCompBackdrop()`）：`SetBackdrop` / `SetBackdropMode` 在窗口创建后再切换也会生效；`Acrylic → Mica/其它` 时会正确清除旧背景层（不再露底/发黑）；设备丢失重建后也会重新挂上。
+
+**窗口**
+- 新增 `Window::SetTitle(const std::wstring&)` 与 `Window::SetIcon(HICON bigIcon, HICON smallIcon)`（原生标题栏；自定义标题栏请用 `TitleBar::SetTitle`）。
+- `SetCustomTitleBar` 会套用当前 `SetTitleBarVisible` 状态，消除"先隐藏再装栏"的不一致。
+
+**信号（连接）**
+- `Connection` 改为 **Qt `QMetaObject::Connection` 风格的被动句柄**：可拷贝、**析构不再自动断连**；`UIElement::Connect(...)` 现在**返回 `Connection`**，忽略返回值安全，需要单独断开时 `auto c = elem->Connect(sig, slot); … c.disconnect();`。自动断连仍由元素的 `ConnectionGroup` 负责（`ImageManager` 的 DeviceReset 订阅同样改走 group）。移除冗余的 `autoConnections_`。
+
+**数据视图 / 控件**
+- `TableView` 单元格键由 `(long long)row*10000+col` 改为 `(uint64)row<<32 | col`，修列数 ≥ 10000 时键冲突（`cellSel_` / `cellTextColors_` / `cellTips_`）。
+- `ListView::MoveItem` 现在会触发 `SelectionChanged`（并 `EnsureVisible`）。
+- `ComboBox` 选项宽度加缓存（仅数据变化重算），`SetToolTip` 移出 `Measure`（去每帧测量与副作用）。
+- `ScrollViewer` 内容裁到视口（新增 `UIElement::SetClipRect`），不再画到滚动条下面；滚动条本身不受影响。
+
+**其它**
+- `PageHost` 新增过渡缓动 `TransitionEasing { Linear, EaseInOut, EaseOut }`，默认 `EaseInOut`（缓入缓出，平滑）；`SetTransitionEasing` 切换。
+- 进程 DPI 感知只设置一次；删除 `D2DERR_RECREATE_TARGET` 死判断。
+- **修复内存泄漏**：`AppCore::dqController_` 改用 `ComPtr` 持有并释放。
+- demo：移除独立的"自定义标题栏窗口"（主窗口已是自定义标题栏）。
+
 ### 2026-09-19 — 渲染迁移到 DirectComposition + 背景/信号 API 重整（v1.8.0）
 
 **渲染：迁移到 Direct2D 1.1 + DXGI flip SwapChain + DirectComposition**

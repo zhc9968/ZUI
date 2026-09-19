@@ -110,6 +110,30 @@ Key points:
 
 ## Changelog
 
+### 2026-09-19 — Post-1.8.0 fixes and polish (v1.8.1)
+
+**Backdrop**
+- The DComp acrylic background layer is now **rebuilt at runtime** (new `UpdateDCompBackdrop()`): `SetBackdrop` / `SetBackdropMode` work even after the window is created; switching `Acrylic → Mica/other` properly clears the old layer (no more see-through/black); it is also re-attached after device-loss rebuilds.
+
+**Window**
+- Added `Window::SetTitle(const std::wstring&)` and `Window::SetIcon(HICON bigIcon, HICON smallIcon)` (native title bar; use `TitleBar::SetTitle` with a custom title bar).
+- `SetCustomTitleBar` now applies the current `SetTitleBarVisible` state, removing the "hide then install" inconsistency.
+
+**Signals (connections)**
+- `Connection` is now a **Qt `QMetaObject::Connection`-style passive handle**: copyable, and **destroying it no longer disconnects**. `UIElement::Connect(...)` now **returns a `Connection`**; ignoring the result is safe, and to disconnect a single connection use `auto c = elem->Connect(sig, slot); … c.disconnect();`. Auto-disconnect is still handled by the element's `ConnectionGroup` (`ImageManager`'s DeviceReset subscription also goes through a group). Removed the redundant `autoConnections_`.
+
+**Data views / controls**
+- `TableView` cell keys changed from `(long long)row*10000+col` to `(uint64)row<<32 | col`, fixing key collisions when a column index ≥ 10000 (`cellSel_` / `cellTextColors_` / `cellTips_`).
+- `ListView::MoveItem` now fires `SelectionChanged` (and `EnsureVisible`).
+- `ComboBox` item widths are cached (recomputed only when data changes) and `SetToolTip` was moved out of `Measure` (no per-frame measuring / side effects).
+- `ScrollViewer` clips content to the viewport (new `UIElement::SetClipRect`), so it no longer draws under the scrollbars; the scrollbars themselves are unaffected.
+
+**Misc**
+- `PageHost` gained transition easing `TransitionEasing { Linear, EaseInOut, EaseOut }`, default `EaseInOut` (smooth); switch via `SetTransitionEasing`.
+- Process DPI awareness is set once; removed the dead `D2DERR_RECREATE_TARGET` branch.
+- **Memory leak fixed**: `AppCore::dqController_` is held/released via `ComPtr`.
+- Demo: removed the standalone "custom title bar window" (the main window is already custom).
+
 ### 2026-09-19 — Rendering migrated to DirectComposition + backdrop/signal API overhaul (v1.8.0)
 
 **Rendering: migrated to Direct2D 1.1 + DXGI flip SwapChain + DirectComposition**

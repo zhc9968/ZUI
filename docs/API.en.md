@@ -147,21 +147,19 @@ enum class ConnectionThread {
 ## Connection
 
 ```cpp
-class Connection {
+class Connection {                  // Qt QMetaObject::Connection-style passive handle
     Connection();
-    Connection(std::shared_ptr<detail::ConnectionState> state);
-    ~Connection();                         // auto-disconnect
-    Connection(const Connection&) = delete;
-    Connection& operator=(const Connection&) = delete;
-    Connection(Connection&&) noexcept;
-    Connection& operator=(Connection&&) noexcept;
-    void disconnect();
+    ~Connection();                  // note: destruction does NOT disconnect
+    Connection(const Connection&) = default;   // copyable
+    void disconnect();              // disconnect this one explicitly
     bool isConnected() const;
+    explicit operator bool() const;
 };
 ```
 
-- **Move-only, not copyable** (so one connection is not disconnected twice).
-- Destructor disconnects. Storing the returned `Connection` in a local variable disconnects it when the scope ends — if the slot must live long, **do not** let the return value die. Prefer `UIElement::Connect(...)`, which registers the connection in the element's `ConnectionGroup`.
+- **Passive handle**: destroying it does **not** disconnect, so ignoring the return value (`elem->Connect(sig, slot);`) is safe; to disconnect a single connection call `conn.disconnect()`.
+- Auto-disconnect is handled by the element's `ConnectionGroup` (all connections are dropped when the element is destroyed).
+- `isConnected()` / `operator bool` query whether it is still alive.
 
 ## ConnectionGroup
 
@@ -302,7 +300,8 @@ The base class of all visual elements. A custom control derives from it and impl
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | **Must implement.** Draw using absolute coordinates from `GetArrangedRect()`. |
 | `virtual const std::vector<UIElement*>& GetChildren() const` | Child list (by reference; containers keep their own view buffer). **The returned reference points at an internal buffer**: valid until the element's child list/visibility changes or its `GetChildren()` is called again. During traversal **do not call `GetChildren()` on the same element again** (recursing into children uses their own buffers, which is safe). |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | Offscreen cache (default true). |
-| `virtual std::optional<D2D1_RECT_F> GetClipRect() const` | Child clip rect (absolute); `nullopt` means no clip. |
+| `virtual std::optional<D2D1_RECT_F> GetClipRect() const` | Child clip rect (absolute); `nullopt` means no clip. Returns the value set by `SetClipRect(...)`. |
+| `void SetClipRect(const std::optional<Rect>&)` | Set the clip rect for this element's subtree (e.g. `ScrollViewer` clips content to the viewport). |
 | `void RequestRepaint()` | Request a repaint (fires the global `RepaintRequest`). |
 
 > **Measure/Arrange contract**: `Measure(available)` only says how big you *want* to be; do not mutate parent state there. `Arrange(finalRect)` says where you *were placed*; drawing is always based on `arrangedRect_`.
@@ -400,7 +399,7 @@ The base class of all visual elements. A custom control derives from it and impl
 | `SetContextMenu(std::shared_ptr<Menu>)` / `GetContextMenu()` | Right-click menu |
 | `virtual bool OnContextMenu(float,float)` | Right-click hook; return true to suppress the default menu |
 | `SetBleed(float)` / `GetBleed() const` | Cache bleed (default `4.0f`) |
-| `template<typename Signal, typename Slot> void Connect(Signal&, Slot&&)` | Connect a signal, registered in the element's `ConnectionGroup`; **returns no `Connection`** (it disconnects when the element dies; use `signal.connect(...)` if you need to disconnect manually) |
+| `template<typename Signal, typename Slot> Connection Connect(Signal&, Slot&&)` | Connect a signal: registered in the element's `ConnectionGroup` (auto-disconnected when the element dies) and returns a Qt-style **passive `Connection` handle** (destruction does not disconnect). Ignoring the return is safe; to disconnect one, `auto c = Connect(...); c.disconnect();` |
 
 ## Font interface
 
@@ -572,10 +571,13 @@ class Page : public LayoutHost {
 ```cpp
 class PageHost : public UIElement {
     enum class TransitionDirection { Left, Right, Up, Down };
+    enum class TransitionEasing { Linear, EaseInOut, EaseOut };   // transition easing
 
     void AddPage(std::shared_ptr<Page> page);
     void NavigateTo(int index);
     void SetTransitionDirection(TransitionDirection dir);
+    void SetTransitionEasing(TransitionEasing e);   // default EaseInOut (smooth)
+    TransitionEasing GetTransitionEasing() const;
     void SetAnimationDuration(float seconds);   // min 0.01s, default 0.3s
     int GetCurrentIndex() const;
     std::shared_ptr<Page> GetCurrentPage() const;
@@ -713,6 +715,8 @@ class Window {
     float GetCustomTitleBarHeight() const;
     void SetTitleBarVisible(bool on);
     bool IsTitleBarVisible() const;
+    void SetTitle(const std::wstring& title);                 // native title text (use TitleBar::SetTitle with a custom title bar)
+    void SetIcon(HICON bigIcon, HICON smallIcon);             // native title-bar icons (WM_SETICON)
 
     // Border / resizing
     void SetResizable(bool on);

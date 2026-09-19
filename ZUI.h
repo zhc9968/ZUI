@@ -69,8 +69,8 @@
 // ---------- ZUI 版本 ----------
 #define ZUI_VERSION_MAJOR 1
 #define ZUI_VERSION_MINOR 8
-#define ZUI_VERSION_PATCH 0
-#define ZUI_VERSION_STRING L"1.8.0"
+#define ZUI_VERSION_PATCH 1
+#define ZUI_VERSION_STRING L"1.8.1"
 
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34
