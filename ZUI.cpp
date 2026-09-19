@@ -944,24 +944,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         mainHost->NavigateTo(index);
         });
 
-    // ---------- 多窗口验证：Application（多窗口相关演示已移入主窗口"多窗口"页） ----------
-    auto app = &Application::Instance();
-
-    // ---------- 自定义标题栏窗口 ----------
-    if (auto cw = app->CreateWindow(700, 480, L"自定义标题栏窗口")) {
-        auto bar = std::make_shared<DefaultTitleBar>();
-        bar->SetTitle(L"自定义标题栏窗口");
-        bar->SetHeight(34);
-        cw->SetWindowCorner(Window::WindowCorner::Round);   // 圆角偏好（仅一次 DWM 调用）
-        cw->SetResizable(true);
-        cw->SetCustomTitleBar(bar);                          // 安装自定义标题栏（传 nullptr 可恢复原生）s
-        auto croot = cw->GetRootColumnBox();
-        croot->AddChild(std::make_shared<Label>(L"自绘标题栏：拖动标题栏移动窗口，右上角三件套与原生一致。"));
-        croot->AddChild(std::make_shared<Label>(L"标题栏不参与布局，且不会被 Tab 聚焦。"));
-        static std::vector<std::shared_ptr<Window>> keep;
-        keep.push_back(cw);
-        cw->Show();
-    }
+    // 多窗口相关演示（新建窗口 / owned / 模态）已移入主窗口"多窗口"页。
 
     win.Show();            // 显示由应用决定
     win.SetMinSize(800, 600);

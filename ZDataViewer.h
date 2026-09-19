@@ -193,8 +193,7 @@ namespace ZUI {
             auto item = items_[from];
             items_.erase(items_.begin() + from);
             items_.insert(items_.begin() + to, item);
-            multiSel_.clear();
-            selectedIndex_ = to;
+            SetSelectedIndex(to);   // 选中跟随被移动项，并触发 SelectionChanged / EnsureVisible
             UpdateScrollInfo(); InvalidateLayout(); RequestRepaint();
             return true;
         }
@@ -1038,6 +1037,13 @@ namespace ZUI {
     public:
         enum class SelectionMode { Cell, Row, Column, None };
 
+        // 单元格键：高 32 位存行、低 32 位存列，避免用 row*10000+col 在列数很大时冲突
+        static inline long long CellKey(int r, int c) {
+            return ((long long)(unsigned)r << 32) | (unsigned)c;
+        }
+        static inline int CellKeyRow(long long k) { return (int)((unsigned long long)k >> 32); }
+        static inline int CellKeyCol(long long k) { return (int)((unsigned long long)k & 0xFFFFFFFFu); }
+
         inline static float DefaultHeaderHeight = 26.0f;
         inline static float DefaultRowHeight = 24.0f;
         inline static float DefaultMinColumnWidth = 40.0f;
@@ -1297,14 +1303,14 @@ namespace ZUI {
         // ---------- 单元格颜色 / ToolTip / 排序 ----------
         void SetCellTextColor(int row, int col, Color color) {
             if (row < 0 || row >= rowCount_ || col < 0 || col >= colCount_) return;
-            cellTextColors_[(long long)row * 10000 + col] = color.ToD2D();
+            cellTextColors_[CellKey(row, col)] = color.ToD2D();
             RequestRepaint();
         }
-        void ClearCellTextColor(int row, int col) { cellTextColors_.erase((long long)row * 10000 + col); RequestRepaint(); }
+        void ClearCellTextColor(int row, int col) { cellTextColors_.erase(CellKey(row, col)); RequestRepaint(); }
         void SetCellToolTip(int row, int col, const std::wstring& tip) {
             if (row < 0 || row >= rowCount_ || col < 0 || col >= colCount_) return;
-            if (tip.empty()) cellTips_.erase((long long)row * 10000 + col);
-            else cellTips_[(long long)row * 10000 + col] = tip;
+            if (tip.empty()) cellTips_.erase(CellKey(row, col));
+            else cellTips_[CellKey(row, col)] = tip;
         }
         void SetColumnComparator(int col, std::function<bool(const std::wstring&, const std::wstring&)> cmp) {
             if (col < 0) return;
@@ -1340,14 +1346,14 @@ namespace ZUI {
             checkedRows_ = std::move(nck);
             std::unordered_map<long long, D2D1_COLOR_F> nc;
             for (auto& kv : cellTextColors_) {
-                int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000);
-                if (r >= 0 && r < rowCount_) nc[(long long)oldToNew[r] * 10000 + c] = kv.second;
+                int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first);
+                if (r >= 0 && r < rowCount_) nc[CellKey(oldToNew[r], c)] = kv.second;
             }
             cellTextColors_ = std::move(nc);
             std::unordered_map<long long, std::wstring> nt;
             for (auto& kv : cellTips_) {
-                int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000);
-                if (r >= 0 && r < rowCount_) nt[(long long)oldToNew[r] * 10000 + c] = kv.second;
+                int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first);
+                if (r >= 0 && r < rowCount_) nt[CellKey(oldToNew[r], c)] = kv.second;
             }
             cellTips_ = std::move(nt);
             std::unordered_map<int, float> nh;
@@ -1390,18 +1396,18 @@ namespace ZUI {
         bool IsMarqueeCheckSync() const { return marqueeCheckSync_; }
         std::vector<std::pair<int, int>> GetSelectedCells() const {
             std::vector<std::pair<int, int>> v;
-            for (long long k : cellSel_) v.push_back({ (int)(k / 10000), (int)(k % 10000) });
+            for (long long k : cellSel_) v.push_back({ CellKeyRow(k), CellKeyCol(k) });
             return v;
         }
         std::vector<int> GetSelectedRows() const {
             std::vector<int> rows;
-            for (long long k : cellSel_) { int r = (int)(k / 10000); if (std::find(rows.begin(), rows.end(), r) == rows.end()) rows.push_back(r); }
+            for (long long k : cellSel_) { int r = CellKeyRow(k); if (std::find(rows.begin(), rows.end(), r) == rows.end()) rows.push_back(r); }
             std::sort(rows.begin(), rows.end());
             return rows;
         }
         std::vector<int> GetSelectedColumns() const {
             std::vector<int> cols;
-            for (long long k : cellSel_) { int c = (int)(k % 10000); if (std::find(cols.begin(), cols.end(), c) == cols.end()) cols.push_back(c); }
+            for (long long k : cellSel_) { int c = CellKeyCol(k); if (std::find(cols.begin(), cols.end(), c) == cols.end()) cols.push_back(c); }
             std::sort(cols.begin(), cols.end());
             return cols;
         }
@@ -1409,7 +1415,7 @@ namespace ZUI {
         std::vector<bool> GetSelectionStates() const {
             std::vector<bool> v(rowCount_, false);
             for (int r = 0; r < rowCount_; ++r) {
-                for (int c = 0; c < colCount_; ++c) if (cellSel_.count((long long)r * 10000 + c)) { v[r] = true; break; }
+                for (int c = 0; c < colCount_; ++c) if (cellSel_.count(CellKey(r, c))) { v[r] = true; break; }
             }
             return v;
         }
@@ -1565,7 +1571,7 @@ namespace ZUI {
                         float rowY = arrangedRect_.y + headerOffset + RowTop(row) - Snap(scrollOffsetY_);
                         D2D1_RECT_F cellRect = D2D1::RectF(colX, rowY, colX + colWidth, rowY + RowHeightAt(row));
 
-                        bool isSelected = cellSel_.count((long long)row * 10000 + col) > 0;
+                        bool isSelected = cellSel_.count(CellKey(row, col)) > 0;
                         if (!isSelected) {
                             if (selectionMode_ == SelectionMode::Cell && row == selectedRow_ && col == selectedCol_)
                                 isSelected = true;
@@ -1616,7 +1622,7 @@ namespace ZUI {
                             textRect.left = cellTextLeft;
                             textRect.right -= 4.0f;
                             D2D1_COLOR_F tcol = textColor_;
-                            auto ctc = cellTextColors_.find((long long)row * 10000 + col);
+                            auto ctc = cellTextColors_.find(CellKey(row, col));
                             if (ctc != cellTextColors_.end()) tcol = ctc->second;
                             if (IsRowDisabled(row)) tcol = D2D1::ColorF(0.65f, 0.65f, 0.65f, 1.0f);
                             DrawTextWithEllipsis(rt, label->GetText(), textRect, tcol, spec, textBrush_, fmt, false, GetColumnAlignment(col));
@@ -1789,7 +1795,7 @@ namespace ZUI {
                 hoveredCol_ = -1;
             }
             {
-                auto it = cellTips_.find((long long)hoveredRow_ * 10000 + hoveredCol_);
+                auto it = cellTips_.find(CellKey(hoveredRow_, hoveredCol_));
                 SetToolTip((hoveredRow_ >= 0 && it != cellTips_.end()) ? it->second : std::wstring());
             }
             RequestRepaint();
@@ -2027,7 +2033,7 @@ namespace ZUI {
             return columnWidths_[col];
         }
 
-        bool IsCellSelected(int row, int col) const { return cellSel_.count((long long)row * 10000 + col) > 0; }
+        bool IsCellSelected(int row, int col) const { return cellSel_.count(CellKey(row, col)) > 0; }
 
         // ---------- 每行高度 ----------
         void RebuildRowMetrics() {
@@ -2078,18 +2084,18 @@ namespace ZUI {
                 colX += w;
             }
             if (selectionMode_ == SelectionMode::Row) {
-                for (int r : hitRows) for (int c = 0; c < colCount_; ++c) cellSel_.insert((long long)r * 10000 + c);
+                for (int r : hitRows) for (int c = 0; c < colCount_; ++c) cellSel_.insert(CellKey(r, c));
             }
             else if (selectionMode_ == SelectionMode::Column) {
-                for (int c : hitCols) for (int r = 0; r < rowCount_; ++r) cellSel_.insert((long long)r * 10000 + c);
+                for (int c : hitCols) for (int r = 0; r < rowCount_; ++r) cellSel_.insert(CellKey(r, c));
             }
             else {
-                for (int r : hitRows) for (int c : hitCols) cellSel_.insert((long long)r * 10000 + c);
+                for (int r : hitRows) for (int c : hitCols) cellSel_.insert(CellKey(r, c));
             }
             if (marqueeCheckSync_ && itemsCheckable_) {
                 for (int r = 0; r < rowCount_; ++r) {
                     bool now = false;
-                    for (int c = 0; c < colCount_; ++c) if (cellSel_.count((long long)r * 10000 + c)) { now = true; break; }
+                    for (int c = 0; c < colCount_; ++c) if (cellSel_.count(CellKey(r, c))) { now = true; break; }
                     bool was = checkedRows_.count(r) > 0;
                     if (now != was) { if (now) checkedRows_.insert(r); else checkedRows_.erase(r); ItemCheckStateChanged(r, now); }
                 }
@@ -2115,10 +2121,10 @@ namespace ZUI {
             for (auto& kv : rowHeights_) nh[kv.first >= index ? kv.first + 1 : kv.first] = kv.second;
             rowHeights_ = std::move(nh);
             std::unordered_map<long long, D2D1_COLOR_F> nc;
-            for (auto& kv : cellTextColors_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (r >= index) r++; nc[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTextColors_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (r >= index) r++; nc[CellKey(r, c)] = kv.second; }
             cellTextColors_ = std::move(nc);
             std::unordered_map<long long, std::wstring> nt;
-            for (auto& kv : cellTips_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (r >= index) r++; nt[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTips_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (r >= index) r++; nt[CellKey(r, c)] = kv.second; }
             cellTips_ = std::move(nt);
         }
         void OnRowRemoved(int index) {
@@ -2129,26 +2135,26 @@ namespace ZUI {
             for (auto& kv : rowHeights_) { if (kv.first == index) continue; nh[kv.first > index ? kv.first - 1 : kv.first] = kv.second; }
             rowHeights_ = std::move(nh);
             std::unordered_map<long long, D2D1_COLOR_F> nc;
-            for (auto& kv : cellTextColors_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (r == index) continue; if (r > index) r--; nc[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTextColors_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (r == index) continue; if (r > index) r--; nc[CellKey(r, c)] = kv.second; }
             cellTextColors_ = std::move(nc);
             std::unordered_map<long long, std::wstring> nt;
-            for (auto& kv : cellTips_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (r == index) continue; if (r > index) r--; nt[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTips_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (r == index) continue; if (r > index) r--; nt[CellKey(r, c)] = kv.second; }
             cellTips_ = std::move(nt);
         }
         void OnColumnInserted(int index) {
             std::unordered_map<long long, D2D1_COLOR_F> nc;
-            for (auto& kv : cellTextColors_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (c >= index) c++; nc[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTextColors_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (c >= index) c++; nc[CellKey(r, c)] = kv.second; }
             cellTextColors_ = std::move(nc);
             std::unordered_map<long long, std::wstring> nt;
-            for (auto& kv : cellTips_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (c >= index) c++; nt[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTips_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (c >= index) c++; nt[CellKey(r, c)] = kv.second; }
             cellTips_ = std::move(nt);
         }
         void OnColumnRemoved(int index) {
             std::unordered_map<long long, D2D1_COLOR_F> nc;
-            for (auto& kv : cellTextColors_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (c == index) continue; if (c > index) c--; nc[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTextColors_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (c == index) continue; if (c > index) c--; nc[CellKey(r, c)] = kv.second; }
             cellTextColors_ = std::move(nc);
             std::unordered_map<long long, std::wstring> nt;
-            for (auto& kv : cellTips_) { int r = (int)(kv.first / 10000), c = (int)(kv.first % 10000); if (c == index) continue; if (c > index) c--; nt[(long long)r * 10000 + c] = kv.second; }
+            for (auto& kv : cellTips_) { int r = CellKeyRow(kv.first), c = CellKeyCol(kv.first); if (c == index) continue; if (c > index) c--; nt[CellKey(r, c)] = kv.second; }
             cellTips_ = std::move(nt);
         }
 

@@ -1345,7 +1345,7 @@ namespace ZUI {
             width_ = DefaultWidth; height_ = DefaultHeight;
             UpdateIndicatorPosition();
 
-            auto conn = UIZSignals::DrawOverlay.connect(
+            UIZSignals::DrawOverlay.connect(
                 [this](Window* w, ID2D1RenderTarget* rt) {
                     if (w != GetWindow()) return;   // 只画在自己所属窗口上
                     if (expandProgress_ > 0.01f || expanded_) DrawExpandedList(rt);
@@ -1353,9 +1353,8 @@ namespace ZUI {
                 ConnectionThread::CurrentThread,
                 connectionGroup_
             );
-            autoConnections_.push_back(std::move(conn));
 
-            auto mouseConn = UIZSignals::GlobalMouseDown.connect(
+            UIZSignals::GlobalMouseDown.connect(
                 [this](Window* w, float x, float y) {
                     if (w && w != GetWindow()) return;   // 只处理本窗口的点击
                     if ((expanded_ || expandProgress_ > 0.01f) && !controlCaptureActive_) {
@@ -1368,9 +1367,8 @@ namespace ZUI {
                 ConnectionThread::CurrentThread,
                 connectionGroup_
             );
-            autoConnections_.push_back(std::move(mouseConn));
 
-            auto deactConn = UIZSignals::WindowDeactivated.connect(
+            UIZSignals::WindowDeactivated.connect(
                 [this](Window* w) {
                     if (w && w != GetWindow()) return;   // 只处理本窗口失活
                     if (expanded_ || expandProgress_ > 0.01f) CollapseInternal();
@@ -1378,7 +1376,6 @@ namespace ZUI {
                 ConnectionThread::CurrentThread,
                 connectionGroup_
             );
-            autoConnections_.push_back(std::move(deactConn));
         }
 
         ~ComboBox() {
@@ -1442,6 +1439,7 @@ namespace ZUI {
                 }
                 if (editable_) { editText_ = items_[index]; caretPos_ = (int)editText_.size(); }
                 if (expanded_) CollapseInternal();
+                UpdateToolTip();
             }
         }
         int GetSelectedIndex() const { return selectedIndex_; }
@@ -1463,7 +1461,7 @@ namespace ZUI {
         void SetEditText(const std::wstring& text) {
             editText_ = text;
             caretPos_ = (int)editText_.size();
-            if (filterEnabled_) ApplyFilter(); else RequestRepaint();
+            if (filterEnabled_) ApplyFilter(); else { UpdateToolTip(); RequestRepaint(); }
         }
         std::wstring GetEditText() const { return editText_; }
         bool IsFocusable() const override { return editable_; }
@@ -1477,7 +1475,9 @@ namespace ZUI {
             }
             disabledItems_.clear();
             selectedIndex_ = items_.empty() ? -1 : 0;
+            itemWidthsDirty_ = true;
             UpdateIndicatorPosition();
+            UpdateToolTip();
             InvalidateLayout();
             RequestRepaint();
         }
@@ -1537,6 +1537,7 @@ namespace ZUI {
             return m.width;
         }
         void RecalcItemWidths() {
+            itemWidthsDirty_ = false;
             avgItemWidth_ = 0.0f; widestItemWidth_ = 0.0f;
             const std::vector<std::wstring>& src = (filterEnabled_ && !editText_.empty()) ? items_ : allItems_;
             if (src.empty()) return;
@@ -1548,6 +1549,17 @@ namespace ZUI {
             }
             avgItemWidth_ = sum / (float)src.size();
         }
+        // ToolTip 依赖文本与目标宽度，数据/选中/文本变化时更新（不放在 Measure 里，避免测量副作用）
+        void UpdateToolTip() {
+            if (itemWidthsDirty_) RecalcItemWidths();
+            float w = width_;
+            if (avgItemWidth_ > 0.0f) w = max(w, avgItemWidth_ + 36.0f);
+            std::wstring disp = editable_
+                ? editText_
+                : (selectedIndex_ >= 0 && selectedIndex_ < (int)items_.size() ? items_[selectedIndex_] : std::wstring());
+            if (!disp.empty() && MeasureStringWidth(disp) > w - 36.0f) SetToolTip(disp);
+            else SetToolTip(std::wstring());
+        }
         // 下拉框宽度：至少能完整显示最宽的选项
         float ListWidth() const {
             float w = arrangedRect_.width;
@@ -1556,15 +1568,10 @@ namespace ZUI {
         }
 
         Size Measure(const Size& availableSize) override {
-            RecalcItemWidths();
+            if (itemWidthsDirty_) RecalcItemWidths();   // 仅数据变化时重算，避免每帧测量所有选项
             // 折叠框宽度取“选项平均宽度”（放不下时再靠 tooltip 显示完整文本）
             float w = width_;
             if (avgItemWidth_ > 0.0f) w = max(w, avgItemWidth_ + 36.0f);   // 8 左内边距 + 箭头/右内边距
-            std::wstring disp = editable_
-                ? editText_
-                : (selectedIndex_ >= 0 && selectedIndex_ < (int)items_.size() ? items_[selectedIndex_] : std::wstring());
-            if (!disp.empty() && MeasureStringWidth(disp) > w - 36.0f) SetToolTip(disp);
-            else SetToolTip(L"");
             return Size(w, height_);
         }
 
@@ -1927,7 +1934,7 @@ namespace ZUI {
                         editText_.erase(caretPos_ - 1, 1);
                         caretPos_--;
                         ResetCursorBlink();
-                        if (filterEnabled_) ApplyFilter(); else RequestRepaint();
+                        if (filterEnabled_) ApplyFilter(); else { UpdateToolTip(); RequestRepaint(); }
                     }
                     KeyDown.Fire(key, lParam);
                     return;
@@ -1935,7 +1942,7 @@ namespace ZUI {
                     if (caretPos_ >= 0 && caretPos_ < (int)editText_.size()) {
                         editText_.erase(caretPos_, 1);
                         ResetCursorBlink();
-                        if (filterEnabled_) ApplyFilter(); else RequestRepaint();
+                        if (filterEnabled_) ApplyFilter(); else { UpdateToolTip(); RequestRepaint(); }
                     }
                     return;
                 case VK_LEFT: caretPos_ = max(0, caretPos_ - 1); ResetCursorBlink(); RequestRepaint(); return;
@@ -1987,7 +1994,7 @@ namespace ZUI {
                 ApplyFilter();
                 if (!expanded_ && !items_.empty()) ExpandInternal();
             }
-            else RequestRepaint();
+            else { UpdateToolTip(); RequestRepaint(); }
             Char.Fire(ch);
         }
 
@@ -2151,6 +2158,7 @@ namespace ZUI {
 
         float avgItemWidth_ = 0.0f;      // 选项文本平均宽度 → 折叠框据此定宽
         float widestItemWidth_ = 0.0f;   // 最宽选项文本 → 下拉框据此定宽（保证完整显示）
+        bool itemWidthsDirty_ = true;    // 宽度缓存失效标志（数据变化才重算，避免每帧测量）
 
         float indicatorY_;
         float targetIndicatorY_;
@@ -2732,6 +2740,9 @@ namespace ZUI {
             targetScrollOffsetY_ = clamp(targetScrollOffsetY_, 0.0f, maxScrollY_);
 
             ArrangeContent();
+
+            // 把内容裁到视口（扣掉滚动条占用），避免内容（含内容内部再溢出的子控件）画到滚动条下面
+            content_->SetClipRect(Rect(finalRect.x, finalRect.y, viewportWidth, viewportHeight));
 
             // 更新滚动条子元素布局和可见性
             if (showVerticalScrollBar_) {

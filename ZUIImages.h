@@ -85,7 +85,10 @@ namespace ZUI {
             CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
                 IID_PPV_ARGS(factory_.GetAddressOf()));
             // 设备资源被丢弃/重建时清空图像位图缓存（避免旧渲染目标指针复用后命中错误缓存）
-            deviceResetConn_ = UIZSignals::DeviceReset.connect([this]() { ClearAllDeviceCaches(); });
+            // 用 ConnectionGroup 持有连接：ImageManager 析构时自动断开
+            connGroup_ = std::make_shared<ConnectionGroup>();
+            UIZSignals::DeviceReset.connect([this]() { ClearAllDeviceCaches(); },
+                ConnectionThread::CurrentThread, connGroup_);
         }
         ImageManager(const ImageManager&) = delete;
         ImageManager& operator=(const ImageManager&) = delete;
@@ -93,7 +96,7 @@ namespace ZUI {
         ComPtr<IWICImagingFactory> factory_;
         std::mutex mtx_;
         std::vector<std::weak_ptr<ImageDeviceCache>> caches_;
-        Connection deviceResetConn_;
+        std::shared_ptr<ConnectionGroup> connGroup_;
     };
 
     // ------------------------------------------------------------------

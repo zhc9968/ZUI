@@ -343,23 +343,20 @@ namespace ZUI {
         std::vector<std::weak_ptr<detail::ConnectionState>> connections_;
     };
 
+    // Qt 风格的“被动连接句柄”：析构不自动断连。
+    // - 自动断连由 ConnectionGroup（元素析构时）负责；
+    // - 需要单独断连时显式调用 conn.disconnect()；
+    // - 因此 Connect(...) 可以安全地返回它，忽略返回值也没问题。
     class Connection {
     public:
         Connection() = default;
         Connection(std::shared_ptr<detail::ConnectionState> state) : state_(std::move(state)) {}
-        ~Connection() { disconnect(); }
+        ~Connection() = default;                 // 关键：不在这里自动 disconnect
 
-        Connection(const Connection&) = delete;
-        Connection& operator=(const Connection&) = delete;
-
-        Connection(Connection&& other) noexcept : state_(std::move(other.state_)) {}
-        Connection& operator=(Connection&& other) noexcept {
-            if (this != &other) {
-                disconnect();
-                state_ = std::move(other.state_);
-            }
-            return *this;
-        }
+        Connection(const Connection&) = default;
+        Connection& operator=(const Connection&) = default;
+        Connection(Connection&&) noexcept = default;
+        Connection& operator=(Connection&&) noexcept = default;
 
         void disconnect() {
             if (state_) {
@@ -373,8 +370,9 @@ namespace ZUI {
         }
 
         bool isConnected() const {
-            return state_ && state_->disconnect != nullptr && *(state_->alive);
+            return state_ && state_->disconnect != nullptr && state_->alive && *state_->alive;
         }
+        explicit operator bool() const { return isConnected(); }
 
     private:
         std::shared_ptr<detail::ConnectionState> state_;
@@ -637,15 +635,14 @@ namespace ZUI {
             fillWidth_(false), fillHeight_(false), layoutDirty_(true),
             connectionGroup_(std::make_shared<ConnectionGroup>()),
             cacheValid_(false), useCache_(true) {
-            // 订阅全局字体变更：未覆盖字体的控件自动重建
-            auto fontConn = FontManager::Instance().GlobalFontChanged.connect(
+            // 订阅全局字体变更：未覆盖字体的控件自动重建（随本元素的 ConnectionGroup 自动断开）
+            FontManager::Instance().GlobalFontChanged.connect(
                 [this]() {
                     if (!fontOverride_) OnFontChanged();
                 },
                 ConnectionThread::CurrentThread,
                 connectionGroup_
             );
-            autoConnections_.push_back(std::move(fontConn));
         }
 
         virtual ~UIElement() = default;
@@ -715,14 +712,19 @@ namespace ZUI {
         virtual bool UseCache() const { return useCache_; }
         void SetUseCache(bool use) { useCache_ = use; }
 
-        // 获取元素需要应用于其子元素的裁剪矩形（相对于自身坐标系），返回 std::nullopt 表示不裁剪
-        virtual std::optional<D2D1_RECT_F> GetClipRect() const { return std::nullopt; }
+        // 获取元素需要应用于其子元素的裁剪矩形，返回 std::nullopt 表示不裁剪
+        virtual std::optional<D2D1_RECT_F> GetClipRect() const {
+            return clipRect_ ? std::optional<D2D1_RECT_F>(clipRect_->ToD2D()) : std::nullopt;
+        }
+        // 设置该元素子树的裁剪矩形（用于 ScrollViewer 把内容裁到视口，避免画到滚动条下）
+        void SetClipRect(const std::optional<Rect>& r) { clipRect_ = r; }
 
         // 请求重绘（仅视觉变化）；定义见文件末尾
         void RequestRepaint();
 
         // 缓存有效性标记（由 Window 管理，但为了方便检查放在这里）
         bool cacheValid_ = false;
+        std::optional<Rect> clipRect_;   // 该元素子树的裁剪矩形（可选）
         ComPtr<ID2D1BitmapRenderTarget> cacheRT_;
         // 缓存尺寸记录
         Size cacheSize_;
@@ -763,14 +765,13 @@ namespace ZUI {
             return D2D1::Matrix3x2F::Identity();
         }
 
-        // ---------- 信号连接自动管理（改进版） ----------
-        // 连接登记进本元素的 ConnectionGroup，随元素析构自动断开。
-        // 不返回 Connection：Connection 是 move-only 句柄，返回它需要把句柄移出 autoConnections_，
-        // 会导致返回一个已失效的空句柄（旧实现的隐患）。如需手动断开，请改用 signal.connect(...) 自行管理。
+        // ---------- 信号连接管理 ----------
+        // 连接登记进本元素的 ConnectionGroup，随元素析构自动断开；
+        // 同时返回一个 Qt 风格的被动 Connection 句柄：忽略返回值安全（析构不断连），
+        // 需要单独断开时调用 `auto c = Connect(...); ... c.disconnect();`。
         template<typename Signal, typename Slot>
-        void Connect(Signal& signal, Slot&& slot) {
-            autoConnections_.push_back(
-                signal.connect(std::forward<Slot>(slot), ConnectionThread::CurrentThread, connectionGroup_));
+        Connection Connect(Signal& signal, Slot&& slot) {
+            return signal.connect(std::forward<Slot>(slot), ConnectionThread::CurrentThread, connectionGroup_);
         }
 
         // 在 UIElement 类内（public 或 protected）
@@ -1019,7 +1020,6 @@ namespace ZUI {
         Rect dragRegion_{ 0, 0, 0, 0 };
 
         std::shared_ptr<ConnectionGroup> connectionGroup_;
-        std::vector<Connection> autoConnections_;
 
         bool useCache_; // 默认 true，可被重写
         int windowId_ = 0;  // 所属窗口 id（0 表示未挂载）；用 id 而非裸指针，避免窗口销毁后悬垂
@@ -1734,6 +1734,8 @@ namespace ZUI {
     class PageHost : public UIElement {
     public:
         enum class TransitionDirection { Left, Right, Up, Down };
+        // 过渡缓动曲线：Linear=匀速；EaseInOut=缓入缓出（默认，像指示器那种平滑）；EaseOut=缓出
+        enum class TransitionEasing { Linear, EaseInOut, EaseOut };
         inline static float DefaultHorizontalStretchWeight = 1.0f;
         inline static float DefaultVerticalStretchWeight = 1.0f;
 
@@ -1766,6 +1768,8 @@ namespace ZUI {
         }
 
         void SetTransitionDirection(TransitionDirection dir) { direction_ = dir; }
+        void SetTransitionEasing(TransitionEasing e) { easing_ = e; }
+        TransitionEasing GetTransitionEasing() const { return easing_; }
         void SetAnimationDuration(float seconds) { animDuration_ = max(0.01f, seconds); }
 
         int GetCurrentIndex() const { return currentIndex_; }
@@ -1812,7 +1816,7 @@ namespace ZUI {
                     pages_[currentIndex_]->Draw(rt);
             }
             else {
-                float t = clamp(animProgress_, 0.0f, 1.0f);
+                float t = EasedProgress();
                 float w = arrangedRect_.width, h = arrangedRect_.height;
                 float oldOffsetX = 0, oldOffsetY = 0, newOffsetX = 0, newOffsetY = 0;
                 switch (direction_) {
@@ -1998,7 +2002,7 @@ namespace ZUI {
             // 非动画状态，所有子元素无额外变换
             if (!animating_) return D2D1::Matrix3x2F::Identity();
 
-            float t = clamp(animProgress_, 0.0f, 1.0f);
+            float t = EasedProgress();
             float w = arrangedRect_.width;
             float h = arrangedRect_.height;
             float offsetX = 0.0f, offsetY = 0.0f;
@@ -2027,6 +2031,16 @@ namespace ZUI {
         }
 
     private:
+        // 把 animProgress_ 按当前缓动曲线映射为 [0,1]（默认 smoothstep 缓入缓出）
+        float EasedProgress() const {
+            float t = clamp(animProgress_, 0.0f, 1.0f);
+            switch (easing_) {
+            case TransitionEasing::Linear: return t;
+            case TransitionEasing::EaseOut: { float u = 1.0f - t; return 1.0f - u * u * u; }
+            case TransitionEasing::EaseInOut:
+            default: return t * t * (3.0f - 2.0f * t);
+            }
+        }
         std::vector<std::shared_ptr<Page>> pages_;
         int currentIndex_;
         bool animating_;
@@ -2034,6 +2048,7 @@ namespace ZUI {
         int fromIndex_;
         int toIndex_;
         TransitionDirection direction_;
+        TransitionEasing easing_ = TransitionEasing::EaseInOut;
         float animDuration_;
     };
 
@@ -2668,7 +2683,7 @@ namespace ZUI {
                 if (!compositor_) {
                     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);   // Compositor 需要 STA
                     DispatcherQueueOptions opts{ sizeof(DispatcherQueueOptions), DQTYPE_THREAD_CURRENT, DQTAT_COM_STA };
-                    if (FAILED(CreateDispatcherQueueController(opts, reinterpret_cast<PDISPATCHERQUEUECONTROLLER*>(&dqController_)))) return nullptr;
+                    if (FAILED(CreateDispatcherQueueController(opts, reinterpret_cast<PDISPATCHERQUEUECONTROLLER*>(dqController_.GetAddressOf())))) return nullptr;
                     Microsoft::WRL::ComPtr<IInspectable> insp;
                     if (FAILED(RoActivateInstance(
                         Microsoft::WRL::Wrappers::HStringReference(
@@ -2736,7 +2751,7 @@ namespace ZUI {
             ComPtr<IDXGIDevice> dxgiDevice_;
             ComPtr<ID2D1Device> d2dDevice_;
             ComPtr<ICompositor> compositor_;
-            IUnknown* dqController_ = nullptr;
+            ComPtr<IUnknown> dqController_;   // 持有并释放，避免泄漏
             std::vector<Window*> windows_;
             std::unordered_map<int, Window*> windowsById_;
             int nextWindowId_ = 1;
@@ -2919,17 +2934,22 @@ namespace ZUI {
         }
 
         bool Create(int width, int height, const std::wstring& title) {
-            HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
-            if (hUser32) {
-                typedef BOOL(WINAPI* pSetProcessDpiAwarenessContext)(HANDLE);
-                pSetProcessDpiAwarenessContext SetProcessDpiAwarenessContext = (pSetProcessDpiAwarenessContext)GetProcAddress(hUser32, "SetProcessDpiAwarenessContext");
-                if (SetProcessDpiAwarenessContext) {
-                    SetProcessDpiAwarenessContext((HANDLE)-4);
-                }
-                else {
-                    typedef BOOL(WINAPI* pSetProcessDPIAware)(void);
-                    pSetProcessDPIAware SetProcessDPIAware = (pSetProcessDPIAware)GetProcAddress(hUser32, "SetProcessDPIAware");
-                    if (SetProcessDPIAware) SetProcessDPIAware();
+            // 进程级 DPI 感知只需设置一次（多窗口重复调用无意义）
+            static bool s_dpiAwareSet = false;
+            if (!s_dpiAwareSet) {
+                s_dpiAwareSet = true;
+                HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+                if (hUser32) {
+                    typedef BOOL(WINAPI* pSetProcessDpiAwarenessContext)(HANDLE);
+                    pSetProcessDpiAwarenessContext SetProcessDpiAwarenessContext = (pSetProcessDpiAwarenessContext)GetProcAddress(hUser32, "SetProcessDpiAwarenessContext");
+                    if (SetProcessDpiAwarenessContext) {
+                        SetProcessDpiAwarenessContext((HANDLE)-4);
+                    }
+                    else {
+                        typedef BOOL(WINAPI* pSetProcessDPIAware)(void);
+                        pSetProcessDPIAware SetProcessDPIAware = (pSetProcessDPIAware)GetProcAddress(hUser32, "SetProcessDPIAware");
+                        if (SetProcessDPIAware) SetProcessDPIAware();
+                    }
                 }
             }
 
@@ -3074,6 +3094,8 @@ namespace ZUI {
                 // 默认绘制在“正常布局之后、覆盖层之前”（可由控件自行改成 DrawBeforeLayout）
                 if (customTitleBar_->GetLayoutParticipation() == UIElement::LayoutParticipation::Normal)
                     customTitleBar_->SetLayoutParticipation(UIElement::LayoutParticipation::DrawAfterLayout);
+                // 套用当前标题栏可见性，避免“先 SetTitleBarVisible(false) 再装栏”时状态不一致
+                customTitleBar_->SetVisible(titleBarVisible_);
             }
             bool wasCustom = customFrame_;
             customFrame_ = (customTitleBar_ != nullptr);
@@ -3121,6 +3143,14 @@ namespace ZUI {
             if (hwnd_) { layoutNeeded_ = true; InvalidateRect(hwnd_, nullptr, TRUE); }
         }
         bool IsTitleBarVisible() const { return titleBarVisible_ && customTitleBar_ != nullptr; }
+
+        // 原生标题栏文字 / 图标（装了自定义标题栏时，标题请用 TitleBar::SetTitle）
+        void SetTitle(const std::wstring& title) { if (hwnd_) SetWindowTextW(hwnd_, title.c_str()); }
+        void SetIcon(HICON bigIcon, HICON smallIcon) {
+            if (!hwnd_) return;
+            if (bigIcon) SendMessageW(hwnd_, WM_SETICON, ICON_BIG, (LPARAM)bigIcon);
+            if (smallIcon) SendMessageW(hwnd_, WM_SETICON, ICON_SMALL, (LPARAM)smallIcon);
+        }
 
         // 是否允许拖动边框调整大小
         void SetResizable(bool on) {
@@ -4261,7 +4291,7 @@ namespace ZUI {
                 }
             }
 
-            if (hr == D2DERR_RECREATE_TARGET || hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
+            if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
                 DiscardDeviceResources();
                 DeviceLost.Fire();
                 if (FAILED(CreateDeviceResources()) || FAILED(CreateCompositionBackend())) {
@@ -4491,35 +4521,6 @@ namespace ZUI {
             ComPtr<IVisual2> r2;
             if (SUCCEEDED(rootVisual_->QueryInterface(IID_PPV_ARGS(&r2)))) r2->put_RelativeSizeAdjustment({ 1.f, 1.f });
 
-            // 亚克力：DComp HostBackdropBrush + 高斯模糊作为根视觉背景（移植自 Win32Acrylic）。
-            // 这样亚克力由 DComp 直接采样宿主背景，不依赖会随框架失效的 DWMWA_SYSTEMBACKDROP_TYPE。
-            if (backdrop_ == Backdrop::Acrylic) {
-                ComPtr<ICompositionBackdropBrush> backdropBrush;
-                HRESULT hrBackdrop = E_FAIL;
-                ComPtr<ICompositor3> c3;
-                if (SUCCEEDED(compositor_->QueryInterface(IID_PPV_ARGS(&c3))))
-                    hrBackdrop = c3->CreateHostBackdropBrush(&backdropBrush);
-                if (FAILED(hrBackdrop)) {
-                    ComPtr<ICompositor2> c2;
-                    if (SUCCEEDED(compositor_->QueryInterface(IID_PPV_ARGS(&c2))))
-                        hrBackdrop = c2->CreateBackdropBrush(&backdropBrush);
-                }
-                if (SUCCEEDED(hrBackdrop)) {
-                    auto blur = Microsoft::WRL::Make<detail_fx::GaussianBlurEffect>();
-                    blur->SetInput(static_cast<ABI::Windows::Graphics::Effects::IGraphicsEffectSource*>(
-                        detail_fx::CompositionEffectSource(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get())));
-                    ComPtr<ICompositionEffectFactory> factory;
-                    if (SUCCEEDED(compositor_->CreateEffectFactory(blur.Get(), &factory))) {
-                        ComPtr<ICompositionEffectBrush> effectBrush;
-                        if (SUCCEEDED(factory->CreateBrush(&effectBrush))) {
-                            effectBrush->SetSourceParameter(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get(),
-                                reinterpret_cast<ICompositionBrush*>(backdropBrush.Get()));
-                            rootVisual_->put_Brush(reinterpret_cast<ICompositionBrush*>(effectBrush.Get()));
-                        }
-                    }
-                }
-            }
-
             RECT rc; GetClientRect(hwnd_, &rc);
             clientWidthDip_ = (rc.right - rc.left) * 96.0f / dpi_;
             clientHeightDip_ = (rc.bottom - rc.top) * 96.0f / dpi_;
@@ -4546,7 +4547,41 @@ namespace ZUI {
             ComPtr<IVisualCollection> children;
             container->get_Children(&children);
             children->InsertAtTop(reinterpret_cast<IVisual*>(contentVisual_));
+            // 依据当前 Backdrop 建立/更新根视觉背景（亚克力时挂 HostBackdropBrush+模糊）
+            UpdateDCompBackdrop();
             return S_OK;
+        }
+
+        // 依据当前 backdrop_ 重建根视觉的 DComp 背景层。
+        // 只有 Acrylic 需要（HostBackdropBrush + 高斯模糊）；其它效果清掉背景层。
+        // 可在 Create 时、设备重建时、以及运行时 SetBackdrop/SetBackdropMode 时调用。
+        void UpdateDCompBackdrop() {
+            if (!rootVisual_ || !compositor_) return;
+            rootVisual_->put_Brush(nullptr);              // 先清掉旧背景
+            if (backdrop_ != Backdrop::Acrylic) return;   // 仅亚克力用 DComp 背景层
+
+            ComPtr<ICompositionBackdropBrush> backdropBrush;
+            HRESULT hrBackdrop = E_FAIL;
+            ComPtr<ICompositor3> c3;
+            if (SUCCEEDED(compositor_->QueryInterface(IID_PPV_ARGS(&c3))))
+                hrBackdrop = c3->CreateHostBackdropBrush(&backdropBrush);
+            if (FAILED(hrBackdrop)) {
+                ComPtr<ICompositor2> c2;
+                if (SUCCEEDED(compositor_->QueryInterface(IID_PPV_ARGS(&c2))))
+                    hrBackdrop = c2->CreateBackdropBrush(&backdropBrush);
+            }
+            if (FAILED(hrBackdrop) || !backdropBrush) return;
+
+            auto blur = Microsoft::WRL::Make<detail_fx::GaussianBlurEffect>();
+            blur->SetInput(static_cast<ABI::Windows::Graphics::Effects::IGraphicsEffectSource*>(
+                detail_fx::CompositionEffectSource(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get())));
+            ComPtr<ICompositionEffectFactory> factory;
+            if (FAILED(compositor_->CreateEffectFactory(blur.Get(), &factory))) return;
+            ComPtr<ICompositionEffectBrush> effectBrush;
+            if (FAILED(factory->CreateBrush(&effectBrush))) return;
+            effectBrush->SetSourceParameter(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get(),
+                reinterpret_cast<ICompositionBrush*>(backdropBrush.Get()));
+            rootVisual_->put_Brush(reinterpret_cast<ICompositionBrush*>(effectBrush.Get()));
         }
 
         void DiscardDeviceResources() {
@@ -4595,6 +4630,9 @@ namespace ZUI {
 
         void ApplyBackdrop() {
             if (!hwnd_) return;
+
+            // DComp 背景层随 Backdrop 变化重建（运行时 SetBackdrop/SetBackdropMode 也能生效）
+            UpdateDCompBackdrop();
 
             // 实现方式（不互相近似）：
             //   Acrylic : DComp HostBackdropBrush（CreateCompositionBackend 已挂好）+ DWMWA_USE_HOSTBACKDROPBRUSH
