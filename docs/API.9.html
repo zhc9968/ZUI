@@ -282,6 +282,8 @@ class Window {
     float GetCustomTitleBarHeight() const;
     void SetTitleBarVisible(bool on);                         // 隐藏/显示（保留自定义边框）
     bool IsTitleBarVisible() const;
+    void SetTitle(const std::wstring&amp; title);                 // 原生标题栏文字（自定义标题栏用 TitleBar::SetTitle）
+    void SetIcon(HICON bigIcon, HICON smallIcon);             // 原生标题栏图标（WM_SETICON）
 
     // 边框 / 调整
     void SetResizable(bool on);
@@ -327,7 +329,7 @@ class Window {
 <header class="chapter-header"><span class="chapter-eyebrow">第 9 章</span><h1>窗口 Window</h1><p class="chapter-summary">创建、背景、标题栏与根布局</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-bea25785', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-a9069089', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Backdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">              </span><span class="c1">// None</span>
@@ -410,6 +412,8 @@ class Window {
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetCustomTitleBarHeight</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitleBarVisible</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span><span class="w">                         </span><span class="c1">// 隐藏/显示（保留自定义边框）</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsTitleBarVisible</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span><span class="w">                 </span><span class="c1">// 原生标题栏文字（自定义标题栏用 TitleBar::SetTitle）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIcon</span><span class="p">(</span><span class="n">HICON</span><span class="w"> </span><span class="n">bigIcon</span><span class="p">,</span><span class="w"> </span><span class="n">HICON</span><span class="w"> </span><span class="n">smallIcon</span><span class="p">);</span><span class="w">             </span><span class="c1">// 原生标题栏图标（WM_SETICON）</span>
 
 <span class="w">    </span><span class="c1">// 边框 / 调整</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetResizable</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
@@ -432,7 +436,7 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-bea25785" style="display: none;">class Window {
+<pre id="code-a9069089" style="display: none;">class Window {
     static Backdrop DefaultBackdrop;              // None
     static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // 透明
@@ -513,6 +517,8 @@ class Window {
     float GetCustomTitleBarHeight() const;
     void SetTitleBarVisible(bool on);                         // 隐藏/显示（保留自定义边框）
     bool IsTitleBarVisible() const;
+    void SetTitle(const std::wstring&amp; title);                 // 原生标题栏文字（自定义标题栏用 TitleBar::SetTitle）
+    void SetIcon(HICON bigIcon, HICON smallIcon);             // 原生标题栏图标（WM_SETICON）
 
     // 边框 / 调整
     void SetResizable(bool on);

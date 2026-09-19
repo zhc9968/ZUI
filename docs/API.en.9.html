@@ -282,6 +282,8 @@ class Window {
     float GetCustomTitleBarHeight() const;
     void SetTitleBarVisible(bool on);
     bool IsTitleBarVisible() const;
+    void SetTitle(const std::wstring&amp; title);                 // native title text (use TitleBar::SetTitle with a custom title bar)
+    void SetIcon(HICON bigIcon, HICON smallIcon);             // native title-bar icons (WM_SETICON)
 
     // Border / resizing
     void SetResizable(bool on);
@@ -327,7 +329,7 @@ class Window {
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 9</span><h1>Window</h1><p class="chapter-summary">Creation, backdrop, title bar, and root layout</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-fe77d9a2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-a98683b6', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Backdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">              </span><span class="c1">// None</span>
@@ -410,6 +412,8 @@ class Window {
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="nf">GetCustomTitleBarHeight</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitleBarVisible</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsTitleBarVisible</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span><span class="w">                 </span><span class="c1">// native title text (use TitleBar::SetTitle with a custom title bar)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIcon</span><span class="p">(</span><span class="n">HICON</span><span class="w"> </span><span class="n">bigIcon</span><span class="p">,</span><span class="w"> </span><span class="n">HICON</span><span class="w"> </span><span class="n">smallIcon</span><span class="p">);</span><span class="w">             </span><span class="c1">// native title-bar icons (WM_SETICON)</span>
 
 <span class="w">    </span><span class="c1">// Border / resizing</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetResizable</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
@@ -432,7 +436,7 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-fe77d9a2" style="display: none;">class Window {
+<pre id="code-a98683b6" style="display: none;">class Window {
     static Backdrop DefaultBackdrop;              // None
     static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // transparent
@@ -513,6 +517,8 @@ class Window {
     float GetCustomTitleBarHeight() const;
     void SetTitleBarVisible(bool on);
     bool IsTitleBarVisible() const;
+    void SetTitle(const std::wstring&amp; title);                 // native title text (use TitleBar::SetTitle with a custom title bar)
+    void SetIcon(HICON bigIcon, HICON smallIcon);             // native title-bar icons (WM_SETICON)
 
     // Border / resizing
     void SetResizable(bool on);

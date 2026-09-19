@@ -235,7 +235,8 @@ pre { line-height: 125%; }
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | 绘制（**必须实现**）。用 `GetArrangedRect()` 里的绝对坐标绘制。 |
 | `virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const` | 子元素列表（返回引用，容器需维护自己的视图缓冲）。**返回的是元素内部缓冲的引用**：有效期到“该元素的子列表/可见性变化或再次调用其 `GetChildren()`”；遍历期间**不要对同一个元素再次调用 `GetChildren()`**（递归子元素用的是各自的缓冲，安全）。 |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | 是否使用离屏缓存（默认 true）。 |
-| `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | 返回子元素裁剪区（绝对坐标）；返回 `nullopt` 表示不裁剪。 |
+| `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | 返回子元素裁剪区（绝对坐标）；返回 `nullopt` 表示不裁剪。默认返回 `SetClipRect(...)` 设置的值。 |
+| `void SetClipRect(const std::optional&lt;Rect&gt;&amp;)` | 设置该元素子树的裁剪矩形（如 `ScrollViewer` 用它把内容裁到视口）。 |
 | `void RequestRepaint()` | 请求重绘；底层触发全局 `RepaintRequest`。 |
 
 &gt; **Measure/Arrange 的契约**：`Measure(可用空间)` 只描述“我想要多大”，不要在里面改父布局状态；`Arrange(finalRect)` 才是“我被放到了哪里”，绘制永远基于 `arrangedRect_`。
@@ -333,7 +334,7 @@ pre { line-height: 125%; }
 | `void SetContextMenu(std::shared_ptr&lt;Menu&gt;)` / `GetContextMenu()` | 右键菜单 |
 | `virtual bool OnContextMenu(float,float)` | 右键钩子；返回 true 表示已处理，不再弹默认菜单 |
 | `void SetBleed(float)` / `float GetBleed() const` | 缓存出血（默认 `4.0f`） |
-| `template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)` | 连接信号，自动登记进本元素的 `ConnectionGroup`；**不返回 `Connection`**（连接随元素析构断开；若要手动断开请直接用 `signal.connect(...)`） |
+| `template&lt;typename Signal, typename Slot&gt; Connection Connect(Signal&amp;, Slot&amp;&amp;)` | 连接信号：连接登记进本元素的 `ConnectionGroup`（元素析构时自动断开），并返回 Qt 风格的**被动 `Connection` 句柄**（析构不断连）。忽略返回值安全；要单独断开写 `auto c = Connect(...); c.disconnect();` |
 
 ## 字体接口
 
@@ -500,7 +501,11 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 </tr>
 <tr>
 <td><code>virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const</code></td>
-<td>返回子元素裁剪区（绝对坐标）；返回 <code>nullopt</code> 表示不裁剪。</td>
+<td>返回子元素裁剪区（绝对坐标）；返回 <code>nullopt</code> 表示不裁剪。默认返回 <code>SetClipRect(...)</code> 设置的值。</td>
+</tr>
+<tr>
+<td><code>void SetClipRect(const std::optional&lt;Rect&gt;&amp;)</code></td>
+<td>设置该元素子树的裁剪矩形（如 <code>ScrollViewer</code> 用它把内容裁到视口）。</td>
 </tr>
 <tr>
 <td><code>void RequestRepaint()</code></td>
@@ -745,8 +750,8 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 <td>缓存出血（默认 <code>4.0f</code>）</td>
 </tr>
 <tr>
-<td><code>template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
-<td>连接信号，自动登记进本元素的 <code>ConnectionGroup</code>；<strong>不返回 <code>Connection</code></strong>（连接随元素析构断开；若要手动断开请直接用 <code>signal.connect(...)</code>）</td>
+<td><code>template&lt;typename Signal, typename Slot&gt; Connection Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
+<td>连接信号：连接登记进本元素的 <code>ConnectionGroup</code>（元素析构时自动断开），并返回 Qt 风格的<strong>被动 <code>Connection</code> 句柄</strong>（析构不断连）。忽略返回值安全；要单独断开写 <code>auto c = Connect(...); c.disconnect();</code></td>
 </tr>
 </tbody>
 </table>
@@ -797,7 +802,7 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-e1922b9e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-af15c14e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Dot</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
@@ -813,7 +818,7 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">r_</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-e1922b9e" style="display: none;">class Dot : public UIElement {
+<pre id="code-af15c14e" style="display: none;">class Dot : public UIElement {
 public:
     Dot(float r) : r_(r) {}
     Size Measure(const Size&amp;) override { return Size(r_ * 2, r_ * 2); }
@@ -831,7 +836,7 @@ private:
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-fd75689b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-19997964', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">LayoutParticipation</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">Normal</span><span class="p">,</span><span class="w">            </span><span class="c1">// 参与布局（默认）</span>
@@ -842,7 +847,7 @@ private:
 <span class="n">LayoutParticipation</span><span class="w"> </span><span class="nf">GetLayoutParticipation</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="kt">bool</span><span class="w"> </span><span class="nf">ParticipatesInLayout</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 </pre></div>
-<pre id="code-fd75689b" style="display: none;">enum class LayoutParticipation {
+<pre id="code-19997964" style="display: none;">enum class LayoutParticipation {
     Normal,            // 参与布局（默认）
     DrawBeforeLayout,  // 不参与布局：在正常布局树绘制之前单独绘制
     DrawAfterLayout    // 不参与布局：在正常布局树绘制之后、覆盖层之前单独绘制
@@ -859,7 +864,7 @@ bool ParticipatesInLayout() const;</pre>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-384be2e3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-eb671a2d', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDraggable</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span><span class="w">                 </span><span class="c1">// 整个 arrangedRect 作为拖动区</span>
 <span class="kt">void</span><span class="w"> </span><span class="nf">SetDragRegion</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Rect</span><span class="o">&amp;</span><span class="w"> </span><span class="n">localRect</span><span class="p">);</span><span class="w">  </span><span class="c1">// 指定本地子区域</span>
@@ -869,7 +874,7 @@ bool ParticipatesInLayout() const;</pre>
 <span class="kt">bool</span><span class="w"> </span><span class="nf">IsPointInDragRegion</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">CollectDragRegions</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Rect</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">out</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// Window 递归收集</span>
 </pre></div>
-<pre id="code-384be2e3" style="display: none;">void SetDraggable(bool on);                 // 整个 arrangedRect 作为拖动区
+<pre id="code-eb671a2d" style="display: none;">void SetDraggable(bool on);                 // 整个 arrangedRect 作为拖动区
 void SetDragRegion(const Rect&amp; localRect);  // 指定本地子区域
 void ClearDragRegion();
 bool HasDragRegion() const;

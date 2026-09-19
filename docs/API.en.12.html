@@ -452,7 +452,7 @@ class TreeView : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-b1bed4ea', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-5f2a646c', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Single</span><span class="p">,</span><span class="w"> </span><span class="n">Extended</span><span class="p">,</span><span class="w"> </span><span class="n">Multi</span><span class="p">,</span><span class="w"> </span><span class="n">None</span><span class="w"> </span><span class="p">};</span>
 
@@ -515,7 +515,7 @@ class TreeView : public UIElement {
 <span class="w">    </span><span class="c1">//   SetAlternatingRowColor / SetMarqueeEnabled / SetButtonMode / SetButtonSpacing ...</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-b1bed4ea" style="display: none;">enum class SelectionMode { Single, Extended, Multi, None };
+<pre id="code-5f2a646c" style="display: none;">enum class SelectionMode { Single, Extended, Multi, None };
 
 class ListView : public UIElement {
     ZSignal&lt;int&gt; SelectionChanged;
@@ -589,7 +589,7 @@ class ListView : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-f827d359', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-96b55c27', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Cell</span><span class="p">,</span><span class="w"> </span><span class="n">Row</span><span class="p">,</span><span class="w"> </span><span class="n">Column</span><span class="p">,</span><span class="w"> </span><span class="n">None</span><span class="w"> </span><span class="p">};</span>
 
@@ -652,7 +652,7 @@ class ListView : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetShowSortIndicator</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSortIndicatorColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-f827d359" style="display: none;">enum class SelectionMode { Cell, Row, Column, None };
+<pre id="code-96b55c27" style="display: none;">enum class SelectionMode { Cell, Row, Column, None };
 
 class TableView : public UIElement {
     ZSignal&lt;int,int&gt; CellClicked;
@@ -727,7 +727,7 @@ class TableView : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-61af571c', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-9be62374', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">TreeNode</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;</span><span class="w"> </span><span class="n">columns</span><span class="p">;</span><span class="w">                 </span><span class="c1">// column 0 is the node text</span>
@@ -748,7 +748,7 @@ class TableView : public UIElement {
 <span class="w">    </span><span class="n">TreeNode</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">cols</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-61af571c" style="display: none;">struct TreeNode {
+<pre id="code-9be62374" style="display: none;">struct TreeNode {
     std::vector&lt;std::wstring&gt; columns;                 // column 0 is the node text
     TreeNode* parent = nullptr;                        // non-owning
     std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; children;
@@ -775,7 +775,7 @@ class TableView : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-eca74b54', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-228559d9', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Single</span><span class="p">,</span><span class="w"> </span><span class="n">Extended</span><span class="p">,</span><span class="w"> </span><span class="n">Multi</span><span class="w"> </span><span class="p">};</span>
 <span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CheckMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Linked</span><span class="p">,</span><span class="w"> </span><span class="n">Independent</span><span class="w"> </span><span class="p">};</span>
@@ -831,7 +831,7 @@ class TableView : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAlternatingRowColors</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetGridVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-eca74b54" style="display: none;">enum class SelectionMode { Single, Extended, Multi };
+<pre id="code-228559d9" style="display: none;">enum class SelectionMode { Single, Extended, Multi };
 enum class CheckMode { Linked, Independent };
 
 class TreeView : public UIElement {

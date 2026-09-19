@@ -245,7 +245,7 @@ class MenuWindow {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-19751e51', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-4f7419ca', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MenuItem</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Normal</span><span class="p">,</span><span class="w"> </span><span class="n">Separator</span><span class="p">,</span><span class="w"> </span><span class="n">Submenu</span><span class="w"> </span><span class="p">};</span>
@@ -257,7 +257,7 @@ class MenuWindow {
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;</span><span class="w"> </span><span class="n">icon</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-19751e51" style="display: none;">class MenuItem {
+<pre id="code-4f7419ca" style="display: none;">class MenuItem {
     enum class Type { Normal, Separator, Submenu };
     std::wstring text;
     std::function&lt;void()&gt; callback;
@@ -271,7 +271,7 @@ class MenuWindow {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-153f5633', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-c2476195', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Menu</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">enable_shared_from_this</span><span class="o">&lt;</span><span class="n">Menu</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">AddItem</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">text</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">callback</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
@@ -280,7 +280,7 @@ class MenuWindow {
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">MenuItem</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">items</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-153f5633" style="display: none;">class Menu : public std::enable_shared_from_this&lt;Menu&gt; {
+<pre id="code-c2476195" style="display: none;">class Menu : public std::enable_shared_from_this&lt;Menu&gt; {
     void AddItem(const std::wstring&amp; text, std::function&lt;void()&gt; callback = nullptr);
     void AddSeparator();
     void AddSubmenu(const std::wstring&amp; text, std::shared_ptr&lt;Menu&gt; submenu);
@@ -295,7 +295,7 @@ class MenuWindow {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-97aae005', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-881ba30d', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MenuWindow</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">MenuWindow</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Menu</span><span class="o">&gt;</span><span class="w"> </span><span class="n">menu</span><span class="p">,</span><span class="w"> </span><span class="n">HWND</span><span class="w"> </span><span class="n">owner</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">);</span>
@@ -304,7 +304,7 @@ class MenuWindow {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">CloseAll</span><span class="p">();</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-97aae005" style="display: none;">class MenuWindow {
+<pre id="code-881ba30d" style="display: none;">class MenuWindow {
     MenuWindow(std::shared_ptr&lt;Menu&gt; menu, HWND owner, int x, int y);
     void Show(int x, int y);
     void Hide();

@@ -228,7 +228,8 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 | `virtual void Draw(ID2D1RenderTarget* rt) = 0` | **Must implement.** Draw using absolute coordinates from `GetArrangedRect()`. |
 | `virtual const std::vector&lt;UIElement*&gt;&amp; GetChildren() const` | Child list (by reference; containers keep their own view buffer). **The returned reference points at an internal buffer**: valid until the element's child list/visibility changes or its `GetChildren()` is called again. During traversal **do not call `GetChildren()` on the same element again** (recursing into children uses their own buffers, which is safe). |
 | `virtual bool UseCache() const` / `SetUseCache(bool)` | Offscreen cache (default true). |
-| `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | Child clip rect (absolute); `nullopt` means no clip. |
+| `virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const` | Child clip rect (absolute); `nullopt` means no clip. Returns the value set by `SetClipRect(...)`. |
+| `void SetClipRect(const std::optional&lt;Rect&gt;&amp;)` | Set the clip rect for this element's subtree (e.g. `ScrollViewer` clips content to the viewport). |
 | `void RequestRepaint()` | Request a repaint (fires the global `RepaintRequest`). |
 
 &gt; **Measure/Arrange contract**: `Measure(available)` only says how big you *want* to be; do not mutate parent state there. `Arrange(finalRect)` says where you *were placed*; drawing is always based on `arrangedRect_`.
@@ -326,7 +327,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
 | `SetContextMenu(std::shared_ptr&lt;Menu&gt;)` / `GetContextMenu()` | Right-click menu |
 | `virtual bool OnContextMenu(float,float)` | Right-click hook; return true to suppress the default menu |
 | `SetBleed(float)` / `GetBleed() const` | Cache bleed (default `4.0f`) |
-| `template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)` | Connect a signal, registered in the element's `ConnectionGroup`; **returns no `Connection`** (it disconnects when the element dies; use `signal.connect(...)` if you need to disconnect manually) |
+| `template&lt;typename Signal, typename Slot&gt; Connection Connect(Signal&amp;, Slot&amp;&amp;)` | Connect a signal: registered in the element's `ConnectionGroup` (auto-disconnected when the element dies) and returns a Qt-style **passive `Connection` handle** (destruction does not disconnect). Ignoring the return is safe; to disconnect one, `auto c = Connect(...); c.disconnect();` |
 
 ## Font interface
 
@@ -473,7 +474,11 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 </tr>
 <tr>
 <td><code>virtual std::optional&lt;D2D1_RECT_F&gt; GetClipRect() const</code></td>
-<td>Child clip rect (absolute); <code>nullopt</code> means no clip.</td>
+<td>Child clip rect (absolute); <code>nullopt</code> means no clip. Returns the value set by <code>SetClipRect(...)</code>.</td>
+</tr>
+<tr>
+<td><code>void SetClipRect(const std::optional&lt;Rect&gt;&amp;)</code></td>
+<td>Set the clip rect for this element's subtree (e.g. <code>ScrollViewer</code> clips content to the viewport).</td>
 </tr>
 <tr>
 <td><code>void RequestRepaint()</code></td>
@@ -718,8 +723,8 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 <td>Cache bleed (default <code>4.0f</code>)</td>
 </tr>
 <tr>
-<td><code>template&lt;typename Signal, typename Slot&gt; void Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
-<td>Connect a signal, registered in the element's <code>ConnectionGroup</code>; <strong>returns no <code>Connection</code></strong> (it disconnects when the element dies; use <code>signal.connect(...)</code> if you need to disconnect manually)</td>
+<td><code>template&lt;typename Signal, typename Slot&gt; Connection Connect(Signal&amp;, Slot&amp;&amp;)</code></td>
+<td>Connect a signal: registered in the element's <code>ConnectionGroup</code> (auto-disconnected when the element dies) and returns a Qt-style <strong>passive <code>Connection</code> handle</strong> (destruction does not disconnect). Ignoring the return is safe; to disconnect one, <code>auto c = Connect(...); c.disconnect();</code></td>
 </tr>
 </tbody>
 </table>
@@ -770,7 +775,7 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-32396cdd', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-a029063d', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Dot</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
@@ -786,7 +791,7 @@ virtual void CollectDragRegions(std::vector&lt;Rect&gt;&amp; out) const;   // Wi
 <span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">r_</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-32396cdd" style="display: none;">class Dot : public UIElement {
+<pre id="code-a029063d" style="display: none;">class Dot : public UIElement {
 public:
     Dot(float r) : r_(r) {}
     Size Measure(const Size&amp;) override { return Size(r_ * 2, r_ * 2); }
@@ -804,7 +809,7 @@ private:
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-f2d446fc', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-7c179e09', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">LayoutParticipation</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">Normal</span><span class="p">,</span><span class="w">            </span><span class="c1">// participates in layout (default)</span>
@@ -815,7 +820,7 @@ private:
 <span class="n">LayoutParticipation</span><span class="w"> </span><span class="nf">GetLayoutParticipation</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="kt">bool</span><span class="w"> </span><span class="nf">ParticipatesInLayout</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 </pre></div>
-<pre id="code-f2d446fc" style="display: none;">enum class LayoutParticipation {
+<pre id="code-7c179e09" style="display: none;">enum class LayoutParticipation {
     Normal,            // participates in layout (default)
     DrawBeforeLayout,  // does not participate: drawn separately before the normal layout tree
     DrawAfterLayout    // does not participate: drawn after the normal layout tree, before overlays
@@ -832,7 +837,7 @@ bool ParticipatesInLayout() const;</pre>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-61de2b46', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-d0529a9f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">SetDraggable</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span><span class="w">                 </span><span class="c1">// the whole arrangedRect is a drag region</span>
 <span class="kt">void</span><span class="w"> </span><span class="nf">SetDragRegion</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Rect</span><span class="o">&amp;</span><span class="w"> </span><span class="n">localRect</span><span class="p">);</span><span class="w">  </span><span class="c1">// a local sub-region</span>
@@ -842,7 +847,7 @@ bool ParticipatesInLayout() const;</pre>
 <span class="kt">bool</span><span class="w"> </span><span class="nf">IsPointInDragRegion</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">CollectDragRegions</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Rect</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">out</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// Window collects recursively</span>
 </pre></div>
-<pre id="code-61de2b46" style="display: none;">void SetDraggable(bool on);                 // the whole arrangedRect is a drag region
+<pre id="code-d0529a9f" style="display: none;">void SetDraggable(bool on);                 // the whole arrangedRect is a drag region
 void SetDragRegion(const Rect&amp; localRect);  // a local sub-region
 void ClearDragRegion();
 bool HasDragRegion() const;

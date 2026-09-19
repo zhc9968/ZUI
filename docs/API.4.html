@@ -225,22 +225,19 @@ enum class ConnectionThread {
 ## Connection
 
 ```cpp
-class Connection {
+class Connection {                  // Qt QMetaObject::Connection 风格的“被动句柄”
     Connection();
-    Connection(std::shared_ptr&lt;detail::ConnectionState&gt; state);
-    ~Connection();                         // 析构自动断开
-    Connection(const Connection&amp;) = delete;
-    Connection&amp; operator=(const Connection&amp;) = delete;
-    Connection(Connection&amp;&amp;) noexcept;
-    Connection&amp; operator=(Connection&amp;&amp;) noexcept;
-    void disconnect();
+    ~Connection();                  // 注意：析构【不】自动断开
+    Connection(const Connection&amp;) = default;   // 可拷贝
+    void disconnect();              // 显式断开这一条
     bool isConnected() const;
+    explicit operator bool() const;
 };
 ```
 
-- **只能移动、不能拷贝**：拷贝被删除，避免同一连接被断开多次。
-- 析构即断开；把 `Connection` 存为局部变量会在离开作用域时断开——如果你的槽要长期存在，**不要**把返回值存到临时变量里然后让它析构。推荐用 `UIElement::Connect(...)`，它会把连接登记进元素的 `ConnectionGroup`。
-- `disconnect()` 主动断开；`isConnected()` 查询是否仍有效。
+- **被动句柄**：析构**不会**自动断开，所以忽略返回值（`elem-&gt;Connect(sig, slot);`）是安全的；要单独断开就 `conn.disconnect()`。
+- 自动断连由元素的 `ConnectionGroup` 负责（元素析构时统一断开）。
+- `isConnected()` / `operator bool` 查询是否仍有效。
 
 ## ConnectionGroup
 
@@ -317,7 +314,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-da498701', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-914caf55', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ConnectionThread</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">CurrentThread</span><span class="p">,</span><span class="w">   </span><span class="c1">// 在触发线程直接执行（默认）</span>
@@ -325,7 +322,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <span class="w">    </span><span class="n">UIThread</span><span class="w">         </span><span class="c1">// 投递到 UI 线程消息循环执行</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-da498701" style="display: none;">enum class ConnectionThread {
+<pre id="code-914caf55" style="display: none;">enum class ConnectionThread {
     CurrentThread,   // 在触发线程直接执行（默认）
     NewThread,       // 每次触发新建分离线程执行
     UIThread         // 投递到 UI 线程消息循环执行
@@ -340,42 +337,36 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-fe2a6c80', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-d5342720', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
-<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Connection</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Connection</span><span class="w"> </span><span class="p">{</span><span class="w">                  </span><span class="c1">// Qt QMetaObject::Connection 风格的“被动句柄”</span>
 <span class="w">    </span><span class="n">Connection</span><span class="p">();</span>
-<span class="w">    </span><span class="n">Connection</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">detail</span><span class="o">::</span><span class="n">ConnectionState</span><span class="o">&gt;</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
-<span class="w">    </span><span class="o">~</span><span class="n">Connection</span><span class="p">();</span><span class="w">                         </span><span class="c1">// 析构自动断开</span>
-<span class="w">    </span><span class="n">Connection</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Connection</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delete</span><span class="p">;</span>
-<span class="w">    </span><span class="n">Connection</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Connection</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">delete</span><span class="p">;</span>
-<span class="w">    </span><span class="n">Connection</span><span class="p">(</span><span class="n">Connection</span><span class="o">&amp;&amp;</span><span class="p">)</span><span class="w"> </span><span class="k">noexcept</span><span class="p">;</span>
-<span class="w">    </span><span class="n">Connection</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">=</span><span class="p">(</span><span class="n">Connection</span><span class="o">&amp;&amp;</span><span class="p">)</span><span class="w"> </span><span class="k">noexcept</span><span class="p">;</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">disconnect</span><span class="p">();</span>
+<span class="w">    </span><span class="o">~</span><span class="n">Connection</span><span class="p">();</span><span class="w">                  </span><span class="c1">// 注意：析构【不】自动断开</span>
+<span class="w">    </span><span class="n">Connection</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Connection</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">;</span><span class="w">   </span><span class="c1">// 可拷贝</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">disconnect</span><span class="p">();</span><span class="w">              </span><span class="c1">// 显式断开这一条</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">isConnected</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="k">operator</span><span class="w"> </span><span class="kt">bool</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-fe2a6c80" style="display: none;">class Connection {
+<pre id="code-d5342720" style="display: none;">class Connection {                  // Qt QMetaObject::Connection 风格的“被动句柄”
     Connection();
-    Connection(std::shared_ptr&lt;detail::ConnectionState&gt; state);
-    ~Connection();                         // 析构自动断开
-    Connection(const Connection&amp;) = delete;
-    Connection&amp; operator=(const Connection&amp;) = delete;
-    Connection(Connection&amp;&amp;) noexcept;
-    Connection&amp; operator=(Connection&amp;&amp;) noexcept;
-    void disconnect();
+    ~Connection();                  // 注意：析构【不】自动断开
+    Connection(const Connection&amp;) = default;   // 可拷贝
+    void disconnect();              // 显式断开这一条
     bool isConnected() const;
+    explicit operator bool() const;
 };</pre>
 </div>
 <ul>
-<li><strong>只能移动、不能拷贝</strong>：拷贝被删除，避免同一连接被断开多次。</li>
-<li>析构即断开；把 <code>Connection</code> 存为局部变量会在离开作用域时断开——如果你的槽要长期存在，<strong>不要</strong>把返回值存到临时变量里然后让它析构。推荐用 <code>UIElement::Connect(...)</code>，它会把连接登记进元素的 <code>ConnectionGroup</code>。</li>
-<li><code>disconnect()</code> 主动断开；<code>isConnected()</code> 查询是否仍有效。</li>
+<li><strong>被动句柄</strong>：析构<strong>不会</strong>自动断开，所以忽略返回值（<code>elem-&gt;Connect(sig, slot);</code>）是安全的；要单独断开就 <code>conn.disconnect()</code>。</li>
+<li>自动断连由元素的 <code>ConnectionGroup</code> 负责（元素析构时统一断开）。</li>
+<li><code>isConnected()</code> / <code>operator bool</code> 查询是否仍有效。</li>
 </ul>
 <h2 id="connectiongroup">ConnectionGroup</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-c7aa514f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-7c33d148', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ConnectionGroup</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">enable_shared_from_this</span><span class="o">&lt;</span><span class="n">ConnectionGroup</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ConnectionGroup</span><span class="p">();</span>
@@ -385,7 +376,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">addState</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">detail</span><span class="o">::</span><span class="n">ConnectionState</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">state</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-c7aa514f" style="display: none;">class ConnectionGroup : public std::enable_shared_from_this&lt;ConnectionGroup&gt; {
+<pre id="code-7c33d148" style="display: none;">class ConnectionGroup : public std::enable_shared_from_this&lt;ConnectionGroup&gt; {
     ConnectionGroup();
     ~ConnectionGroup();                    // 析构时断开全部
     void disconnectAll();
@@ -401,7 +392,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-183c1129', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-b7db3245', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span><span class="p">...</span><span class="w"> </span><span class="n">TArgs</span><span class="o">&gt;</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">ZSignal</span><span class="w"> </span><span class="p">{</span>
@@ -413,7 +404,7 @@ btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">operator</span><span class="p">()(</span><span class="n">TArgs</span><span class="p">...</span><span class="w"> </span><span class="n">targs</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">   </span><span class="c1">// Fire 的语法糖</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-183c1129" style="display: none;">template &lt;typename... TArgs&gt;
+<pre id="code-b7db3245" style="display: none;">template &lt;typename... TArgs&gt;
 class ZSignal {
     using SlotType = std::function&lt;void(TArgs...)&gt;;
     Connection connect(SlotType slot,
@@ -438,12 +429,12 @@ class ZSignal {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-086f22f3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-a0986429', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">btn</span><span class="p">.</span><span class="n">get</span><span class="p">();</span><span class="w">   </span><span class="c1">// 原始指针；信号是 btn 的成员，btn 析构时连接自动失效</span>
 <span class="n">btn</span><span class="o">-&gt;</span><span class="n">Connect</span><span class="p">(</span><span class="n">btn</span><span class="o">-&gt;</span><span class="n">Clicked</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">b</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">b</span><span class="o">-&gt;</span><span class="n">SetText</span><span class="p">(</span><span class="sa">L</span><span class="s">"..."</span><span class="p">);</span><span class="w"> </span><span class="p">});</span>
 </pre></div>
-<pre id="code-086f22f3" style="display: none;">auto b = btn.get();   // 原始指针；信号是 btn 的成员，btn 析构时连接自动失效
+<pre id="code-a0986429" style="display: none;">auto b = btn.get();   // 原始指针；信号是 btn 的成员，btn 析构时连接自动失效
 btn-&gt;Connect(btn-&gt;Clicked, [b]() { b-&gt;SetText(L"..."); });</pre>
 </div>
 </div>

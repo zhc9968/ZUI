@@ -271,7 +271,7 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-31860bd7', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-ec6e6c3e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TitleBar</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
@@ -318,7 +318,7 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMinimizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaximizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-31860bd7" style="display: none;">class TitleBar : public UIElement {
+<pre id="code-ec6e6c3e" style="display: none;">class TitleBar : public UIElement {
     void SetTitle(const std::wstring&amp;);
     const std::wstring&amp; GetTitle() const;
     void SetIcon(std::shared_ptr&lt;Image&gt;);        // 复用图像系统
@@ -367,14 +367,14 @@ class DefaultTitleBar : public TitleBar {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-ea939167', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-f87ef4a9', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">DefaultTitleBar</span><span class="o">&gt;</span><span class="p">();</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetTitle</span><span class="p">(</span><span class="sa">L</span><span class="s">"我的窗口"</span><span class="p">);</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetIcon</span><span class="p">(</span><span class="n">myImage</span><span class="p">);</span><span class="w">                 </span><span class="c1">// 可选</span>
 <span class="n">win</span><span class="p">.</span><span class="n">SetCustomTitleBar</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span><span class="w">            </span><span class="c1">// 安装；win.SetCustomTitleBar(nullptr) 恢复原生</span>
 </pre></div>
-<pre id="code-ea939167" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
+<pre id="code-f87ef4a9" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
 bar-&gt;SetTitle(L"我的窗口");
 bar-&gt;SetIcon(myImage);                 // 可选
 win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr) 恢复原生</pre>
