@@ -944,18 +944,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         grid10->AddChild(std::make_shared<Label>(L"背景层（亚克力 / 云母 / 无）"), 1, 0);
         grid10->AddChild(backdropCombo, 1, 1);
 
-        // 背景实现方式 BackdropMode：只给两个选项——系统 / 手动
-        auto modeCombo = std::make_shared<ComboBox>();
-        modeCombo->AddItem(L"系统模式（DWM 系统材质）");
-        modeCombo->AddItem(L"手动模式（ZUI 自绘：缓存壁纸+模糊）");
-        modeCombo->SetSelectedIndex(0);
-        modeCombo->Connect(modeCombo->SelectionChanged, [w = &win](int idx) {
-            if (idx < 0) return;
-            w->SetBackdropMode((BackdropMode)idx);
-            });
-        grid10->AddChild(std::make_shared<Label>(L"背景模式（系统 / 手动）"), 2, 0);
-        grid10->AddChild(modeCombo, 2, 1);
-
         // 背景色（ARGB）：A = 能透出多少背景（0 全透、255 不透），RGB = 叠加颜色
         auto colorCombo = std::make_shared<ComboBox>();
         colorCombo->AddItem(L"全透明 0x00000000（透出背景）");
@@ -1050,15 +1038,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
         grid10->AddChild(micaCard, 9, 0, 1, 2);
 
-        // 仅"手动模式 + 亚克力/云母"时才显示对应卡片，否则隐藏
-        auto syncCards = [acrylicCard, micaCard, backdropCombo, modeCombo]() {
-            bool manual = (modeCombo->GetSelectedIndex() == 1);
+        // 选亚克力显示亚克力卡；选云母显示云母卡；选无则都隐藏
+        auto syncCards = [acrylicCard, micaCard, backdropCombo]() {
             int b = backdropCombo->GetSelectedIndex();
-            acrylicCard->SetVisible(manual && b == 1);
-            micaCard->SetVisible(manual && b == 2);
+            acrylicCard->SetVisible(b == 1);
+            micaCard->SetVisible(b == 2);
             };
         backdropCombo->Connect(backdropCombo->SelectionChanged, [syncCards](int) { syncCards(); });
-        modeCombo->Connect(modeCombo->SelectionChanged, [syncCards](int) { syncCards(); });
         syncCards();
     }
 

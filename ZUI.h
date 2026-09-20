@@ -193,12 +193,6 @@ namespace ZUI {
         Mica      // 云母
     };
 
-    // ---------- 背景实现方式（用什么 API） ----------
-    enum class BackdropMode {
-        System,  // 系统模式：优先 Win11 系统材质（Mica / HostBackdropBrush），不支持则回退 AccentState
-        Manual   // 手动模式：ZUI 自己实现（缓存桌面壁纸 + 模糊 + 独立 DComp 图层，Win10/11 通用）
-    };
-
     // ---------- 基础类型 ----------
     struct Color {
         float r, g, b, a;
@@ -2853,8 +2847,6 @@ namespace ZUI {
         }
         Backdrop GetBackdrop() const { return backdrop_; }
         // 背景实现方式：用什么 API（Auto / System / Accent）
-        void SetBackdropMode(BackdropMode m) { backdropMode_ = m; ApplyBackdrop(); }
-        BackdropMode GetBackdropMode() const { return backdropMode_; }
         // 当前是否在用系统材质（Win11 Mica/Acrylic）；false 表示走了 AccentState 路径
         bool IsSystemBackdropActive() const { return systemBackdropActive_; }
 
@@ -4515,10 +4507,9 @@ namespace ZUI {
             return S_OK;
         }
 
-        // 手动背景是否启用（BackdropMode::Manual 下 Mica/Acrylic/Blur 共用一套实现）
+        // 背景是否用手动实现（Mica 用缓存壁纸图层；Acrylic 用我们自己的配方）
         bool IsManualBackdrop() const {
-            // 手动模式只用于云母（自己手绘）。亚克力永远走"透后面窗口内容"的系统实现，不动它。
-            return backdropMode_ == BackdropMode::Manual && backdrop_ == Backdrop::Mica;
+            return backdrop_ == Backdrop::Mica;
         }
 
         // 读取桌面壁纸 -> 缩放到虚拟屏幕 -> 高斯模糊 + 白纱，烘焙成一张位图
@@ -4712,15 +4703,14 @@ namespace ZUI {
         void UpdateDCompBackdrop() {
             if (!rootVisual_ || !compositor_) return;
             rootVisual_->put_Brush(nullptr);              // 先清掉旧背景
-            // 手动模式 + 云母：ZUI 自绘缓存壁纸图层
-            if (backdropMode_ == BackdropMode::Manual && backdrop_ == Backdrop::Mica) {
+            // 云母：ZUI 自绘缓存壁纸图层
+            if (backdrop_ == Backdrop::Mica) {
                 if (!wallpaperVisual_) { DestroyWallpaperLayer(); BuildWallpaperLayer(); }
                 return;
             }
             DestroyWallpaperLayer();
-            // 手动模式 + 亚克力：用**我们自己的配方**（源 = 宿主背景 = 后面窗口的内容）
-            // 系统模式：交给 DWM，不挂我们自己的配方
-            if (!(backdropMode_ == BackdropMode::Manual && backdrop_ == Backdrop::Acrylic)) return;
+            // 亚克力：用我们自己的配方（源 = 宿主背景 = 后面窗口的内容）
+            if (backdrop_ != Backdrop::Acrylic) return;
 
             ComPtr<ICompositionBackdropBrush> backdropBrush;
             HRESULT hrBackdrop = E_FAIL;
@@ -4839,50 +4829,27 @@ namespace ZUI {
             UpdateDCompBackdrop();
 
             // 实现方式（不互相近似）：
-            //   Acrylic : DComp HostBackdropBrush（CreateCompositionBackend 已挂好）+ DWMWA_USE_HOSTBACKDROPBRUSH
-            //             + AccentState(HOSTBACKDROP)；Win10 回退 AccentState(ACRYLICBLURBEHIND)
-            //   Mica/MicaAlt : DWMWA_SYSTEMBACKDROP_TYPE（Win11 系统材质）
-            //   Blur    : AccentState(BLURBEHIND)
-            //   Normal  : AccentState(GRADIENT) 不透明
-            //   None    : 全部关闭
+            // 背景全部走**手动实现**（不再区分系统/手动）：
+            //   Acrylic : DWMWA_USE_HOSTBACKDROPBRUSH（让宿主背景可用=后面窗口内容）+ 我们自己的配方
+            //   Mica    : ZUI 自绘的缓存壁纸图层
+            //   None    : 关闭
             int noneType = DWMSBT_NONE;
             DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &noneType, sizeof(noneType));
-            BOOL hbOff = FALSE;
-            DwmSetWindowAttribute(hwnd_, DWMWA_USE_HOSTBACKDROPBRUSH, &hbOff, sizeof(hbOff));
             ApplyAccentState(ACCENT_DISABLED);
             systemBackdropActive_ = false;
 
             switch (backdrop_) {
             case Backdrop::Acrylic: {
-                if (backdropMode_ == BackdropMode::Manual) {
-                    // 手动：宿主背景可用即可，画面由我们自己的配方（UpdateDCompBackdrop）绘制
-                    BOOL on = TRUE;
-                    systemBackdropActive_ = SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_USE_HOSTBACKDROPBRUSH, &on, sizeof(on)));
-                    return;
-                }
-                // 系统：Win11 的"透明窗"材质（DWM 亚克力）
-                int type = DWMSBT_TRANSIENTWINDOW;
-                if (SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type)))) {
-                    systemBackdropActive_ = true;
-                    return;
-                }
-                break;
+                BOOL on = TRUE;
+                systemBackdropActive_ = SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_USE_HOSTBACKDROPBRUSH, &on, sizeof(on)));
+                return;
             }
-            case Backdrop::Mica: {
-                if (backdropMode_ == BackdropMode::Manual) break;
-                int type = DWMSBT_TABBEDWINDOW;   // 系统云母 = MicaAlt
-                if (SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type)))) {
-                    systemBackdropActive_ = true;
-                    return;
-                }
-                break;
-            }
+            case Backdrop::Mica:
+                return;   // 画面由 UpdateDCompBackdrop 里的缓存壁纸图层提供
             case Backdrop::None:
                 ApplyAccentState(ACCENT_DISABLED);
                 return;
             }
-            // 手动模式（Mica/Acrylic/Blur）：背景由 UpdateDCompBackdrop 里的 ZUI 自绘图层提供
-            if (IsManualBackdrop()) return;
             BackdropUnsupported.Fire();
         }
 
@@ -5026,7 +4993,6 @@ namespace ZUI {
         std::chrono::steady_clock::time_point lastTime_;
         bool layoutNeeded_;
         Backdrop backdrop_;
-        BackdropMode backdropMode_ = BackdropMode::System;
         bool systemBackdropActive_ = false;
         DWORD backdropColor_;
         Color backgroundColor_;
