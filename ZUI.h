@@ -620,7 +620,7 @@ namespace ZUI {
         inline ZSignal<> DeviceReset;
 
         // 亚克力/材质参数发生变化时触发：所有窗口重新应用背景（重建 DComp 效果图 / 重绘）。
-        // 应用改完 Window::Acrylic* 参数后，调用 Window::ReloadAcrylic() 或直接 Fire 本信号。
+        // 应用改完 Window::Acrylic* 参数后，调用 Window::SetBackgroundParams(Backdrop::Acrylic, Window::AcrylicParams) 或直接 Fire 本信号。
         inline ZSignal<> ReloadAcrylic;
     }
 
@@ -2801,21 +2801,53 @@ namespace ZUI {
         //   Noise 层      : noiseOpacity（噪点不透明度）
         struct BackgroundParams {
             float blurAmount = 30.0f;                                        // Blur 层
-            float brightness = 0.0f;                                         // Luminosity：亮度偏移 [-1,1]
-            float contrast = 1.0f;                                           // Luminosity：对比度倍数
-            float saturation = 1.0f;                                         // Luminosity：饱和度倍数
-            D2D1_COLOR_F tint = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.0f);        // Tint：颜色（含 alpha）
-            D2D1_COLOR_F luminosity = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);  // 官方 Luminosity 颜色
+            float saturation = 1.0f;                                         // Legacy 配方：饱和度（Luminosity 配方无此步）
+            D2D1_COLOR_F tint = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.0f);        // Tint 层：颜色（含 alpha）
+            D2D1_COLOR_F luminosity = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);  // Luminosity 层：亮度色
             float noiseOpacity = 0.02f;                                      // Noise 层
         };
         // 亚克力（源 = 宿主背景 = 后面窗口的内容）
         inline static BackgroundParams AcrylicParams{};
-        // 云母（源 = 缓存桌面壁纸）；默认 = 调好的黄金比例
-        inline static BackgroundParams MicaParams{ 200.0f, 0.0f, 1.0f, 1.75f,
-            D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.75f), D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f), 0.005f };
+        // 云母（源 = 缓存桌面壁纸）；默认 = 调好的比例（模糊 50% / 饱和 75% / 色调 alpha 87.5% / 噪点 5%）
+        inline static BackgroundParams MicaParams{ 200.0f, 2.25f,
+            D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.875f), D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f), 0.005f };
+        // ---------- 官方亚克力配方预设 ----------
+        enum class AcrylicPreset {
+            Legacy,      // Legacy / RS2：无 Luminosity 层（兼容 RS5 及更低）
+            Luminosity,  // Luminosity（19H1+）：默认现代配方（含 Luminosity 层）
+            Base,        // DesktopAcrylic Base：厚，颜色重、模糊强
+            Thin         // DesktopAcrylic Thin：薄，颜色浅、通透
+        };
+        // 用一个函数设置某背景层的全部参数，并立即生效
+        static void SetBackgroundParams(Backdrop which, const BackgroundParams& p) {
+            if (which == Backdrop::Mica) MicaParams = p; else AcrylicParams = p;
+            UIZSignals::ReloadAcrylic.Fire();
+        }
+        // 预设重载
+        static void SetBackgroundParams(Backdrop which, AcrylicPreset preset) {
+            BackgroundParams p{};
+            switch (preset) {
+            case AcrylicPreset::Legacy:
+                p = { 30.0f, 1.0f, D2D1::ColorF(0.125f, 0.125f, 0.125f, 0.40f),
+                      D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f), 0.02f };
+                break;
+            case AcrylicPreset::Luminosity:
+                p = { 30.0f, 1.0f, D2D1::ColorF(0.125f, 0.125f, 0.125f, 0.40f),
+                      D2D1::ColorF(0.125f, 0.125f, 0.125f, 0.80f), 0.02f };
+                break;
+            case AcrylicPreset::Base:
+                p = { 40.0f, 1.0f, D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.55f),
+                      D2D1::ColorF(0.15f, 0.15f, 0.15f, 0.85f), 0.03f };
+                break;
+            case AcrylicPreset::Thin:
+                p = { 20.0f, 1.0f, D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.20f),
+                      D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.30f), 0.01f };
+                break;
+            }
+            if (which == Backdrop::Mica) MicaParams = p; else AcrylicParams = p;
+            UIZSignals::ReloadAcrylic.Fire();
+        }
         // 改完参数后调用：所有窗口重新加载背景
-        static void ReloadAcrylic() { UIZSignals::ReloadAcrylic.Fire(); }
-        static void ReloadMica() { UIZSignals::ReloadAcrylic.Fire(); }
         inline static Color DefaultBackgroundColor = Color(0, 0, 0, 0);
 
         Window() : core_(&detail::AppCore::Instance()), hwnd_(nullptr), d2dFactory_(nullptr), renderTarget_(nullptr),
@@ -4559,8 +4591,6 @@ namespace ZUI {
             const bool isMica = (backdrop_ == Backdrop::Mica);
             const float sigma = isMica ? MicaParams.blurAmount : AcrylicParams.blurAmount;
             const float saturation = isMica ? MicaParams.saturation : AcrylicParams.saturation;
-            const float brightness = isMica ? MicaParams.brightness : AcrylicParams.brightness;
-            const float contrast = isMica ? MicaParams.contrast : AcrylicParams.contrast;
             const float noiseOpacity = isMica ? MicaParams.noiseOpacity : AcrylicParams.noiseOpacity;
             const D2D1_COLOR_F veil = isMica ? MicaParams.tint : AcrylicParams.tint;
             const D2D1_RECT_F full = D2D1::RectF(0, 0, (float)wallpaperVirtW_, (float)wallpaperVirtH_);
@@ -4569,7 +4599,10 @@ namespace ZUI {
             dc->BeginDraw();
             dc->Clear(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f));   // 先铺一层白色底，再在上面算
 
-            // 1) 模糊 -> （云母）降饱和
+            // 官方配方的步骤：
+            //   Luminosity(19H1+) : Blur -> Blend(Color, luminosity色) -> Blend(Luminosity, tint色) -> Noise
+            //   Legacy(RS2)       : Blur -> Saturation -> Blend(Exclusion) -> CompositeStep(tint) -> Noise
+            // 这里：Blur +（Legacy 的）Saturation + Tint 叠色 + Noise；不加官方没有的步骤。
             ID2D1Effect* result = nullptr;
             ComPtr<ID2D1Effect> blur, sat;
             if (SUCCEEDED(dc->CreateEffect(CLSID_D2D1GaussianBlur, &blur)) && blur) {
@@ -4577,22 +4610,11 @@ namespace ZUI {
                 blur->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, sigma);
                 blur->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
                 result = blur.Get();
-                if (SUCCEEDED(dc->CreateEffect(CLSID_D2D1Saturation, &sat)) && sat) {
+                // Saturation 是 Legacy(RS2) 配方的步骤；Luminosity 配方没有（saturation==1 时不加）
+                if (saturation != 1.0f && SUCCEEDED(dc->CreateEffect(CLSID_D2D1Saturation, &sat)) && sat) {
                     sat->SetInputEffect(0, blur.Get());
                     sat->SetValue(D2D1_SATURATION_PROP_SATURATION, saturation);
                     result = sat.Get();
-                }
-                // Luminosity 层：亮度 / 对比度（ColorMatrix）
-                ComPtr<ID2D1Effect> cm;
-                if (SUCCEEDED(dc->CreateEffect(CLSID_D2D1ColorMatrix, &cm)) && cm) {
-                    cm->SetInputEffect(0, result);
-                    const float c = contrast;
-                    const float b = brightness + (1.0f - contrast) * 0.5f;
-                    D2D1_MATRIX_5X4_F m = {};
-                    m._11 = c; m._22 = c; m._33 = c; m._44 = 1.0f;
-                    m._51 = b; m._52 = b; m._53 = b;
-                    cm->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, m);
-                    result = cm.Get();
                 }
             }
             if (result) dc->DrawImage(result);
@@ -4747,7 +4769,8 @@ namespace ZUI {
             ComPtr<ICompositionBrush> brush = detail_fx::BuildAcrylicBrush(
                 compositor_, reinterpret_cast<ICompositionBrush*>(backdropBrush.Get()),
                 noise.Get(),
-                tint, AcrylicParams.luminosity, AcrylicParams.noiseOpacity, AcrylicParams.blurAmount);
+                tint, AcrylicParams.luminosity, AcrylicParams.saturation,
+                AcrylicParams.noiseOpacity, AcrylicParams.blurAmount);
             if (!brush) {
                 // 兜底：完整配方失败时退回“宿主背景 + 高斯模糊”，至少能看到模糊背景
                 auto blur = Microsoft::WRL::Make<detail_fx::GaussianBlurEffect>(AcrylicParams.blurAmount);

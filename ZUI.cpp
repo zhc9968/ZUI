@@ -1014,17 +1014,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (auto g = acrylicCard->GetLayoutAs<GridLayout>()) {
             g->AddChild(std::make_shared<Label>(L"亚克力参数"), 0, 0, 1, 2);
             addSlider(g, 1, L"模糊量", 0.0f, 200.0f, 1.0f, Window::AcrylicParams.blurAmount,
-                [](float v) { Window::AcrylicParams.blurAmount = v; Window::ReloadAcrylic(); });
-            addSlider(g, 2, L"亮度", -1.0f, 1.0f, 0.05f, Window::AcrylicParams.brightness,
-                [](float v) { Window::AcrylicParams.brightness = v; Window::ReloadAcrylic(); });
-            addSlider(g, 3, L"对比度", 0.0f, 3.0f, 0.05f, Window::AcrylicParams.contrast,
-                [](float v) { Window::AcrylicParams.contrast = v; Window::ReloadAcrylic(); });
-            addSlider(g, 4, L"饱和度", 0.0f, 3.0f, 0.05f, Window::AcrylicParams.saturation,
-                [](float v) { Window::AcrylicParams.saturation = v; Window::ReloadAcrylic(); });
-            addSlider(g, 5, L"色调 alpha", 0.0f, 1.0f, 0.05f, Window::AcrylicParams.tint.a,
-                [](float v) { Window::AcrylicParams.tint.a = v; Window::ReloadAcrylic(); });
-            addSlider(g, 6, L"噪点", 0.0f, 0.1f, 0.005f, Window::AcrylicParams.noiseOpacity,
-                [](float v) { Window::AcrylicParams.noiseOpacity = v; Window::ReloadAcrylic(); });
+                [](float v) { Window::AcrylicParams.blurAmount = v; Window::SetBackgroundParams(Backdrop::Acrylic, Window::AcrylicParams); });
+            addSlider(g, 2, L"饱和度", 0.0f, 3.0f, 0.05f, Window::AcrylicParams.saturation,
+                [](float v) { Window::AcrylicParams.saturation = v; Window::SetBackgroundParams(Backdrop::Acrylic, Window::AcrylicParams); });
+            addSlider(g, 3, L"色调 alpha", 0.0f, 1.0f, 0.05f, Window::AcrylicParams.tint.a,
+                [](float v) { Window::AcrylicParams.tint.a = v; Window::SetBackgroundParams(Backdrop::Acrylic, Window::AcrylicParams); });
+            addSlider(g, 4, L"噪点", 0.0f, 0.1f, 0.005f, Window::AcrylicParams.noiseOpacity,
+                [](float v) { Window::AcrylicParams.noiseOpacity = v; Window::SetBackgroundParams(Backdrop::Acrylic, Window::AcrylicParams); });
         }
         grid10->AddChild(acrylicCard, 8, 0, 1, 2);
 
@@ -1034,17 +1030,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         if (auto g = micaCard->GetLayoutAs<GridLayout>()) {
             g->AddChild(std::make_shared<Label>(L"云母参数"), 0, 0, 1, 2);
             addSlider(g, 1, L"模糊量", 0.0f, 400.0f, 1.0f, Window::MicaParams.blurAmount,
-                [](float v) { Window::MicaParams.blurAmount = v; Window::ReloadMica(); });
-            addSlider(g, 2, L"亮度", -1.0f, 1.0f, 0.05f, Window::MicaParams.brightness,
-                [](float v) { Window::MicaParams.brightness = v; Window::ReloadMica(); });
-            addSlider(g, 3, L"对比度", 0.0f, 3.0f, 0.05f, Window::MicaParams.contrast,
-                [](float v) { Window::MicaParams.contrast = v; Window::ReloadMica(); });
-            addSlider(g, 4, L"饱和度", 0.0f, 3.0f, 0.05f, Window::MicaParams.saturation,
-                [](float v) { Window::MicaParams.saturation = v; Window::ReloadMica(); });
-            addSlider(g, 5, L"色调 alpha", 0.0f, 1.0f, 0.05f, Window::MicaParams.tint.a,
-                [](float v) { Window::MicaParams.tint.a = v; Window::ReloadMica(); });
-            addSlider(g, 6, L"噪点", 0.0f, 0.1f, 0.005f, Window::MicaParams.noiseOpacity,
-                [](float v) { Window::MicaParams.noiseOpacity = v; Window::ReloadMica(); });
+                [](float v) { Window::MicaParams.blurAmount = v; Window::SetBackgroundParams(Backdrop::Mica, Window::MicaParams); });
+            addSlider(g, 2, L"饱和度", 0.0f, 3.0f, 0.05f, Window::MicaParams.saturation,
+                [](float v) { Window::MicaParams.saturation = v; Window::SetBackgroundParams(Backdrop::Mica, Window::MicaParams); });
+            addSlider(g, 3, L"色调 alpha", 0.0f, 1.0f, 0.05f, Window::MicaParams.tint.a,
+                [](float v) { Window::MicaParams.tint.a = v; Window::SetBackgroundParams(Backdrop::Mica, Window::MicaParams); });
+            addSlider(g, 4, L"噪点", 0.0f, 0.1f, 0.005f, Window::MicaParams.noiseOpacity,
+                [](float v) { Window::MicaParams.noiseOpacity = v; Window::SetBackgroundParams(Backdrop::Mica, Window::MicaParams); });
         }
         grid10->AddChild(micaCard, 9, 0, 1, 2);
 

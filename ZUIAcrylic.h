@@ -324,7 +324,7 @@ namespace ZUI {
         // ---- 官方亚克力配方（Luminosity 版）----
         inline ComPtr<ICompositionBrush> BuildAcrylicBrush(
             ICompositor* compositor, ICompositionBrush* backdrop, ICompositionBrush* noise,
-            const D2D1_COLOR_F& tint, const D2D1_COLOR_F& luminosity,
+            const D2D1_COLOR_F& tint, const D2D1_COLOR_F& luminosity, float saturation = 1.0f,
             float noiseOpacity = 0.02f, float blur = 30.0f) {
             if (!compositor) return nullptr;
 
@@ -340,6 +340,16 @@ namespace ZUI {
             auto blurFx = Microsoft::WRL::Make<GaussianBlurEffect>(blur);
             blurFx->SetInput(static_cast<IGraphicsEffectSource*>(CompositionEffectSource(HStringReference(L"Backdrop").Get())));
 
+            // Saturation 层（官方 Legacy/RS2 配方有这一步；Luminosity 配方 saturation==1 时跳过）
+            IGraphicsEffectSource* afterBlur = static_cast<IGraphicsEffectSource*>(blurFx.Get());
+            ComPtr<SaturationEffect> satFx;
+            if (saturation != 1.0f) {
+                satFx = Microsoft::WRL::Make<SaturationEffect>();
+                satFx->SetSaturation(saturation);
+                satFx->SetInput(afterBlur);
+                afterBlur = static_cast<IGraphicsEffectSource*>(satFx.Get());
+            }
+
             auto tintFx = Microsoft::WRL::Make<ColorSourceEffect>();
             tintFx->SetColor(tint);
             auto lumFx = Microsoft::WRL::Make<ColorSourceEffect>();
@@ -348,17 +358,18 @@ namespace ZUI {
             // 名字是反的：COLOR 做 Luminosity，LUMINOSITY 做 Color
             auto lumBlend = Microsoft::WRL::Make<BlendEffect>();
             lumBlend->SetBlendMode(D2D1_BLEND_MODE_COLOR);
-            lumBlend->SetBackground(static_cast<IGraphicsEffectSource*>(blurFx.Get()));
+            lumBlend->SetBackground(afterBlur);
             lumBlend->SetForeground(static_cast<IGraphicsEffectSource*>(lumFx.Get()));
 
-            auto colorBlend = Microsoft::WRL::Make<BlendEffect>();
-            colorBlend->SetBlendMode(D2D1_BLEND_MODE_LUMINOSITY);
-            colorBlend->SetBackground(static_cast<IGraphicsEffectSource*>(lumBlend.Get()));
-            colorBlend->SetForeground(static_cast<IGraphicsEffectSource*>(tintFx.Get()));
+            // Tint 层：用 CompositeStep(SOURCE_OVER) 叠色 —— 这样 tint 的 alpha 才生效
+            auto tintStep = Microsoft::WRL::Make<CompositeStepEffect>();
+            tintStep->SetCompositeMode(D2D1_COMPOSITE_MODE_SOURCE_OVER);
+            tintStep->SetDestination(static_cast<IGraphicsEffectSource*>(lumBlend.Get()));
+            tintStep->SetSource(static_cast<IGraphicsEffectSource*>(tintFx.Get()));
 
             auto noiseBlend = Microsoft::WRL::Make<BlendEffect>();
             noiseBlend->SetBlendMode(D2D1_BLEND_MODE_MULTIPLY);
-            noiseBlend->SetBackground(static_cast<IGraphicsEffectSource*>(colorBlend.Get()));
+            noiseBlend->SetBackground(static_cast<IGraphicsEffectSource*>(tintStep.Get()));
             noiseBlend->SetForeground(static_cast<IGraphicsEffectSource*>(opacity.Get()));
 
             ComPtr<ICompositionEffectFactory> factory;
