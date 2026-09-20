@@ -18,6 +18,8 @@
 #include <windows.graphics.effects.h>
 #include <windows.graphics.effects.interop.h>
 #include <d2d1effects_2.h>
+#include <d2d1effects.h>
+#include <wincodec.h>
 #include <wrl/implements.h>
 #include <dwrite.h>
 #include <dwmapi.h>
@@ -40,6 +42,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <array>
+#include "ZUIAcrylic.h"   // 手写 DComp 效果类 + 官方亚克力/云母配方（需放在 namespace ZUI 之前）
 
 // 调试输出宏：默认关闭，定义 ZUI_DEBUG 后启用（不删除调试代码）
 #ifdef ZUI_DEBUG
@@ -183,21 +186,17 @@ namespace ZUI {
         SIZE_T cbData;
     };
 
-    // ---------- 背景效果（要什么，与实现无关） ----------
+    // ---------- 背景层（只有三个选项） ----------
     enum class Backdrop {
-        None,       // 不使用系统背景效果
-        Normal,     // 普通不透明窗口
-        Blur,       // 毛玻璃
-        Acrylic,    // 亚克力
-        Mica,       // 云母（仅 Win11 系统材质）
-        MicaAlt     // 云母变体（仅 Win11 系统材质）
+        None,     // 无：背景完全透明
+        Acrylic,  // 亚克力
+        Mica      // 云母
     };
 
     // ---------- 背景实现方式（用什么 API） ----------
     enum class BackdropMode {
-        Auto,    // 运行时自动选择：优先 Win11 系统材质，不支持则回退 AccentState
-        System,  // 强制 Win11 DWMWA_SYSTEMBACKDROP_TYPE（Win10 调用失败）
-        Accent   // 强制 SetWindowCompositionAttribute(AccentState)
+        System,  // 系统模式：优先 Win11 系统材质（Mica / HostBackdropBrush），不支持则回退 AccentState
+        Manual   // 手动模式：ZUI 自己实现（缓存桌面壁纸 + 模糊 + 独立 DComp 图层，Win10/11 通用）
     };
 
     // ---------- 基础类型 ----------
@@ -625,6 +624,10 @@ namespace ZUI {
         // 渲染设备资源被丢弃/重建（设备丢失、DPI 变化、窗口销毁等）。
         // 订阅者应清掉自己按渲染目标/设备缓存的东西（如 ImageManager 的图像位图缓存）。
         inline ZSignal<> DeviceReset;
+
+        // 亚克力/材质参数发生变化时触发：所有窗口重新应用背景（重建 DComp 效果图 / 重绘）。
+        // 应用改完 Window::Acrylic* 参数后，调用 Window::ReloadAcrylic() 或直接 Fire 本信号。
+        inline ZSignal<> ReloadAcrylic;
     }
 
     // ---------- 基础元素 ----------
@@ -2694,6 +2697,32 @@ namespace ZUI {
                 return compositor_.Get();
             }
 
+            // 共享 CompositionGraphicsDevice（噪点绘制表面用）
+            ICompositionGraphicsDevice* GetCompositionGraphicsDevice() {
+                if (!compositionGfx_) {
+                    ICompositor* comp = GetCompositor();
+                    ID2D1Device* d2d = GetD2DDevice();
+                    if (!comp || !d2d) return nullptr;
+                    ComPtr<ICompositorInterop> interop;
+                    if (FAILED(comp->QueryInterface(IID_PPV_ARGS(&interop)))) return nullptr;
+                    interop->CreateGraphicsDevice(d2d, &compositionGfx_);
+                }
+                return compositionGfx_.Get();
+            }
+            IWICImagingFactory* GetWICFactory() {
+                if (!wicFactory_)
+                    CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&wicFactory_));
+                return wicFactory_.Get();
+            }
+            // 系统噪点刷（懒建，官方的 2% 噪点源）。内部按系统 DPI 缩放，保证颗粒 1 物理像素一颗。
+            ICompositionBrush* GetNoiseBrush() {
+                if (!noiseBrush_) {
+                    auto sb = detail_fx::CreateSystemNoiseBrush(GetCompositor(), GetCompositionGraphicsDevice(), GetWICFactory());
+                    if (sb) sb.As(&noiseBrush_);
+                }
+                return noiseBrush_.Get();
+            }
+
             void AddWindow(Window* w) {
                 if (w && std::find(windows_.begin(), windows_.end(), w) == windows_.end())
                     windows_.push_back(w);
@@ -2751,6 +2780,9 @@ namespace ZUI {
             ComPtr<IDXGIDevice> dxgiDevice_;
             ComPtr<ID2D1Device> d2dDevice_;
             ComPtr<ICompositor> compositor_;
+            ComPtr<ICompositionGraphicsDevice> compositionGfx_;
+            ComPtr<IWICImagingFactory> wicFactory_;
+            ComPtr<ICompositionBrush> noiseBrush_;
             ComPtr<IUnknown> dqController_;   // 持有并释放，避免泄漏
             std::vector<Window*> windows_;
             std::unordered_map<int, Window*> windowsById_;
@@ -2761,124 +2793,32 @@ namespace ZUI {
     }
 
     // ========== DComp 亚克力效果封装（移植自 ALTaleX531/Win32Acrylic，MIT） ==========
-    namespace detail_fx {
-        using Microsoft::WRL::ComPtr;
-        using Microsoft::WRL::RuntimeClass;
-        using Microsoft::WRL::RuntimeClassFlags;
-        using Microsoft::WRL::WinRtClassicComMix;
-        using Microsoft::WRL::Wrappers::HString;
-        using Microsoft::WRL::Wrappers::HStringReference;
-        using namespace ABI::Windows::UI::Composition::Effects;
-        using namespace ABI::Windows::Graphics::Effects;
-        using namespace ABI::Windows::Foundation;
-
-        class CompositionEffectSource {
-            ComPtr<ICompositionEffectSourceParameter> param_;
-        public:
-            explicit CompositionEffectSource(const HSTRING& name) {
-                ComPtr<ICompositionEffectSourceParameterFactory> factory;
-                if (FAILED(GetActivationFactory(
-                    HStringReference(RuntimeClass_Windows_UI_Composition_CompositionEffectSourceParameter).Get(),
-                    &factory))) return;
-                factory->Create(name, &param_);
-            }
-            operator ICompositionEffectSourceParameter* () { return param_.Get(); }
-            operator IGraphicsEffectSource* () {
-                ComPtr<IGraphicsEffectSource> src;
-                if (param_) param_->QueryInterface(IID_PPV_ARGS(&src));
-                return src.Get();
-            }
-        };
-
-        class CompositionEffect :
-            public RuntimeClass<RuntimeClassFlags<WinRtClassicComMix>, IGraphicsEffect, IGraphicsEffectSource, IGraphicsEffectD2D1Interop> {
-        public:
-            explicit CompositionEffect(REFCLSID effectId) : effectId_(effectId) {
-                GetActivationFactory(
-                    HStringReference(RuntimeClass_Windows_Foundation_PropertyValue).Get(),
-                    &propertyValueFactory_);
-            }
-            virtual ~CompositionEffect() = default;
-
-            HRESULT STDMETHODCALLTYPE get_Name(HSTRING* name) override {
-                return WindowsDuplicateString(name_.Get(), name);
-            }
-            HRESULT STDMETHODCALLTYPE put_Name(HSTRING name) override {
-                return name_.Set(name);
-            }
-            HRESULT STDMETHODCALLTYPE GetEffectId(GUID* id) override {
-                if (!id) return E_POINTER;
-                *id = effectId_;
-                return S_OK;
-            }
-            HRESULT STDMETHODCALLTYPE GetNamedPropertyMapping(LPCWSTR, UINT*, GRAPHICS_EFFECT_PROPERTY_MAPPING*) override {
-                return E_NOTIMPL;
-            }
-            HRESULT STDMETHODCALLTYPE GetPropertyCount(UINT* count) override {
-                if (!count) return E_POINTER;
-                *count = (UINT)properties_.size();
-                return S_OK;
-            }
-            HRESULT STDMETHODCALLTYPE GetProperty(UINT index, IPropertyValue** value) override {
-                if (!value) return E_POINTER;
-                auto it = properties_.find((int)index);
-                if (it == properties_.end()) return E_INVALIDARG;
-                return it->second.CopyTo(value);
-            }
-            HRESULT STDMETHODCALLTYPE GetSource(UINT index, IGraphicsEffectSource** source) override {
-                if (!source) return E_POINTER;
-                auto it = sources_.find((int)index);
-                if (it == sources_.end()) return E_INVALIDARG;
-                return it->second.CopyTo(source);
-            }
-            HRESULT STDMETHODCALLTYPE GetSourceCount(UINT* count) override {
-                if (!count) return E_POINTER;
-                *count = (UINT)sources_.size();
-                return S_OK;
-            }
-
-            void SetInput(UINT index, IGraphicsEffectSource* source) {
-                sources_[(int)index] = ComPtr<IGraphicsEffectSource>(source);
-            }
-            void SetInput(IGraphicsEffectSource* source) { SetInput(0, source); }
-
-        protected:
-            ComPtr<IPropertyValue> Property(float value) {
-                ComPtr<IPropertyValue> pv;
-                propertyValueFactory_->CreateSingle(value, &pv);
-                return pv;
-            }
-            ComPtr<IPropertyValue> Property(UINT32 value) {
-                ComPtr<IPropertyValue> pv;
-                propertyValueFactory_->CreateUInt32(value, &pv);
-                return pv;
-            }
-            void SetProperty(UINT index, const ComPtr<IPropertyValue>& value) {
-                properties_[(int)index] = value;
-            }
-
-            CLSID effectId_{};
-            HString name_;
-            std::unordered_map<int, ComPtr<IPropertyValue>> properties_;
-            ComPtr<IPropertyValueStatics> propertyValueFactory_;
-            std::unordered_map<int, ComPtr<IGraphicsEffectSource>> sources_;
-        };
-
-        class GaussianBlurEffect : public CompositionEffect {
-        public:
-            GaussianBlurEffect() : CompositionEffect(CLSID_D2D1GaussianBlur) {
-                SetProperty(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, Property(30.0f));
-                SetProperty(D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION, Property((UINT32)D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED));
-                SetProperty(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, Property((UINT32)D2D1_BORDER_MODE_HARD));
-            }
-        };
-    }
+    // detail_fx（手写 IGraphicsEffect 效果类 + 官方亚克力/云母配方）已移至 ZUIAcrylic.h
 
     // ---------- 窗口 ----------
     class Window {
     public:
         inline static Backdrop DefaultBackdrop = Backdrop::None;
         inline static DWORD DefaultBackdropColor = 0x00000000;
+        // 亚克力可调参数（默认取官方配方值；应用可自行调整）
+        inline static float AcrylicBlurDeviation = 30.0f;   // 高斯模糊标准差（官方约 30）
+        inline static float AcrylicSaturation = 1.12f;      // 饱和度（旧版配方用；官方 Luminosity 版无此步）
+        inline static float AcrylicNoiseOpacity = 0.02f;    // 噪点不透明度（官方约 2%）
+        // 官方 Luminosity 版配方的“亮度颜色”。默认全透明 = 不做亮度调整（避免把背景压暗）。
+        inline static D2D1_COLOR_F AcrylicLuminosityColor = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
+        // 改完以上参数后调用它：所有窗口重新加载亚克力
+        static void ReloadAcrylic() { UIZSignals::ReloadAcrylic.Fire(); }
+        // 手动背景模式（BackdropMode::Manual）参数：缓存桌面壁纸 + 高斯模糊 + 白纱
+        inline static float MicaBlurDeviation = 200.0f;                                  // 模糊标准差（黄金比例 50%）
+        inline static float MicaSaturation = 1.75f;                                      // 饱和度（75%~100% 中间；高饱和趋近白）
+        inline static D2D1_COLOR_F MicaTintColor = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.75f); // 白纱 alpha 75%
+        inline static float MicaNoiseOpacity = 0.005f;                                   // 噪点最小一档
+        static void ReloadMica() { UIZSignals::ReloadAcrylic.Fire(); }
+        // 手动模式的亚克力参数（与云母分开；亚克力：少模糊、保颜色、2% 噪点、不叠白）
+        inline static float ManualAcrylicBlurDeviation = 30.0f;
+        inline static float ManualAcrylicSaturation = 1.0f;
+        inline static float ManualAcrylicNoiseOpacity = 0.02f;
+        inline static D2D1_COLOR_F ManualAcrylicTintColor = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
         inline static Color DefaultBackgroundColor = Color(0, 0, 0, 0);
 
         Window() : core_(&detail::AppCore::Instance()), hwnd_(nullptr), d2dFactory_(nullptr), renderTarget_(nullptr),
@@ -2892,6 +2832,7 @@ namespace ZUI {
             layoutInvalidated_(false) {}
 
         ~Window() {
+            acrylicReloadConn_.disconnect();
             if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);
             if (customTitleBar_) customTitleBar_->AttachWindowRecursive(nullptr);   // 析构路径同样清归属
             if (hwnd_) { DestroyWindow(hwnd_); hwnd_ = nullptr; }
@@ -2924,9 +2865,11 @@ namespace ZUI {
         // 信号：渲染致命错误（非设备丢失类）
         ZSignal<HRESULT> RenderingError;
 
+        // 背景色（等价于 SetBackdrop 的 argb 参数）：A=透出多少背景，RGB=叠加色
         void SetBackgroundColor(Color color) {
-            backgroundColor_ = color;
-            InvalidateRect(hwnd_, nullptr, FALSE);
+            auto to8 = [](float f) -> DWORD { f = clamp(f, 0.0f, 1.0f); return (DWORD)(f * 255.0f + 0.5f); };
+            backdropColor_ = (to8(color.a) << 24) | (to8(color.r) << 16) | (to8(color.g) << 8) | to8(color.b);
+            if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
         }
         static void SetDefaultBackdrop(Backdrop backdrop, DWORD tint = 0x00000000) {
             DefaultBackdrop = backdrop;
@@ -2992,6 +2935,14 @@ namespace ZUI {
             ApplyBackdrop();
             ApplyTitleBarColors();
             ApplyWindowCorner();
+
+            // 亚克力参数变化 → 重新加载亚克力（重建 DComp 效果图 + 重绘）
+            acrylicReloadConn_ = UIZSignals::ReloadAcrylic.connect([this]() {
+                noiseBrush_.Reset();   // 噪点参数可能变了，重建
+                DestroyWallpaperLayer();   // 手动背景参数可能变了，强制重建图层
+                ApplyBackdrop();
+                if (hwnd_) InvalidateRect(hwnd_, nullptr, FALSE);
+                }, ConnectionThread::CurrentThread, nullptr);
 
             auto defaultRoot = std::make_shared<ColumnBox>();
             defaultRoot->SetMargin(Thickness(20, 20, 20, 20));
@@ -3105,6 +3056,10 @@ namespace ZUI {
             if (hwnd_ && customFrame_ != wasCustom) {
                 SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+                // 恢复原生标题栏时，强制重绘非客户区，否则 DWM 可能不重画系统标题栏（表现为透明/看不见）
+                RedrawWindow(hwnd_, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+                // 重新应用背景/材质，避免取消后边框/材质状态没恢复
+                ApplyBackdrop();
                 layoutNeeded_ = true;
                 layoutInvalidated_ = true;
                 InvalidateRect(hwnd_, nullptr, TRUE);
@@ -3291,14 +3246,13 @@ namespace ZUI {
         // ---------- 自定义标题栏 / 窗口外观：实现 ----------
         void ApplyWindowCorner() {
             if (!hwnd_) return;
-            int pref = DWMWCP_DEFAULT;
-            switch (corner_) {
-            case WindowCorner::Square:     pref = DWMWCP_DONOTROUND; break;
-            case WindowCorner::Round:      pref = DWMWCP_ROUND; break;
-            case WindowCorner::RoundSmall: pref = DWMWCP_ROUNDSMALL; break;
-            default:                       pref = DWMWCP_DEFAULT; break;
-            }
+            // 注意：对逐像素透明(NRB+DComp)窗口，DWMWCP_DEFAULT / ROUNDSMALL / DONOTROUND 可能让
+            // DWM 丢掉圆角阴影（实测只有显式 ROUND 稳定）。这里统一用 ROUND，并在设置后强制重算
+            // 非客户区，确保边框/阴影/圆角不被丢。
+            int pref = DWMWCP_ROUND;
             DwmSetWindowAttribute(hwnd_, DWMWA_WINDOW_CORNER_PREFERENCE, &pref, sizeof(pref));
+            SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
         }
 
         void CollectDragRegions() {
@@ -3580,6 +3534,9 @@ namespace ZUI {
             case 0x00AF:   // WM_NCUAHDRAWFRAME
                 if (customFrame_) return 0;
                 break;
+            case WM_MOVE:
+                UpdateWallpaperLayer();   // 手动背景：只挪图层 Offset，不重画 -> 实时跟手
+                return 0;
             case WM_SIZE:
                 UpdateTimerState();
                 if (wParam == SIZE_MINIMIZED) {
@@ -3622,6 +3579,8 @@ namespace ZUI {
                 else {
                     Activated();
                     ShowOwnedWindows();   // 本窗口重新获得焦点/置顶 → 恢复被隐藏的 owned 子窗口
+                    // 激活时（窗口已就绪）再应用一次背景，确保 Mica/Acrylic 稳定生效
+                    if (wParam != WA_INACTIVE && backdrop_ != Backdrop::None) ApplyBackdrop();
                 }
                 return 0;
             case WM_DPICHANGED:
@@ -3747,6 +3706,8 @@ namespace ZUI {
                 break;
             case WM_SHOWWINDOW:
                 UpdateTimerState();
+                // 窗口显示后再应用一次背景（创建时 DWM 可能尚未就绪 → Mica/Acrylic 偶尔不生效）
+                if (wParam) ApplyBackdrop();
                 return 0;
             case WM_CAPTURECHANGED:
                 // 捕获被系统/其他窗口夺走时，清理拖拽按下状态，避免松手后残留
@@ -4247,13 +4208,15 @@ namespace ZUI {
                 renderTarget_->SetDpi((FLOAT)dpi_, (FLOAT)dpi_);
                 renderTarget_->BeginDraw();
                 {
-                    // 清屏：用应用显式设置的背景色（默认全透明）。
-                    // 亚克力/材质由 DComp 背景（HostBackdropBrush）或系统材质提供，内容不清成 tint。
-                    D2D1_COLOR_F clearCol = backgroundColor_.ToD2D();
-                    // 预乘 alpha：Clear 需要已预乘的值
-                    clearCol = D2D1::ColorF(clearCol.r * clearCol.a, clearCol.g * clearCol.a,
-                        clearCol.b * clearCol.a, clearCol.a);
-                    renderTarget_->Clear(clearCol);
+                    // 背景色 = 叠加在“背景（空 / 亚克力 / 云母）之上”的颜色。
+                    // RGB = 颜色，A = 透出多少背景（0 = 全透、255 = 完全盖住）。对所有模式统一生效。
+                    // D2D 的 Clear 接收“非预乘”颜色、内部自行预乘。
+                    DWORD bg = backdropColor_;
+                    float a = ((bg >> 24) & 0xFF) / 255.0f;
+                    float r = ((bg >> 16) & 0xFF) / 255.0f;
+                    float g = ((bg >> 8) & 0xFF) / 255.0f;
+                    float b = (bg & 0xFF) / 255.0f;
+                    renderTarget_->Clear(D2D1::ColorF(r, g, b, a));
                 }
 
                 D2D1_SIZE_F rsz = renderTarget_->GetSize();
@@ -4552,13 +4515,212 @@ namespace ZUI {
             return S_OK;
         }
 
+        // 手动背景是否启用（BackdropMode::Manual 下 Mica/Acrylic/Blur 共用一套实现）
+        bool IsManualBackdrop() const {
+            // 手动模式只用于云母（自己手绘）。亚克力永远走"透后面窗口内容"的系统实现，不动它。
+            return backdropMode_ == BackdropMode::Manual && backdrop_ == Backdrop::Mica;
+        }
+
+        // 读取桌面壁纸 -> 缩放到虚拟屏幕 -> 高斯模糊 + 白纱，烘焙成一张位图
+        bool BuildWallpaperBitmap() {
+            if (wallpaperBitmap_) return true;
+            IWICImagingFactory* wic = core_ ? core_->GetWICFactory() : nullptr;
+            ID2D1Device* dev = core_ ? core_->GetD2DDevice() : nullptr;
+            if (!wic || !dev) return false;
+            WCHAR path[MAX_PATH] = {};
+            if (!SystemParametersInfoW(SPI_GETDESKWALLPAPER, MAX_PATH, path, 0) || !path[0]) return false;
+            ComPtr<IWICBitmapDecoder> dec;
+            if (FAILED(wic->CreateDecoderFromFilename(path, nullptr, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &dec))) return false;
+            ComPtr<IWICBitmapFrameDecode> frame;
+            if (FAILED(dec->GetFrame(0, &frame))) return false;
+            ComPtr<IWICFormatConverter> conv;
+            if (FAILED(wic->CreateFormatConverter(&conv))) return false;
+            if (FAILED(conv->Initialize(frame.Get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom))) return false;
+
+            wallpaperVirtX_ = GetSystemMetrics(SM_XVIRTUALSCREEN);
+            wallpaperVirtY_ = GetSystemMetrics(SM_YVIRTUALSCREEN);
+            wallpaperVirtW_ = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+            wallpaperVirtH_ = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+            if (wallpaperVirtW_ <= 0 || wallpaperVirtH_ <= 0) return false;
+
+            ComPtr<ID2D1DeviceContext> dc;
+            if (FAILED(dev->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &dc))) return false;
+            dc->SetDpi(96.0f, 96.0f);
+
+            ComPtr<ID2D1Bitmap1> src;
+            ComPtr<IWICBitmapScaler> scaler;
+            if (SUCCEEDED(wic->CreateBitmapScaler(&scaler)) &&
+                SUCCEEDED(scaler->Initialize(conv.Get(), (UINT)wallpaperVirtW_, (UINT)wallpaperVirtH_, WICBitmapInterpolationModeFant))) {
+                if (FAILED(dc->CreateBitmapFromWicBitmap(scaler.Get(), nullptr, &src))) return false;
+            }
+            else {
+                if (FAILED(dc->CreateBitmapFromWicBitmap(conv.Get(), nullptr, &src))) return false;
+            }
+
+            D2D1_BITMAP_PROPERTIES1 bp = D2D1::BitmapProperties1(
+                D2D1_BITMAP_OPTIONS_TARGET,
+                D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+            ComPtr<ID2D1Bitmap1> out;
+            if (FAILED(dc->CreateBitmap(D2D1::SizeU((UINT32)wallpaperVirtW_, (UINT32)wallpaperVirtH_), nullptr, 0, &bp, &out))) return false;
+            const bool isMica = (backdrop_ == Backdrop::Mica);
+            const float sigma = isMica ? MicaBlurDeviation : ManualAcrylicBlurDeviation;
+            const float saturation = isMica ? MicaSaturation : ManualAcrylicSaturation;
+            const float noiseOpacity = isMica ? MicaNoiseOpacity : ManualAcrylicNoiseOpacity;
+            const D2D1_COLOR_F veil = isMica ? MicaTintColor : ManualAcrylicTintColor;
+            const D2D1_RECT_F full = D2D1::RectF(0, 0, (float)wallpaperVirtW_, (float)wallpaperVirtH_);
+
+            dc->SetTarget(out.Get());
+            dc->BeginDraw();
+            dc->Clear(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f));   // 先铺一层白色底，再在上面算
+
+            // 1) 模糊 -> （云母）降饱和
+            ID2D1Effect* result = nullptr;
+            ComPtr<ID2D1Effect> blur, sat;
+            if (SUCCEEDED(dc->CreateEffect(CLSID_D2D1GaussianBlur, &blur)) && blur) {
+                blur->SetInput(0, src.Get());
+                blur->SetValue(D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, sigma);
+                blur->SetValue(D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_BORDER_MODE_HARD);
+                result = blur.Get();
+                if (SUCCEEDED(dc->CreateEffect(CLSID_D2D1Saturation, &sat)) && sat) {
+                    sat->SetInputEffect(0, blur.Get());
+                    sat->SetValue(D2D1_SATURATION_PROP_SATURATION, saturation);
+                    result = sat.Get();
+                }
+            }
+            if (result) dc->DrawImage(result);
+            else dc->DrawBitmap(src.Get(), full);
+
+            // 2) 叠白（云母）
+            if (veil.a > 0.0f) {
+                ComPtr<ID2D1SolidColorBrush> tint;
+                dc->CreateSolidColorBrush(veil, &tint);
+                if (tint) dc->FillRectangle(full, tint.Get());
+            }
+
+            // 3) 噪点：复用官方系统噪点贴图（云母 1% / 亚克力 2%），1:1 NEAREST 平铺
+            if (noiseOpacity > 0.0f && core_) {
+                IWICImagingFactory* wic = core_->GetWICFactory();
+                ComPtr<IWICBitmap> noiseWic = wic ? detail_fx::LoadSystemNoiseWIC(wic) : nullptr;
+                if (noiseWic) {
+                    D2D1_BITMAP_PROPERTIES1 nbp = D2D1::BitmapProperties1(
+                        D2D1_BITMAP_OPTIONS_NONE,
+                        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+                    ComPtr<ID2D1Bitmap1> noiseBmp;
+                    if (SUCCEEDED(dc->CreateBitmapFromWicBitmap(noiseWic.Get(), &nbp, &noiseBmp)) && noiseBmp) {
+                        ComPtr<ID2D1BitmapBrush> nb;
+                        if (SUCCEEDED(dc->CreateBitmapBrush(noiseBmp.Get(), &nb)) && nb) {
+                            nb->SetExtendModeX(D2D1_EXTEND_MODE_WRAP);
+                            nb->SetExtendModeY(D2D1_EXTEND_MODE_WRAP);
+                            nb->SetInterpolationMode(D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR);
+                            nb->SetOpacity(noiseOpacity);
+                            dc->FillRectangle(full, nb.Get());
+                        }
+                    }
+                }
+            }
+
+            dc->EndDraw();
+            wallpaperBitmap_ = out;
+            return true;
+        }
+
+        // 把烘焙好的壁纸放进一个独立的合成器图层（在内容层下方），移动时只改 Offset
+        bool BuildWallpaperLayer() {
+            if (wallpaperVisual_) return true;
+            if (!compositor_ || !rootVisual_ || !renderTarget_ || !core_) return false;
+            if (!BuildWallpaperBitmap() || !wallpaperBitmap_) return false;
+            IDXGIDevice* dxgi = core_->GetDXGIDevice();
+            if (!dxgi) return false;
+            ComPtr<IDXGIAdapter> adapter;
+            if (FAILED(dxgi->GetAdapter(&adapter))) return false;
+            ComPtr<IDXGIFactory2> factory;
+            if (FAILED(adapter->GetParent(IID_PPV_ARGS(&factory)))) return false;
+            DXGI_SWAP_CHAIN_DESC1 d{};
+            d.Width = (UINT)wallpaperVirtW_; d.Height = (UINT)wallpaperVirtH_;
+            d.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+            d.SampleDesc.Count = 1;
+            d.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+            d.BufferCount = 2;   // FLIP_SEQUENTIAL 需要 >= 2
+            d.Scaling = DXGI_SCALING_STRETCH;
+            d.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+            d.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+            if (FAILED(factory->CreateSwapChainForComposition(dxgi, &d, nullptr, &wallpaperSwap_))) return false;
+            {
+                ComPtr<IDXGISurface> bb;
+                if (FAILED(wallpaperSwap_->GetBuffer(0, IID_PPV_ARGS(&bb)))) return false;
+                D2D1_BITMAP_PROPERTIES1 bp = D2D1::BitmapProperties1(
+                    D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED), 96.0f, 96.0f);
+                ComPtr<ID2D1Bitmap1> tgt;
+                if (FAILED(renderTarget_->CreateBitmapFromDxgiSurface(bb.Get(), &bp, &tgt))) return false;
+                renderTarget_->SetTarget(tgt.Get());
+                FLOAT oldDpiX = 96.0f, oldDpiY = 96.0f;
+                renderTarget_->GetDpi(&oldDpiX, &oldDpiY);
+                renderTarget_->SetDpi(96.0f, 96.0f);   // 1 DIP = 1 物理像素，否则位图被 2 倍放大 / 裁掉一半
+                renderTarget_->BeginDraw();
+                renderTarget_->Clear();
+                renderTarget_->DrawBitmap(wallpaperBitmap_.Get(),
+                    D2D1::RectF(0, 0, (float)wallpaperVirtW_, (float)wallpaperVirtH_),
+                    1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+                    D2D1::RectF(0, 0, (float)wallpaperVirtW_, (float)wallpaperVirtH_));
+                renderTarget_->EndDraw();
+                renderTarget_->SetDpi(oldDpiX, oldDpiY);
+                renderTarget_->SetTarget(swapBackBuffer_);
+                renderTarget_->Flush();
+                wallpaperSwap_->Present(0, 0);
+            }
+            ComPtr<ICompositorInterop> cinterop;
+            if (FAILED(compositor_->QueryInterface(IID_PPV_ARGS(&cinterop)))) return false;
+            ComPtr<ICompositionSurface> surf;
+            if (FAILED(cinterop->CreateCompositionSurfaceForSwapChain(wallpaperSwap_.Get(), &surf))) return false;
+            ComPtr<ICompositionSurfaceBrush> brush;
+            if (FAILED(compositor_->CreateSurfaceBrushWithSurface(surf.Get(), &brush))) return false;
+            brush->put_HorizontalAlignmentRatio(0.f);
+            brush->put_VerticalAlignmentRatio(0.f);
+            brush->put_Stretch(CompositionStretch_Fill);
+            if (FAILED(compositor_->CreateSpriteVisual(&wallpaperVisual_))) return false;
+            ComPtr<ICompositionBrush> cb; brush.As(&cb);
+            wallpaperVisual_->put_Brush(cb.Get());
+            ComPtr<IVisual> v; wallpaperVisual_.As(&v);
+            v->put_Size({ (float)wallpaperVirtW_, (float)wallpaperVirtH_ });   // 物理像素
+            ComPtr<IContainerVisual> container;
+            if (FAILED(rootVisual_->QueryInterface(IID_PPV_ARGS(&container)))) return false;
+            ComPtr<IVisualCollection> children;
+            if (FAILED(container->get_Children(&children))) return false;
+            children->InsertAtBottom(v.Get());   // 放到内容层下方
+            UpdateWallpaperLayer();
+            return true;
+        }
+
+        void UpdateWallpaperLayer() {
+            if (!wallpaperVisual_ || !hwnd_) return;
+            POINT p = { 0, 0 }; ClientToScreen(hwnd_, &p);
+            ComPtr<IVisual> v; wallpaperVisual_.As(&v);
+            v->put_Offset({ (float)(-p.x), (float)(-p.y), 0.0f });   // 物理像素
+        }
+
+        void DestroyWallpaperLayer() {
+            if (wallpaperVisual_) wallpaperVisual_->put_Brush(nullptr);
+            wallpaperVisual_.Reset();
+            wallpaperSwap_.Reset();
+            wallpaperBitmap_.Reset();
+        }
+
         // 依据当前 backdrop_ 重建根视觉的 DComp 背景层。
         // 只有 Acrylic 需要（HostBackdropBrush + 高斯模糊）；其它效果清掉背景层。
         // 可在 Create 时、设备重建时、以及运行时 SetBackdrop/SetBackdropMode 时调用。
         void UpdateDCompBackdrop() {
             if (!rootVisual_ || !compositor_) return;
             rootVisual_->put_Brush(nullptr);              // 先清掉旧背景
-            if (backdrop_ != Backdrop::Acrylic) return;   // 仅亚克力用 DComp 背景层
+            // 手动模式 + 云母：ZUI 自绘缓存壁纸图层
+            if (backdropMode_ == BackdropMode::Manual && backdrop_ == Backdrop::Mica) {
+                if (!wallpaperVisual_) { DestroyWallpaperLayer(); BuildWallpaperLayer(); }
+                return;
+            }
+            DestroyWallpaperLayer();
+            // 手动模式 + 亚克力：用**我们自己的配方**（源 = 宿主背景 = 后面窗口的内容）
+            // 系统模式：交给 DWM，不挂我们自己的配方
+            if (!(backdropMode_ == BackdropMode::Manual && backdrop_ == Backdrop::Acrylic)) return;
 
             ComPtr<ICompositionBackdropBrush> backdropBrush;
             HRESULT hrBackdrop = E_FAIL;
@@ -4572,19 +4734,58 @@ namespace ZUI {
             }
             if (FAILED(hrBackdrop) || !backdropBrush) return;
 
-            auto blur = Microsoft::WRL::Make<detail_fx::GaussianBlurEffect>();
-            blur->SetInput(static_cast<ABI::Windows::Graphics::Effects::IGraphicsEffectSource*>(
-                detail_fx::CompositionEffectSource(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get())));
-            ComPtr<ICompositionEffectFactory> factory;
-            if (FAILED(compositor_->CreateEffectFactory(blur.Get(), &factory))) return;
-            ComPtr<ICompositionEffectBrush> effectBrush;
-            if (FAILED(factory->CreateBrush(&effectBrush))) return;
-            effectBrush->SetSourceParameter(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get(),
-                reinterpret_cast<ICompositionBrush*>(backdropBrush.Get()));
-            rootVisual_->put_Brush(reinterpret_cast<ICompositionBrush*>(effectBrush.Get()));
+            // 官方亚克力配方：模糊 + 亮度/颜色混合 + 噪点。参数走 ManualAcrylic*（滑块可调）。
+            D2D1_COLOR_F tint = ManualAcrylicTintColor;
+            ComPtr<ICompositionBrush> noise = core_ ? core_->GetNoiseBrush() : nullptr;
+            ComPtr<ICompositionBrush> brush = detail_fx::BuildAcrylicBrush(
+                compositor_, reinterpret_cast<ICompositionBrush*>(backdropBrush.Get()),
+                noise.Get(),
+                tint, AcrylicLuminosityColor, ManualAcrylicNoiseOpacity, ManualAcrylicBlurDeviation);
+            if (!brush) {
+                // 兜底：完整配方失败时退回“宿主背景 + 高斯模糊”，至少能看到模糊背景
+                auto blur = Microsoft::WRL::Make<detail_fx::GaussianBlurEffect>(ManualAcrylicBlurDeviation);
+                blur->SetInput(static_cast<ABI::Windows::Graphics::Effects::IGraphicsEffectSource*>(
+                    detail_fx::CompositionEffectSource(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get())));
+                ComPtr<ICompositionEffectFactory> factory;
+                if (SUCCEEDED(compositor_->CreateEffectFactory(blur.Get(), &factory))) {
+                    ComPtr<ICompositionEffectBrush> eb;
+                    if (SUCCEEDED(factory->CreateBrush(&eb))) {
+                        eb->SetSourceParameter(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get(),
+                            reinterpret_cast<ICompositionBrush*>(backdropBrush.Get()));
+                        eb.As(&brush);
+                    }
+                }
+            }
+            if (brush) rootVisual_->put_Brush(brush.Get());
+        }
+
+        // 动态生成一张 64x64 的随机灰度噪点（Alpha=255），并用 wrap 平铺铺满整个窗口。
+        // 不内置资源位图；AcrylicNoiseOpacity 变化时重建。
+        void EnsureNoiseBrush() {
+            if (noiseBrush_ || !renderTarget_) return;
+            ID2D1RenderTarget* rt = renderTarget_;   // 用 D2D 1.0 基接口
+            const int N = 64;
+            std::vector<DWORD> px((size_t)N * N);
+            for (int i = 0; i < N * N; ++i) {
+                DWORD v = (DWORD)(rand() & 0xFF);
+                px[i] = 0xFF000000u | (v << 16) | (v << 8) | v;   // A=255, premultiplied 灰度
+            }
+            D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
+                D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+            if (FAILED(rt->CreateBitmap(D2D1::SizeU(N, N), px.data(), N * 4, &props, noiseBitmap_.GetAddressOf()))) return;
+            if (FAILED(rt->CreateBitmapBrush(noiseBitmap_.Get(), noiseBrush_.GetAddressOf()))) return;
+            if (noiseBrush_) {
+                noiseBrush_->SetExtendModeX(D2D1_EXTEND_MODE_WRAP);
+                noiseBrush_->SetExtendModeY(D2D1_EXTEND_MODE_WRAP);
+            }
         }
 
         void DiscardDeviceResources() {
+            // 手动背景图层持有 swapchain/visual，设备重建时必须先拆掉
+            if (wallpaperVisual_) wallpaperVisual_->put_Brush(nullptr);
+            wallpaperVisual_.Reset(); wallpaperSwap_.Reset(); wallpaperBitmap_.Reset();
+            noiseBitmap_.Reset();
+            noiseBrush_.Reset();
             if (renderTarget_) { renderTarget_->SetTarget(nullptr); renderTarget_->Flush(); renderTarget_->Release(); renderTarget_ = nullptr; }
             if (swapBackBuffer_) { swapBackBuffer_->Release(); swapBackBuffer_ = nullptr; }
             if (contentVisual_) { contentVisual_->Release(); contentVisual_ = nullptr; }
@@ -4615,9 +4816,12 @@ namespace ZUI {
             auto pSetWindowCompositionAttribute = (BOOL(WINAPI*)(HWND, void*))GetProcAddress(hUser, "SetWindowCompositionAttribute");
             if (!pSetWindowCompositionAttribute) return;
 
+            // GradientColor 的字节序是 ABGR（不是 ARGB），必须转换；否则红色会显示成蓝色。
+            DWORD argb = backdropColor_;
+            DWORD aa = (argb >> 24) & 0xFF, rr = (argb >> 16) & 0xFF, gg = (argb >> 8) & 0xFF, bb = argb & 0xFF;
             ACCENT_POLICY accent = {};
             accent.AccentState = state;
-            accent.GradientColor = backdropColor_;
+            accent.GradientColor = (aa << 24) | (bb << 16) | (gg << 8) | rr;   // AABBGGRR
             accent.AccentFlags = 0;
             accent.AnimationId = 0;
 
@@ -4645,45 +4849,40 @@ namespace ZUI {
             DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &noneType, sizeof(noneType));
             BOOL hbOff = FALSE;
             DwmSetWindowAttribute(hwnd_, DWMWA_USE_HOSTBACKDROPBRUSH, &hbOff, sizeof(hbOff));
+            ApplyAccentState(ACCENT_DISABLED);
             systemBackdropActive_ = false;
 
             switch (backdrop_) {
             case Backdrop::Acrylic: {
-                if (backdropMode_ == BackdropMode::Accent) {
-                    ApplyAccentState(ACCENT_ENABLE_ACRYLICBLURBEHIND);   // Win10 亚克力
+                if (backdropMode_ == BackdropMode::Manual) {
+                    // 手动：宿主背景可用即可，画面由我们自己的配方（UpdateDCompBackdrop）绘制
+                    BOOL on = TRUE;
+                    systemBackdropActive_ = SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_USE_HOSTBACKDROPBRUSH, &on, sizeof(on)));
                     return;
                 }
-                BOOL on = TRUE;
-                HRESULT hrHb = DwmSetWindowAttribute(hwnd_, DWMWA_USE_HOSTBACKDROPBRUSH, &on, sizeof(on));
-                if (SUCCEEDED(hrHb)) {
-                    ApplyAccentState(ACCENT_ENABLE_HOSTBACKDROP);        // Win11 宿主背景
-                    systemBackdropActive_ = true;
-                    return;
-                }
-                if (backdropMode_ == BackdropMode::System) break;        // 强制系统但系统不支持
-                ApplyAccentState(ACCENT_ENABLE_ACRYLICBLURBEHIND);       // Auto 回退 Win10
-                return;
-            }
-            case Backdrop::Mica:
-            case Backdrop::MicaAlt: {
-                int type = (backdrop_ == Backdrop::Mica) ? DWMSBT_MAINWINDOW : DWMSBT_TABBEDWINDOW;
-                if (backdropMode_ != BackdropMode::Accent &&
-                    SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type)))) {
+                // 系统：Win11 的"透明窗"材质（DWM 亚克力）
+                int type = DWMSBT_TRANSIENTWINDOW;
+                if (SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type)))) {
                     systemBackdropActive_ = true;
                     return;
                 }
                 break;
             }
-            case Backdrop::Blur:
-                if (backdropMode_ != BackdropMode::System) { ApplyAccentState(ACCENT_ENABLE_BLURBEHIND); return; }
+            case Backdrop::Mica: {
+                if (backdropMode_ == BackdropMode::Manual) break;
+                int type = DWMSBT_TABBEDWINDOW;   // 系统云母 = MicaAlt
+                if (SUCCEEDED(DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type)))) {
+                    systemBackdropActive_ = true;
+                    return;
+                }
                 break;
-            case Backdrop::Normal:
-                if (backdropMode_ != BackdropMode::System) { ApplyAccentState(ACCENT_ENABLE_GRADIENT); return; }
-                break;
+            }
             case Backdrop::None:
                 ApplyAccentState(ACCENT_DISABLED);
                 return;
             }
+            // 手动模式（Mica/Acrylic/Blur）：背景由 UpdateDCompBackdrop 里的 ZUI 自绘图层提供
+            if (IsManualBackdrop()) return;
             BackdropUnsupported.Fire();
         }
 
@@ -4827,10 +5026,19 @@ namespace ZUI {
         std::chrono::steady_clock::time_point lastTime_;
         bool layoutNeeded_;
         Backdrop backdrop_;
-        BackdropMode backdropMode_ = BackdropMode::Auto;
+        BackdropMode backdropMode_ = BackdropMode::System;
         bool systemBackdropActive_ = false;
         DWORD backdropColor_;
         Color backgroundColor_;
+        // 手动背景（BackdropMode::Manual）：缓存桌面壁纸的独立合成器图层，位于内容层下方
+        ComPtr<ISpriteVisual> wallpaperVisual_;
+        ComPtr<IDXGISwapChain1> wallpaperSwap_;
+        ComPtr<ID2D1Bitmap1> wallpaperBitmap_;
+        int wallpaperVirtX_ = 0, wallpaperVirtY_ = 0, wallpaperVirtW_ = 0, wallpaperVirtH_ = 0;
+        // 亚克力噪点：动态生成的小位图，用 wrap 平铺铺满（受 AcrylicNoiseOpacity 控制）
+        ComPtr<ID2D1Bitmap> noiseBitmap_;
+        ComPtr<ID2D1BitmapBrush> noiseBrush_;
+        Connection acrylicReloadConn_;   // ReloadAcrylic 信号的连接
         bool animationTimerActive_;   // 常驻定时器，始终 true
         std::shared_ptr<Menu> windowContextMenu_;
         std::unique_ptr<MenuWindow> activeMenuRoot_;

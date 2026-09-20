@@ -18,12 +18,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // 主窗口使用自定义标题栏（拖动标题栏移动窗口，右上角三件套与原生一致）
     win.SetWindowCorner(Window::WindowCorner::Round);
     win.SetResizable(true);
-    {
-        auto bar = std::make_shared<DefaultTitleBar>();
-        bar->SetTitle(kTitle);
-        bar->SetHeight(34);
-        win.SetCustomTitleBar(bar);
-    }
+    auto titleBar = std::make_shared<DefaultTitleBar>();
+    titleBar->SetTitle(kTitle);
+    titleBar->SetHeight(34);
+    win.SetCustomTitleBar(titleBar);
 
     // 创建全局右键菜单（与信号无关）
     auto globalMenu = std::make_shared<Menu>();
@@ -69,6 +67,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     navList->AddItem(L"树形增强");
     navList->AddItem(L"图像");
     navList->AddItem(L"多窗口");
+    navList->AddItem(L"窗口属性");
     navList->SetSelectedIndex(0);
     mainRow->AddChild(navList);
 
@@ -919,6 +918,150 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         grid9->AddChild(tclose, 4, 0, 1, 2);
     }
 
+    // ---------- 页面10：窗口属性（运行时调用窗口 API） ----------
+    auto page10 = std::make_shared<Page>();
+    auto grid10 = page10->GetLayoutAs<GridLayout>();
+    if (grid10) {
+        grid10->SetSpacing(10, 10);
+        auto title10 = std::make_shared<Label>(L"窗口属性（运行时调用 Window API）");
+        title10->SetTextColor(Color::FromArgb(255, 40, 40, 40));
+        grid10->AddChild(title10, 0, 0, 1, 2);
+
+        auto backdropState = std::make_shared<Backdrop>(Backdrop::Acrylic);
+        auto tintState = std::make_shared<DWORD>(0x80FFFFFFu);
+
+        // 背景模式（空 / 亚克力 / 云母）：颜色叠在这个背景之上
+        auto backdropCombo = std::make_shared<ComboBox>();
+        backdropCombo->AddItem(L"空（透明）");
+        backdropCombo->AddItem(L"亚克力");
+        backdropCombo->AddItem(L"云母");
+        backdropCombo->SetSelectedIndex(1);
+        backdropCombo->Connect(backdropCombo->SelectionChanged, [w = &win, backdropState, tintState](int idx) {
+            if (idx < 0) return;
+            *backdropState = (idx == 2) ? Backdrop::Mica : (idx == 1 ? Backdrop::Acrylic : Backdrop::None);
+            w->SetBackdrop(*backdropState, *tintState);
+            });
+        grid10->AddChild(std::make_shared<Label>(L"背景层（亚克力 / 云母 / 无）"), 1, 0);
+        grid10->AddChild(backdropCombo, 1, 1);
+
+        // 背景实现方式 BackdropMode：只给两个选项——系统 / 手动
+        auto modeCombo = std::make_shared<ComboBox>();
+        modeCombo->AddItem(L"系统模式（DWM 系统材质）");
+        modeCombo->AddItem(L"手动模式（ZUI 自绘：缓存壁纸+模糊）");
+        modeCombo->SetSelectedIndex(0);
+        modeCombo->Connect(modeCombo->SelectionChanged, [w = &win](int idx) {
+            if (idx < 0) return;
+            w->SetBackdropMode((BackdropMode)idx);
+            });
+        grid10->AddChild(std::make_shared<Label>(L"背景模式（系统 / 手动）"), 2, 0);
+        grid10->AddChild(modeCombo, 2, 1);
+
+        // 背景色（ARGB）：A = 能透出多少背景（0 全透、255 不透），RGB = 叠加颜色
+        auto colorCombo = std::make_shared<ComboBox>();
+        colorCombo->AddItem(L"全透明 0x00000000（透出背景）");
+        colorCombo->AddItem(L"白色不透明 0xFFFFFFFF（纯白，盖住背景）");
+        colorCombo->AddItem(L"白色 50%  0x80FFFFFF（半透明白 + 背景）");
+        colorCombo->AddItem(L"红色 50%  0x80FF0000（半透明红 + 背景）");
+        colorCombo->AddItem(L"深灰不透明 0xFF202020");
+        colorCombo->SetSelectedIndex(2);
+        colorCombo->Connect(colorCombo->SelectionChanged, [w = &win, backdropState, tintState](int idx) {
+            static const DWORD kColors[] = { 0x00000000u, 0xFFFFFFFFu, 0x80FFFFFFu, 0x80FF0000u, 0xFF202020u };
+            if (idx < 0 || idx > 4) return;
+            *tintState = kColors[idx];
+            w->SetBackdrop(*backdropState, *tintState);
+            });
+        grid10->AddChild(std::make_shared<Label>(L"背景叠加层（带 Alpha 的颜色）"), 3, 0);
+        grid10->AddChild(colorCombo, 3, 1);
+
+        // 自定义标题栏开关
+        auto customTitleSwitch = std::make_shared<ToggleSwitch>(true);
+        customTitleSwitch->Connect(customTitleSwitch->Toggled, [w = &win, titleBar](bool on) {
+            if (on) w->SetCustomTitleBar(titleBar);
+            else w->SetCustomTitleBar(nullptr);
+            });
+        grid10->AddChild(std::make_shared<Label>(L"使用自定义标题栏"), 4, 0);
+        grid10->AddChild(customTitleSwitch, 4, 1);
+
+        // 标题栏可见
+        auto barVisibleSwitch = std::make_shared<ToggleSwitch>(true);
+        barVisibleSwitch->Connect(barVisibleSwitch->Toggled, [w = &win](bool on) { w->SetTitleBarVisible(on); });
+        grid10->AddChild(std::make_shared<Label>(L"标题栏可见 SetTitleBarVisible"), 5, 0);
+        grid10->AddChild(barVisibleSwitch, 5, 1);
+
+        // 可调整大小
+        auto resizableSwitch = std::make_shared<ToggleSwitch>(true);
+        resizableSwitch->Connect(resizableSwitch->Toggled, [w = &win](bool on) { w->SetResizable(on); });
+        grid10->AddChild(std::make_shared<Label>(L"可调整大小 SetResizable"), 6, 0);
+        grid10->AddChild(resizableSwitch, 6, 1);
+
+        // 页面切换缓动
+        auto easingCombo = std::make_shared<ComboBox>();
+        easingCombo->AddItem(L"Linear（匀速）"); easingCombo->AddItem(L"EaseInOut（平滑）"); easingCombo->AddItem(L"EaseOut（缓出）");
+        easingCombo->SetSelectedIndex(1);
+        easingCombo->Connect(easingCombo->SelectionChanged, [mainHost](int idx) {
+            if (idx < 0) return;
+            mainHost->SetTransitionEasing((PageHost::TransitionEasing)idx);
+            });
+        grid10->AddChild(std::make_shared<Label>(L"页面切换缓动 SetTransitionEasing"), 7, 0);
+        grid10->AddChild(easingCombo, 7, 1);
+
+        // ---- 参数卡片：亚克力 / 云母（仅"手动模式 + 对应背景层"时显示）----
+        auto addSlider = [](std::shared_ptr<GridLayout> g, int r, const wchar_t* name, float lo, float hi, float step,
+                            float init, std::function<void(float)> apply) {
+            auto lbl = std::make_shared<Label>(name);
+            lbl->SetTextColor(Color::FromArgb(255, 40, 40, 40));
+            auto s = std::make_shared<Slider>();
+            s->SetRange(lo, hi);
+            s->SetStep(step);
+            s->SetSnapToStep(true);
+            s->SetValue(init);
+            s->Connect(s->ValueChanged, [apply](float v) { apply(v); });
+            g->AddChild(lbl, r, 0);
+            g->AddChild(s, r, 1);
+            };
+
+        auto acrylicCard = std::make_shared<Card>();
+        acrylicCard->SetShadow(true);
+        acrylicCard->SetPadding(10.0f);
+        if (auto g = acrylicCard->GetLayoutAs<GridLayout>()) {
+            g->AddChild(std::make_shared<Label>(L"亚克力参数（手动模式）"), 0, 0, 1, 2);
+            addSlider(g, 1, L"模糊量", 0.0f, 200.0f, 1.0f, Window::ManualAcrylicBlurDeviation,
+                [](float v) { Window::ManualAcrylicBlurDeviation = v; Window::ReloadMica(); });
+            addSlider(g, 2, L"白纱 alpha", 0.0f, 1.0f, 0.05f, Window::ManualAcrylicTintColor.a,
+                [](float v) { Window::ManualAcrylicTintColor.a = v; Window::ReloadMica(); });
+            addSlider(g, 3, L"噪点", 0.0f, 0.1f, 0.005f, Window::ManualAcrylicNoiseOpacity,
+                [](float v) { Window::ManualAcrylicNoiseOpacity = v; Window::ReloadMica(); });
+        }
+        grid10->AddChild(acrylicCard, 8, 0, 1, 2);
+
+        auto micaCard = std::make_shared<Card>();
+        micaCard->SetShadow(true);
+        micaCard->SetPadding(10.0f);
+        if (auto g = micaCard->GetLayoutAs<GridLayout>()) {
+            g->AddChild(std::make_shared<Label>(L"云母参数（手动模式）"), 0, 0, 1, 2);
+            addSlider(g, 1, L"模糊量", 0.0f, 400.0f, 1.0f, Window::MicaBlurDeviation,
+                [](float v) { Window::MicaBlurDeviation = v; Window::ReloadMica(); });
+            addSlider(g, 2, L"饱和度", 0.0f, 2.0f, 0.05f, Window::MicaSaturation,
+                [](float v) { Window::MicaSaturation = v; Window::ReloadMica(); });
+            addSlider(g, 3, L"白纱 alpha", 0.0f, 1.0f, 0.05f, Window::MicaTintColor.a,
+                [](float v) { Window::MicaTintColor.a = v; Window::ReloadMica(); });
+            addSlider(g, 4, L"噪点", 0.0f, 0.1f, 0.005f, Window::MicaNoiseOpacity,
+                [](float v) { Window::MicaNoiseOpacity = v; Window::ReloadMica(); });
+        }
+        grid10->AddChild(micaCard, 9, 0, 1, 2);
+
+        // 仅"手动模式 + 亚克力/云母"时才显示对应卡片，否则隐藏
+        auto syncCards = [acrylicCard, micaCard, backdropCombo, modeCombo]() {
+            bool manual = (modeCombo->GetSelectedIndex() == 1);
+            int b = backdropCombo->GetSelectedIndex();
+            acrylicCard->SetVisible(manual && b == 1);
+            micaCard->SetVisible(manual && b == 2);
+            };
+        backdropCombo->Connect(backdropCombo->SelectionChanged, [syncCards](int) { syncCards(); });
+        modeCombo->Connect(modeCombo->SelectionChanged, [syncCards](int) { syncCards(); });
+        syncCards();
+    }
+
     // 所有页面加入 PageHost
     mainHost->AddPage(page1);
     mainHost->AddPage(page2);
@@ -929,6 +1072,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     mainHost->AddPage(page7);
     mainHost->AddPage(page8);
     mainHost->AddPage(page9);
+    mainHost->AddPage(page10);
 
     // 主页面导航：记录当前索引，根据相对位置设置上下方向
     auto currentMainIndex = std::make_shared<int>(0);
