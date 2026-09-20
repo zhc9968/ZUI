@@ -2794,25 +2794,28 @@ namespace ZUI {
     public:
         inline static Backdrop DefaultBackdrop = Backdrop::None;
         inline static DWORD DefaultBackdropColor = 0x00000000;
-        // 亚克力可调参数（默认取官方配方值；应用可自行调整）
-        inline static float AcrylicBlurDeviation = 30.0f;   // 高斯模糊标准差（官方约 30）
-        inline static float AcrylicSaturation = 1.12f;      // 饱和度（旧版配方用；官方 Luminosity 版无此步）
-        inline static float AcrylicNoiseOpacity = 0.02f;    // 噪点不透明度（官方约 2%）
-        // 官方 Luminosity 版配方的“亮度颜色”。默认全透明 = 不做亮度调整（避免把背景压暗）。
-        inline static D2D1_COLOR_F AcrylicLuminosityColor = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
-        // 改完以上参数后调用它：所有窗口重新加载亚克力
+        // ---------- 手动背景 4 层参数（全部可通过 API 调整）----------
+        //   Blur 层       : blurAmount（高斯模糊 σ）
+        //   Luminosity 层 : brightness / contrast / saturation（亮度 / 对比度 / 饱和度）
+        //   Tint 层       : tint（颜色，含 alpha → 叠色/白纱）
+        //   Noise 层      : noiseOpacity（噪点不透明度）
+        struct BackgroundParams {
+            float blurAmount = 30.0f;                                        // Blur 层
+            float brightness = 0.0f;                                         // Luminosity：亮度偏移 [-1,1]
+            float contrast = 1.0f;                                           // Luminosity：对比度倍数
+            float saturation = 1.0f;                                         // Luminosity：饱和度倍数
+            D2D1_COLOR_F tint = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.0f);        // Tint：颜色（含 alpha）
+            D2D1_COLOR_F luminosity = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);  // 官方 Luminosity 颜色
+            float noiseOpacity = 0.02f;                                      // Noise 层
+        };
+        // 亚克力（源 = 宿主背景 = 后面窗口的内容）
+        inline static BackgroundParams AcrylicParams{};
+        // 云母（源 = 缓存桌面壁纸）；默认 = 调好的黄金比例
+        inline static BackgroundParams MicaParams{ 200.0f, 0.0f, 1.0f, 1.75f,
+            D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.75f), D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f), 0.005f };
+        // 改完参数后调用：所有窗口重新加载背景
         static void ReloadAcrylic() { UIZSignals::ReloadAcrylic.Fire(); }
-        // 手动背景模式（BackdropMode::Manual）参数：缓存桌面壁纸 + 高斯模糊 + 白纱
-        inline static float MicaBlurDeviation = 200.0f;                                  // 模糊标准差（黄金比例 50%）
-        inline static float MicaSaturation = 1.75f;                                      // 饱和度（75%~100% 中间；高饱和趋近白）
-        inline static D2D1_COLOR_F MicaTintColor = D2D1::ColorF(1.0f, 1.0f, 1.0f, 0.75f); // 白纱 alpha 75%
-        inline static float MicaNoiseOpacity = 0.005f;                                   // 噪点最小一档
         static void ReloadMica() { UIZSignals::ReloadAcrylic.Fire(); }
-        // 手动模式的亚克力参数（与云母分开；亚克力：少模糊、保颜色、2% 噪点、不叠白）
-        inline static float ManualAcrylicBlurDeviation = 30.0f;
-        inline static float ManualAcrylicSaturation = 1.0f;
-        inline static float ManualAcrylicNoiseOpacity = 0.02f;
-        inline static D2D1_COLOR_F ManualAcrylicTintColor = D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f);
         inline static Color DefaultBackgroundColor = Color(0, 0, 0, 0);
 
         Window() : core_(&detail::AppCore::Instance()), hwnd_(nullptr), d2dFactory_(nullptr), renderTarget_(nullptr),
@@ -4554,10 +4557,12 @@ namespace ZUI {
             ComPtr<ID2D1Bitmap1> out;
             if (FAILED(dc->CreateBitmap(D2D1::SizeU((UINT32)wallpaperVirtW_, (UINT32)wallpaperVirtH_), nullptr, 0, &bp, &out))) return false;
             const bool isMica = (backdrop_ == Backdrop::Mica);
-            const float sigma = isMica ? MicaBlurDeviation : ManualAcrylicBlurDeviation;
-            const float saturation = isMica ? MicaSaturation : ManualAcrylicSaturation;
-            const float noiseOpacity = isMica ? MicaNoiseOpacity : ManualAcrylicNoiseOpacity;
-            const D2D1_COLOR_F veil = isMica ? MicaTintColor : ManualAcrylicTintColor;
+            const float sigma = isMica ? MicaParams.blurAmount : AcrylicParams.blurAmount;
+            const float saturation = isMica ? MicaParams.saturation : AcrylicParams.saturation;
+            const float brightness = isMica ? MicaParams.brightness : AcrylicParams.brightness;
+            const float contrast = isMica ? MicaParams.contrast : AcrylicParams.contrast;
+            const float noiseOpacity = isMica ? MicaParams.noiseOpacity : AcrylicParams.noiseOpacity;
+            const D2D1_COLOR_F veil = isMica ? MicaParams.tint : AcrylicParams.tint;
             const D2D1_RECT_F full = D2D1::RectF(0, 0, (float)wallpaperVirtW_, (float)wallpaperVirtH_);
 
             dc->SetTarget(out.Get());
@@ -4576,6 +4581,18 @@ namespace ZUI {
                     sat->SetInputEffect(0, blur.Get());
                     sat->SetValue(D2D1_SATURATION_PROP_SATURATION, saturation);
                     result = sat.Get();
+                }
+                // Luminosity 层：亮度 / 对比度（ColorMatrix）
+                ComPtr<ID2D1Effect> cm;
+                if (SUCCEEDED(dc->CreateEffect(CLSID_D2D1ColorMatrix, &cm)) && cm) {
+                    cm->SetInputEffect(0, result);
+                    const float c = contrast;
+                    const float b = brightness + (1.0f - contrast) * 0.5f;
+                    D2D1_MATRIX_5X4_F m = {};
+                    m._11 = c; m._22 = c; m._33 = c; m._44 = 1.0f;
+                    m._51 = b; m._52 = b; m._53 = b;
+                    cm->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, m);
+                    result = cm.Get();
                 }
             }
             if (result) dc->DrawImage(result);
@@ -4725,15 +4742,15 @@ namespace ZUI {
             if (FAILED(hrBackdrop) || !backdropBrush) return;
 
             // 官方亚克力配方：模糊 + 亮度/颜色混合 + 噪点。参数走 ManualAcrylic*（滑块可调）。
-            D2D1_COLOR_F tint = ManualAcrylicTintColor;
+            D2D1_COLOR_F tint = AcrylicParams.tint;
             ComPtr<ICompositionBrush> noise = core_ ? core_->GetNoiseBrush() : nullptr;
             ComPtr<ICompositionBrush> brush = detail_fx::BuildAcrylicBrush(
                 compositor_, reinterpret_cast<ICompositionBrush*>(backdropBrush.Get()),
                 noise.Get(),
-                tint, AcrylicLuminosityColor, ManualAcrylicNoiseOpacity, ManualAcrylicBlurDeviation);
+                tint, AcrylicParams.luminosity, AcrylicParams.noiseOpacity, AcrylicParams.blurAmount);
             if (!brush) {
                 // 兜底：完整配方失败时退回“宿主背景 + 高斯模糊”，至少能看到模糊背景
-                auto blur = Microsoft::WRL::Make<detail_fx::GaussianBlurEffect>(ManualAcrylicBlurDeviation);
+                auto blur = Microsoft::WRL::Make<detail_fx::GaussianBlurEffect>(AcrylicParams.blurAmount);
                 blur->SetInput(static_cast<ABI::Windows::Graphics::Effects::IGraphicsEffectSource*>(
                     detail_fx::CompositionEffectSource(Microsoft::WRL::Wrappers::HStringReference(L"Backdrop").Get())));
                 ComPtr<ICompositionEffectFactory> factory;
