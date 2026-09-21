@@ -71,7 +71,7 @@ namespace ZUI {
 
         bool IsFocusable() const override { return false; }   // 不参与 Tab 焦点
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             float h = height_ > 0 ? height_ : (availableSize.height != FLT_MAX ? availableSize.height : 32.0f);
             return Size(GetButtonWidth(), h);
         }
@@ -140,14 +140,14 @@ namespace ZUI {
         }
 
         void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; pressed_ = false; RequestRepaint(); }
-        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); }   // 只清 hover；按下后移出再松手仍应触发 Click（对齐原生）
+        void OnMouseLeave() override { hovered_ = false; pressed_ = false; RequestRepaint(); }   // 必须清 pressed_，否则按下后移出会把按下动画卡死
         void OnMouseDown(float, float) override { if (!IsEffectivelyEnabled()) return; pressed_ = true; RequestRepaint(); }
-        void OnMouseUp(float x, float y) override {
+        void OnMouseUp(float, float) override {
             if (!pressed_) return;
             pressed_ = false;
             RequestRepaint();
             if (!IsEffectivelyEnabled()) return;
-            if (arrangedRect_.Contains(x, y)) Clicked.Fire();   // 松开时仍在按钮内才触发（移出后松开不触发）
+            Clicked.Fire();
         }
         void SetAnimationSpeed(float s) { animSpeed_ = max(0.1f, s); }
         void SetPressedVisual(bool p) { pressed_ = p; RequestRepaint(); }   // 只改视觉，不触发动作
@@ -225,13 +225,13 @@ namespace ZUI {
             }
         }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             float w = width_ > 0 ? width_ : (availableSize.width != FLT_MAX ? availableSize.width : 0.0f);
             return Size(w, height_);
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
 
             // 右上角锚定、按钮右边缘与标题栏右边缘齐平（不做 DWM 推算，避免被阴影/整体窗口干扰）。
             // 需要留边距可 SetRightMargin 覆盖；需要不同尺寸可 SetButtonWidth/Height。

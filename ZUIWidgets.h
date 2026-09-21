@@ -187,7 +187,7 @@ namespace ZUI {
             return Label::DefaultFontSpec;
         }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             float padW = padding_.left + padding_.right;
             float padH = padding_.top + padding_.bottom;
 
@@ -251,8 +251,8 @@ namespace ZUI {
                 padH + max(max(ih, textH), ch));
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             float x = finalRect.x + padding_.left;
             float cy = finalRect.y + finalRect.height * 0.5f;
             iconRect_ = D2D1::RectF(0, 0, 0, 0);
@@ -484,10 +484,10 @@ namespace ZUI {
             return Button::DefaultFontSpec;
         }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        Size MeasureOverride(const Size& availableSize) override { return Size(width_, height_); }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             if (label_) {
                 float padding = padding_;
                 Rect labelRect(finalRect.x + padding, finalRect.y, finalRect.width - padding * 2, finalRect.height);
@@ -722,7 +722,7 @@ namespace ZUI {
             return TextBox::DefaultFontSpec;
         }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        Size MeasureOverride(const Size& availableSize) override { return Size(width_, height_); }
         UIElement* HitTest(float x, float y) override {
             if (visible_ && arrangedRect_.Contains(x, y)) return this;
             return nullptr;
@@ -1574,7 +1574,7 @@ namespace ZUI {
             return w;
         }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             if (itemWidthsDirty_) RecalcItemWidths();   // 仅数据变化时重算，避免每帧测量所有选项
             // 折叠框宽度取“选项平均宽度”（放不下时再靠 tooltip 显示完整文本）
             float w = width_;
@@ -2242,17 +2242,16 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return DefaultHorizontalStretchWeight; }
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
 
-        void Arrange(const Rect& finalRect) override {
+        void ArrangeOverride(const Rect& finalRect) override {
             float tw = width_, th = height_;
             float w = label_.empty() ? tw : finalRect.width;
             float h = max(th, finalRect.height);
-            UIElement::Arrange(Rect(finalRect.x, finalRect.y, w, h));
+            UIElement::ArrangeOverride(Rect(finalRect.x, finalRect.y, w, h));
             float ty = finalRect.y + (h - th) / 2.0f;
             trackRect_ = Rect(finalRect.x, ty, tw, th);
-            layoutDirty_ = false;
         }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             float tw = width_, th = height_;
             if (label_.empty()) return Size(tw, th);
             auto fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
@@ -2492,13 +2491,13 @@ namespace ZUI {
                 }
             }
 
-            Size Measure(const Size& availableSize) override {
+            Size MeasureOverride(const Size& availableSize) override {
                 if (vertical_) return Size(owner_->scrollBarWidth_, 100.0f);
                 else return Size(100.0f, owner_->scrollBarWidth_);
             }
 
-            void Arrange(const Rect& finalRect) override {
-                UIElement::Arrange(finalRect);
+            void ArrangeOverride(const Rect& finalRect) override {
+                UIElement::ArrangeOverride(finalRect);
             }
 
             void Draw(ID2D1RenderTarget* rt) override {
@@ -2713,7 +2712,7 @@ namespace ZUI {
         }
 
         // ---------- UIElement 重写 ----------
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             if (!content_) return Size(0, 0);
             contentDesiredSize_ = content_->Measure(Size(FLT_MAX, FLT_MAX));
             Size result;
@@ -2726,8 +2725,8 @@ namespace ZUI {
             return result;
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             lastArrangeRect_ = finalRect;
             if (!content_) return;
 
@@ -3088,10 +3087,10 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return DefaultHorizontalStretchWeight; }
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        Size MeasureOverride(const Size& availableSize) override { return Size(width_, height_); }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             if (indeterminate_ && arrangedRect_.width > 0) {
                 if (indeterminatePos_ > arrangedRect_.width) {
                     indeterminatePos_ = -indeterminateBlockWidth_;
@@ -3274,7 +3273,7 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return DefaultHorizontalStretchWeight; }
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        Size MeasureOverride(const Size& availableSize) override { return Size(width_, height_); }
 
         void Draw(ID2D1RenderTarget* rt) override {
             if (!visible_) return;
@@ -3521,7 +3520,7 @@ namespace ZUI {
             }
         }
 
-        Size Measure(const Size&) override {
+        Size MeasureOverride(const Size&) override {
             float box = (width_ > 0.0f ? width_ : DefaultSize);
             if (label_.empty()) return Size(box, box);
             auto fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
@@ -3531,11 +3530,11 @@ namespace ZUI {
             if (layout) layout->GetMetrics(&tm);
             return Size(box + 6.0f + tm.width, max(box, tm.height));
         }
-        void Arrange(const Rect& finalRect) override {
+        void ArrangeOverride(const Rect& finalRect) override {
             float box = (width_ > 0.0f && height_ > 0.0f) ? (width_ < height_ ? width_ : height_) : DefaultSize;
             float w = label_.empty() ? box : finalRect.width;
             float h = max(box, finalRect.height);
-            UIElement::Arrange(Rect(finalRect.x, finalRect.y, w, h));
+            UIElement::ArrangeOverride(Rect(finalRect.x, finalRect.y, w, h));
             float by = finalRect.y + (h - box) / 2.0f;
             boxRect_ = D2D1::RectF(finalRect.x, by, finalRect.x + box, by + box);
         }

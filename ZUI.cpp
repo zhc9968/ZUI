@@ -1,4 +1,5 @@
 ﻿// main.cpp - ZUI 综合自动化布局测试（使用 Connect 自动管理连接）
+#define ZUI_DEBUG
 #include "ZDataViewer.h"
 #include "ZUIWindowTool.h"
 

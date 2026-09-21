@@ -427,10 +427,10 @@ namespace ZUI {
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
         bool IsFocusable() const override { return true; }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        Size MeasureOverride(const Size& availableSize) override { return Size(width_, height_); }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             UpdateScrollInfo();
             UpdateIndicatorTarget();
         }
@@ -1535,10 +1535,10 @@ namespace ZUI {
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
         bool IsFocusable() const override { return true; }
 
-        Size Measure(const Size& availableSize) override { return Size(width_, height_); }
+        Size MeasureOverride(const Size& availableSize) override { return Size(width_, height_); }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             UpdateScrollInfo();
             UpdateIndicatorTarget();
         }
@@ -3103,12 +3103,12 @@ namespace ZUI {
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
         bool IsFocusable() const override { return true; }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             return Size(width_, height_);
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             UpdateScrollInfo();
             UpdateIndicatorTarget();
         }

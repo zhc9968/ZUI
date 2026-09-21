@@ -630,7 +630,7 @@ namespace ZUI {
     public:
         UIElement() : parent_(nullptr), visible_(true), width_(0), height_(0), arrangedRect_(),
             minWidth_(0), minHeight_(0), maxWidth_(FLT_MAX), maxHeight_(FLT_MAX),
-            fillWidth_(false), fillHeight_(false), layoutDirty_(true),
+            fillWidth_(false), fillHeight_(false),
             connectionGroup_(std::make_shared<ConnectionGroup>()),
             cacheValid_(false), useCache_(true) {
             // 订阅全局字体变更：未覆盖字体的控件自动重建（随本元素的 ConnectionGroup 自动断开）
@@ -647,8 +647,8 @@ namespace ZUI {
 
         // ---------- 布局相关 ----------
         void InvalidateLayout();   // 定义见文件末尾（需要 Window 完整类型才能路由到所属窗口）
-        bool IsLayoutDirty() const { return layoutDirty_; }
-        void ClearLayoutDirty() { layoutDirty_ = false; }
+        // 布局是否需要重算（第 2 期：两级脏位）
+        bool NeedsLayout() const { return measureDirty_ || arrangeDirty_; }
 
         void SetMinWidth(float w) { minWidth_ = w; InvalidateLayout(); }
         void SetMinHeight(float h) { minHeight_ = h; InvalidateLayout(); }
@@ -689,8 +689,32 @@ namespace ZUI {
         virtual float GetDefaultHorizontalStretchWeight() const { return 0.0f; }
         virtual float GetDefaultVerticalStretchWeight() const { return 0.0f; }
 
-        virtual Size Measure(const Size& availableSize) = 0;
-        virtual void Arrange(const Rect& finalRect) { arrangedRect_ = finalRect; layoutDirty_ = false; }
+        // Measure：基类统一做 DesiredSize 缓存（子类实现 MeasureOverride）
+        Size Measure(const Size& avail) {
+            if (!measureDirty_ && avail.width == previousAvailableSize_.width
+                && avail.height == previousAvailableSize_.height) return desiredSize_;
+            desiredSize_ = MeasureOverride(avail);
+            previousAvailableSize_ = avail;
+            measureDirty_ = false;
+            return desiredSize_;
+        }
+        virtual Size MeasureOverride(const Size& availableSize) = 0;
+        Size GetDesiredSize() const { return desiredSize_; }
+
+        // Arrange：基类包装；最终矩形变了或自身脏才做，且缓存作废
+        void Arrange(const Rect& finalRect) {
+            bool rectChanged = !(finalRect.x == arrangedRect_.x && finalRect.y == arrangedRect_.y
+                && finalRect.width == arrangedRect_.width && finalRect.height == arrangedRect_.height);
+            if (!arrangeDirty_ && !rectChanged) return;
+            // 仅在"约束变了"时重测（C2）；命中缓存则 O(1)
+            if (finalRect.width != previousAvailableSize_.width || finalRect.height != previousAvailableSize_.height)
+                Measure(Size(finalRect.width, finalRect.height));
+            ArrangeOverride(finalRect);   // arrangedRect_ 由 ArrangeOverride（或其基类默认实现）设置，包装器不再覆盖
+            arrangeDirty_ = false;
+            // 自身与**所有祖先**的离屏缓存作废：父缓存位图包含整棵子树，子变了父必须重画
+            for (UIElement* e = this; e; e = e->parent_) e->cacheValid_ = false;
+        }
+        virtual void ArrangeOverride(const Rect& finalRect) { arrangedRect_ = finalRect; }
         Rect GetArrangedRect() const { return arrangedRect_; }
 
         // 获取 IME 候选框定位矩形（DIP 坐标）
@@ -1008,7 +1032,10 @@ namespace ZUI {
         Rect arrangedRect_;
         float minWidth_, minHeight_, maxWidth_, maxHeight_;
         bool fillWidth_, fillHeight_;
-        bool layoutDirty_;
+        Size desiredSize_{};                                  // Measure 输出（DesiredSize 缓存）
+        Size previousAvailableSize_{ -1.0f, -1.0f };          // 上轮测量可用的尺寸
+        bool measureDirty_ = true;
+        bool arrangeDirty_ = true;
         std::shared_ptr<Menu> contextMenu_;
         std::optional<float> horizontalStretchWeight_;
         std::optional<float> verticalStretchWeight_;
@@ -1053,7 +1080,7 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return 1.0f; }
         float GetDefaultVerticalStretchWeight() const override { return 0.0f; }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             float totalHeight = 0;
             float maxWidth = 0;
             for (auto& child : children_) {
@@ -1067,8 +1094,8 @@ namespace ZUI {
             return Size(width_ > 0 ? width_ : maxWidth, height_ > 0 ? height_ : totalHeight);
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             float y = finalRect.y;
             for (auto& child : children_) {
                 if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
@@ -1145,7 +1172,7 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return 0.0f; }
         float GetDefaultVerticalStretchWeight() const override { return 1.0f; }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             float totalWidth = 0;
             float maxHeight = 0;
             for (auto& child : children_) {
@@ -1159,8 +1186,8 @@ namespace ZUI {
             return Size(width_ > 0 ? width_ : totalWidth, height_ > 0 ? height_ : maxHeight);
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             float x = finalRect.x;
             for (auto& child : children_) {
                 if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
@@ -1275,7 +1302,7 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return 1.0f; }
         float GetDefaultVerticalStretchWeight() const override { return 1.0f; }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             int maxRow = 0, maxCol = 0;
             for (auto& item : items_) {
                 if (!item.element->ParticipatesInLayout()) continue;
@@ -1303,8 +1330,8 @@ namespace ZUI {
             return Size(totalWidth, totalHeight);
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             int maxRow = 0, maxCol = 0;
             for (auto& item : items_) {
                 if (!item.element->ParticipatesInLayout()) continue;
@@ -1568,14 +1595,14 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return DefaultHorizontalStretchWeight; }
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             if (!layout_) return Size(0, 0);
             Size childSize = layout_->Measure(Size(availableSize.width - padding_ * 2, availableSize.height - padding_ * 2));
             return Size(childSize.width + padding_ * 2, childSize.height + padding_ * 2);
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             if (layout_) {
                 layout_->Arrange(Rect(finalRect.x + padding_, finalRect.y + padding_, finalRect.width - padding_ * 2, finalRect.height - padding_ * 2));
             }
@@ -1675,14 +1702,14 @@ namespace ZUI {
         float GetDefaultHorizontalStretchWeight() const override { return DefaultHorizontalStretchWeight; }
         float GetDefaultVerticalStretchWeight() const override { return DefaultVerticalStretchWeight; }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             if (!layout_) return Size(0, 0);
             Size childSize = layout_->Measure(Size(availableSize.width - padding_ * 2, availableSize.height - padding_ * 2));
             return Size(childSize.width + padding_ * 2, childSize.height + padding_ * 2);
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             if (layout_) {
                 layout_->Arrange(Rect(finalRect.x + padding_, finalRect.y + padding_, finalRect.width - padding_ * 2, finalRect.height - padding_ * 2));
             }
@@ -1787,7 +1814,7 @@ namespace ZUI {
         // PageHost 不使用缓存，因为动画期间内容变化频繁
         bool UseCache() const override { return false; }
 
-        Size Measure(const Size& availableSize) override {
+        Size MeasureOverride(const Size& availableSize) override {
             Size result;
             if (width_ > 0) result.width = width_;
             else if (availableSize.width != FLT_MAX) result.width = availableSize.width;
@@ -1799,8 +1826,8 @@ namespace ZUI {
             return result;
         }
 
-        void Arrange(const Rect& finalRect) override {
-            UIElement::Arrange(finalRect);
+        void ArrangeOverride(const Rect& finalRect) override {
+            UIElement::ArrangeOverride(finalRect);
             for (auto& page : pages_) page->Arrange(finalRect);
         }
 
@@ -3325,7 +3352,12 @@ namespace ZUI {
         }
 
         // 由 UIElement 直接路由，多窗口互不干扰
-        void MarkRepaint(UIElement* elem) { if (elem) pendingRepaint_.insert(elem); }
+        void MarkRepaint(UIElement* elem) {
+            if (!elem) return;
+            pendingRepaint_.insert(elem);
+            // 祖先的离屏缓存位图包含整棵子树 → 必须一并作废，否则父缓存会画旧内容
+            for (UIElement* e = elem; e; e = e->GetParent()) e->cacheValid_ = false;
+        }
         void MarkLayoutInvalidated() { layoutInvalidated_ = true; }
 
         // 控件鼠标捕获（按窗口路由）
@@ -3795,8 +3827,8 @@ namespace ZUI {
         }
         bool HasRenderWork() const {
             if (layoutInvalidated_ || focusDirty_ || !pendingRepaint_.empty()) return true;
-            if (rootElement_ && rootElement_->HasActiveAnimation()) return true;
-            if (customTitleBar_ && customTitleBar_->HasActiveAnimation()) return true;   // 标题栏 hover 动画也要驱动
+            // 用上次合成收集到的活跃动画集合判断，避免每个 timer tick 都全树递归 HasActiveAnimation()
+            if (!activeAnimScratch_.empty()) return true;
             if (tooltipTarget_ || tooltipProgress_ > 0.0f) return true;
             if (currentHovered_ && currentHovered_->IsEffectivelyEnabled() && !currentHovered_->GetToolTip().empty()) return true;
             return false;
@@ -4165,28 +4197,17 @@ namespace ZUI {
             if (deltaTime < 0.0f) deltaTime = 0.0f;
 
             // 2. 布局检查
-            if (layoutInvalidated_ || layoutNeeded_ || (rootElement_ && rootElement_->IsLayoutDirty())) {
+            if (layoutInvalidated_ || layoutNeeded_ || (rootElement_ && rootElement_->NeedsLayout())) {
                 if (rootElement_) {
                     rootElement_->Measure(Size(availWidth, availHeight));
                     rootElement_->Arrange(Rect(left, top, availWidth, availHeight));
-                    rootElement_->ClearLayoutDirty();
                 }
                 layoutNeeded_ = false;
                 layoutInvalidated_ = false;
-
-                // 清空所有缓存，将可见有缓存元素加入待重绘集合
-                ClearAllCaches();
-                pendingRepaint_.clear();
-                if (rootElement_) {
-                    CollectVisibleCachedElements(rootElement_.get(), pendingRepaint_);
-                }
-                if (customTitleBar_) {
-                    CollectVisibleCachedElements(customTitleBar_.get(), pendingRepaint_);
-                }
+                // 第 2 期：不再 ClearAllCaches()——Arrange 包装器已把真正重排元素的 cacheValid_ 置 false，
+                // 未变化的子树缓存保持有效（这正是省内存的关键）。
+                CollectDragRegions();   // 拖动区依赖布局：只在重排后重建（原来每帧全树收集）
             }
-
-            // 收集可拖动区域（供 WM_NCHITTEST 返回 HTCAPTION）
-            CollectDragRegions();
 
             // 3. 动画更新
             if (rootElement_) {
@@ -4919,7 +4940,7 @@ namespace ZUI {
                 return;
             }
 
-            if (layoutNeeded_ || rootElement_->IsLayoutDirty()) {
+            if (layoutNeeded_ || rootElement_->NeedsLayout()) {
                 RECT rc;
                 GetClientRect(hwnd_, &rc);
                 float clientWidthDip = (rc.right - rc.left) * 96.0f / dpi_;
@@ -4930,7 +4951,6 @@ namespace ZUI {
                 float availHeight = clientHeightDip - top - rootMargin.bottom;
                 rootElement_->Measure(Size(availWidth, availHeight));
                 rootElement_->Arrange(Rect(left, top, availWidth, availHeight));
-                rootElement_->ClearLayoutDirty();
                 layoutNeeded_ = false;
             }
 
@@ -5074,8 +5094,8 @@ namespace ZUI {
         else UIZSignals::RepaintRequest(nullptr, this);
     }
     inline void UIElement::InvalidateLayout() {
-        layoutDirty_ = true;
-        ZUI_DEBUG_LOG_A((std::string("InvalidateLayout called by: ") + typeid(*this).name() + "\n").c_str());
+        // 冒泡到根（不做"遇脏即停"——C1：Measure 过程会打破该不变式）；深度 < 10，成本可忽略
+        for (UIElement* e = this; e; e = e->parent_) { e->measureDirty_ = true; e->arrangeDirty_ = true; }
         if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
         else UIZSignals::LayoutInvalidated(nullptr);
     }
