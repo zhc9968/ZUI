@@ -66,12 +66,16 @@ namespace ZUI {
             textBrush->SetColor(color);
         }
 
-        // 创建最终布局并绘制
+        // 创建最终布局并绘制；未截断时复用测量布局，省一次 CreateTextLayout
         ComPtr<IDWriteTextLayout> finalLayout;
-        dwriteFactory->CreateTextLayout(displayText.c_str(), (UINT32)displayText.length(),
-            fmt, maxWidth, maxHeight, &finalLayout);
+        if (displayText == text) finalLayout = measureLayout;
+        else {
+            dwriteFactory->CreateTextLayout(displayText.c_str(), (UINT32)displayText.length(),
+                fmt, maxWidth, maxHeight, &finalLayout);
+            if (finalLayout && forceNoWrap) finalLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+        }
         if (finalLayout) {
-            if (forceNoWrap) finalLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+            if (displayText != text && forceNoWrap) finalLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
             DWRITE_TEXT_METRICS fm{};
             finalLayout->GetMetrics(&fm);
             float drawX = rect.left;
@@ -640,8 +644,7 @@ namespace ZUI {
             selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
             UpdateDisplayLayout();
             UpdateFullDisplayLayout();
-            ClearUndoHistory();
-            PushUndoState();
+            ClearUndoHistory();   // 编程式 SetText 不产生撤销点（对齐 QTextEdit）
             TextChanged(text_);
             EnsureCursorVisible();
             InvalidateLayout();
@@ -938,7 +941,7 @@ namespace ZUI {
                 if (selectionStart_ != selectionEnd_) DeleteSelection();
                 else if (cursorPos_ < (int)text_.size()) {
                     text_.erase(cursorPos_, 1);
-                    selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_; selectionAnchor_ = cursorPos_;
+                    selectionStart_ = selectionEnd_ = cursorPos_; selectionAnchor_ = cursorPos_;
                 }
                 UpdateDisplayLayout();
                 UpdateFullDisplayLayout();
@@ -1467,6 +1470,7 @@ namespace ZUI {
         bool IsFocusable() const override { return editable_; }
         static std::wstring ToLower(std::wstring s) { for (auto& c : s) if (c >= L'A' && c <= L'Z') c = (wchar_t)(c + 32); return s; }
         void ApplyFilter() {
+            std::wstring prevSel = (selectedIndex_ >= 0 && selectedIndex_ < (int)items_.size()) ? items_[selectedIndex_] : L"";
             if (!filterEnabled_ || editText_.empty()) items_ = allItems_;
             else {
                 std::wstring key = ToLower(editText_);
@@ -1474,7 +1478,10 @@ namespace ZUI {
                 for (auto& s : allItems_) if (ToLower(s).find(key) != std::wstring::npos) items_.push_back(s);
             }
             disabledItems_.clear();
-            selectedIndex_ = items_.empty() ? -1 : 0;
+            selectedIndex_ = -1;
+            for (int i = 0; i < (int)items_.size(); ++i)
+                if (!prevSel.empty() && items_[i] == prevSel) { selectedIndex_ = i; break; }   // 保留原选中
+            if (selectedIndex_ < 0 && !items_.empty()) selectedIndex_ = 0;
             itemWidthsDirty_ = true;
             UpdateIndicatorPosition();
             UpdateToolTip();
@@ -1888,7 +1895,7 @@ namespace ZUI {
             }
 
             ExpandInternal();
-            PlaceCaretFromX(x);
+            if (!justExpanded_) PlaceCaretFromX(x);   // 刚展开这一次点击不重定位光标（justExpanded_ 生效）
             MouseDown.Fire(x, y);
         }
 
@@ -3048,7 +3055,11 @@ namespace ZUI {
             width_ = DefaultWidth; height_ = DefaultHeight;
         }
 
-        void SetValue(float value) { value_ = clamp(value, 0.0f, 1.0f); indeterminate_ = false; ValueChanged(GetRangeValue()); RequestRepaint(); }
+        void SetValue(float value) {
+            float v = clamp(value, 0.0f, 1.0f);
+            if (v == value_ && !indeterminate_) return;   // 值未变且非 indeterminate，不重复触发
+            value_ = v; indeterminate_ = false; ValueChanged(GetRangeValue()); RequestRepaint();
+        }
         float GetValue() const { return value_; }
         void SetRange(float min, float max) { if (max > min) { min_ = min; max_ = max; } else { min_ = min; max_ = min + 1.0f; } RequestRepaint(); }
         float GetMin() const { return min_; }
@@ -3227,7 +3238,9 @@ namespace ZUI {
 
         void SetRange(float min, float max) { if (max > min) { min_ = min; max_ = max; } value_ = clamp(value_, min_, max_); RequestRepaint(); }
         void SetValue(float value) {
-            value_ = SnapValue(clamp(value, min_, max_));
+            float snapped = SnapValue(clamp(value, min_, max_));
+            if (snapped == value_) return;   // 值未变不触发 ValueChanged
+            value_ = snapped;
             ValueChanged(value_);
             RequestRepaint();
         }

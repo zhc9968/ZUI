@@ -473,6 +473,7 @@ namespace ZUI {
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 tlDepth--;
+                if (tlDepth == 0) tlSnapshot.clear();   // 释放最后一次快照持有的 shared_ptr
             }
         }
 
@@ -1761,7 +1762,6 @@ namespace ZUI {
             animating_ = true;
             animProgress_ = 0.0f;
             RequestRepaint(); // 动画开始需要重绘
-            InvalidateLayout(); // 页面切换可能影响布局？通常不影响，但为安全
         }
 
         void SetTransitionDirection(TransitionDirection dir) { direction_ = dir; }
@@ -1888,17 +1888,6 @@ namespace ZUI {
 
         void UpdateAnimation(float deltaTime) override {
 #ifdef ZUI_DEBUG
-            // 调试：当自身动画结束但整体仍为 true 时，打印子页面状态
-            if (!animating_ && animProgress_ == 0.0f) {
-                for (size_t i = 0; i < pages_.size(); ++i) {
-                    if (pages_[i] && pages_[i]->HasActiveAnimation()) {
-                        wchar_t buf[256];
-                        swprintf(buf, 256, L"  Page[%zu] has animation\n", i);
-                        ZUI_DEBUG_LOG_W(buf);
-                    }
-                }
-            }
-
             // 如果动画已结束但仍有子元素在动画，打印子元素状态
             if (!animating_ && animProgress_ >= 1.0f) {
                 for (auto& page : pages_) {
@@ -1958,7 +1947,7 @@ namespace ZUI {
                 if (!pages_[i]) continue;
                 bool vis = ((int)i == currentIndex_) ||
                     (animating_ && ((int)i == fromIndex_ || (int)i == toIndex_));
-                pages_[i]->SetVisible(vis);
+                pages_[i]->SetVisibleNoInvalidate(vis);   // page 填满 host，可见性不影响布局，避免每次切页触发全量重排
             }
 
             if (justFinished) {
@@ -1977,14 +1966,6 @@ namespace ZUI {
             // 检查当前页面
             if (currentIndex_ >= 0 && currentIndex_ < (int)pages_.size()) {
                 if (pages_[currentIndex_]->HasActiveAnimation()) return true;
-            }
-
-            // 如果正在过渡，额外检查源页面和目标页面
-            if (animating_) {
-                if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size() &&
-                    pages_[fromIndex_]->HasActiveAnimation()) return true;
-                if (toIndex_ >= 0 && toIndex_ < (int)pages_.size() &&
-                    pages_[toIndex_]->HasActiveAnimation()) return true;
             }
 
             return false;
@@ -2951,6 +2932,8 @@ namespace ZUI {
 
             dpi_ = GetDpiForWindow(hwnd_);
             if (dpi_ == 0) dpi_ = 96;
+            { RECT rc0; GetClientRect(hwnd_, &rc0);   // WM_SIZE 守卫的初始尺寸（必须在窗口创建后取）
+              lastClientW_ = (UINT)(rc0.right - rc0.left); lastClientH_ = (UINT)(rc0.bottom - rc0.top); }
 
             d2dFactory_ = core_->GetFactory();   // 共享工厂（进程级）
             if (!d2dFactory_) return false;
@@ -3582,20 +3565,21 @@ namespace ZUI {
                         ShowOwnedWindows();      // 还原/最大化 → 恢复 owned 子窗口
                     }
                 }
-                if (!IsIconic(hwnd_)) {
-                    layoutNeeded_ = true;
-                    layoutInvalidated_ = true;
-                    InvalidateRect(hwnd_, nullptr, FALSE);
-                }
-                else {
+                if (IsIconic(hwnd_)) {
                     if (currentHovered_) { currentHovered_->OnMouseLeave(); currentHovered_ = nullptr; }
                     return 0;
                 }
                 {
                     RECT rc; GetClientRect(hwnd_, &rc);
+                    UINT nw = (UINT)(rc.right - rc.left), nh = (UINT)(rc.bottom - rc.top);
+                    if (nw == lastClientW_ && nh == lastClientH_) return 0;   // 尺寸没变，跳过（拖动/SetWindowPos 会空触发 WM_SIZE）
+                    lastClientW_ = nw; lastClientH_ = nh;
                     clientWidthDip_ = (rc.right - rc.left) * 96.0f / dpi_;
                     clientHeightDip_ = (rc.bottom - rc.top) * 96.0f / dpi_;
-                    if (swapChain_) ResizeSwapChain((UINT)(rc.right - rc.left), (UINT)(rc.bottom - rc.top));
+                    if (swapChain_) ResizeSwapChain(nw, nh);
+                    layoutNeeded_ = true;
+                    layoutInvalidated_ = true;
+                    InvalidateRect(hwnd_, nullptr, FALSE);
                 }
                 return 0;
             case WM_ACTIVATE:
@@ -4347,6 +4331,7 @@ namespace ZUI {
             UIZSignals::GlobalMouseDown(this, x, y);
 
             UIElement* hit = HitTestElement(x, y);
+            if (hit && !hit->IsEffectivelyEnabled()) hit = nullptr;   // disabled 不接收鼠标按下（与 hover 一致）
             if (hit) {
                 hit->OnMouseDown(x, y);
                 SetCapture(hwnd_);
@@ -5015,6 +5000,7 @@ namespace ZUI {
         ISpriteVisual* rootVisual_ = nullptr;
         ISpriteVisual* contentVisual_ = nullptr;
         float clientWidthDip_ = 0.0f, clientHeightDip_ = 0.0f;
+        UINT lastClientW_ = 0, lastClientH_ = 0;   // WM_SIZE 尺寸守卫：拖动/SetWindowPos 空触发时跳过重排
         std::shared_ptr<Layout> rootElement_;
         UIElement* currentHovered_;
         UIElement* pressedElement_;

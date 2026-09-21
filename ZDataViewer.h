@@ -353,6 +353,7 @@ namespace ZUI {
             selectedIndex_ = -1;
             if (selLabel) for (int i = 0; i < (int)items_.size(); ++i) if (items_[i] == selLabel) { selectedIndex_ = i; break; }
             multiSel_.clear(); checked_.clear();
+            SelectionChanged(selectedIndex_);   // 排序使选中项复位/移动 → 通知外部同步
             UpdateScrollInfo(); UpdateIndicatorTarget(); RequestRepaint();
         }
         bool IsSortAscending() const { return sortAscending_; }
@@ -450,15 +451,16 @@ namespace ZUI {
                 arrangedRect_.x + viewportWidth, arrangedRect_.y + arrangedRect_.height);
             rt->PushAxisAlignedClip(clipRect, D2D1_ANTIALIAS_MODE_ALIASED);
 
-            int firstVisible = (int)(scrollOffsetY_ / effectiveRowHeight);
-            int lastVisible = (int)((scrollOffsetY_ + arrangedRect_.height) / effectiveRowHeight);
+            float snapped = Snap(scrollOffsetY_);
+            int firstVisible = (int)(snapped / effectiveRowHeight);
+            int lastVisible = (int)((snapped + arrangedRect_.height) / effectiveRowHeight);
             lastVisible = min(lastVisible, (int)items_.size() - 1);
             if (firstVisible < 0) firstVisible = 0;
 
             IDWriteTextFormat* fmt = GetFontFormat();
 
             for (int i = firstVisible; i <= lastVisible && i < (int)items_.size(); ++i) {
-                float itemY = arrangedRect_.y + i * effectiveRowHeight - Snap(scrollOffsetY_);
+                float itemY = arrangedRect_.y + i * effectiveRowHeight - snapped;
                 D2D1_RECT_F itemRect = D2D1::RectF(arrangedRect_.x, itemY,
                     arrangedRect_.x + viewportWidth, itemY + itemHeight_);
 
@@ -924,6 +926,7 @@ namespace ZUI {
         }
 
         void DrawScrollBar(ID2D1RenderTarget* rt, float viewportWidth) {
+            if (maxScrollY_ <= 0.0f) return;   // 无滚动量，避免除零
             float baseTrackWidth = scrollBarWidth_;
             float trackWidth = baseTrackWidth * (1.0f + 0.25f * scrollHoverProgress_);
             float trackX = arrangedRect_.x + arrangedRect_.width - trackWidth;
@@ -1361,6 +1364,7 @@ namespace ZUI {
             rowHeights_ = std::move(nh);
             sortColumn_ = col; sortAscending_ = ascending;
             cellSel_.clear(); selectedRow_ = -1; selectedCol_ = -1;
+            SelectionChanged(selectedRow_, selectedCol_);   // 排序复位选中 → 通知外部同步
             UpdateScrollInfo();
             UpdateIndicatorTarget();
             RequestRepaint();
@@ -1446,7 +1450,8 @@ namespace ZUI {
         void SetCurrentCell(int row, int col) {
             if (row < -1 || row >= rowCount_ || col < -1 || col >= colCount_) return;
             if (selectionMode_ == SelectionMode::None) return;
-            if (selectionMode_ == SelectionMode::Row) col = 0;
+            if (row == -1 || col == -1) { row = -1; col = -1; }   // 清除态统一，避免 row=-1 而 col 被强制成 0
+            else if (selectionMode_ == SelectionMode::Row) col = 0;
             else if (selectionMode_ == SelectionMode::Column) row = 0;
             if (selectedRow_ != row || selectedCol_ != col) {
                 selectedRow_ = row;
@@ -2292,6 +2297,7 @@ namespace ZUI {
         }
 
         void DrawVerticalScrollBar(ID2D1RenderTarget* rt, float viewportHeight) {
+            if (maxScrollY_ <= 0.0f) return;   // 无滚动量，避免除零
             float baseTrackWidth = scrollBarWidth_;
             float trackWidth = baseTrackWidth * (1.0f + 0.25f * verticalScrollHoverProgress_);
             float trackX = arrangedRect_.x + arrangedRect_.width - trackWidth;
@@ -2326,6 +2332,7 @@ namespace ZUI {
         }
 
         void DrawHorizontalScrollBar(ID2D1RenderTarget* rt, float viewportWidth) {
+            if (maxScrollX_ <= 0.0f) return;   // 无滚动量，避免除零
             float baseTrackHeight = scrollBarWidth_;
             float trackHeight = baseTrackHeight * (1.0f + 0.25f * horizontalScrollHoverProgress_);
             float trackY = arrangedRect_.y + arrangedRect_.height - trackHeight;
@@ -2727,6 +2734,7 @@ namespace ZUI {
                 }
             }
             else {
+                if (selectedNode_ == node) return;   // 相同节点不重复触发 SelectionChanged
                 if (node) node->selected = true;
                 selectedNode_ = node;
                 SelectionChanged(selectedNode_);
@@ -3782,6 +3790,7 @@ namespace ZUI {
                 : (allUnchecked ? TreeNode::CheckState::Unchecked : TreeNode::CheckState::PartiallyChecked);
             if (parent->checkState != st) {
                 parent->checkState = st;
+                EnsureCheckAnim(parent);   // 父节点勾选动画也要生效
                 ItemCheckStateChanged(parent, st);
                 UpdateParentCheckState(parent);
             }
@@ -4052,6 +4061,7 @@ namespace ZUI {
         }
 
         void DrawVerticalScrollBar(ID2D1RenderTarget* rt, float viewportHeight, float headerOffset) {
+            if (maxScrollY_ <= 0.0f) return;   // 无滚动量，避免除零
             float trackX = arrangedRect_.x + arrangedRect_.width - scrollBarWidth_;
             float trackY = arrangedRect_.y + headerOffset;
             float trackHeight = viewportHeight - headerOffset;
@@ -4081,6 +4091,7 @@ namespace ZUI {
         }
 
         void DrawHorizontalScrollBar(ID2D1RenderTarget* rt, float viewportWidth) {
+            if (maxScrollX_ <= 0.0f) return;   // 无滚动量，避免除零
             float trackX = arrangedRect_.x;
             float trackY = arrangedRect_.y + arrangedRect_.height - scrollBarWidth_;
             float trackWidth = viewportWidth;

@@ -140,7 +140,7 @@ namespace ZUI {
         }
 
         void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; pressed_ = false; RequestRepaint(); }
-        void OnMouseLeave() override { hovered_ = false; pressed_ = false; RequestRepaint(); }
+        void OnMouseLeave() override { hovered_ = false; RequestRepaint(); }   // 只清 hover；按下后移出再松手仍应触发 Click（对齐原生）
         void OnMouseDown(float, float) override { if (!IsEffectivelyEnabled()) return; pressed_ = true; RequestRepaint(); }
         void OnMouseUp(float, float) override {
             if (!pressed_) return;
