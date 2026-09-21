@@ -711,8 +711,7 @@ namespace ZUI {
                 Measure(Size(finalRect.width, finalRect.height));
             ArrangeOverride(finalRect);   // arrangedRect_ 由 ArrangeOverride（或其基类默认实现）设置，包装器不再覆盖
             arrangeDirty_ = false;
-            // 自身与**所有祖先**的离屏缓存作废：父缓存位图包含整棵子树，子变了父必须重画
-            for (UIElement* e = this; e; e = e->parent_) e->cacheValid_ = false;
+            cacheValid_ = false;   // 本元素重排过 → 自己的离屏缓存作废（父缓存只含父自身绘制，不必动）
         }
         virtual void ArrangeOverride(const Rect& finalRect) { arrangedRect_ = finalRect; }
         Rect GetArrangedRect() const { return arrangedRect_; }
@@ -3352,12 +3351,7 @@ namespace ZUI {
         }
 
         // 由 UIElement 直接路由，多窗口互不干扰
-        void MarkRepaint(UIElement* elem) {
-            if (!elem) return;
-            pendingRepaint_.insert(elem);
-            // 祖先的离屏缓存位图包含整棵子树 → 必须一并作废，否则父缓存会画旧内容
-            for (UIElement* e = elem; e; e = e->GetParent()) e->cacheValid_ = false;
-        }
+        void MarkRepaint(UIElement* elem) { if (elem) pendingRepaint_.insert(elem); }
         void MarkLayoutInvalidated() { layoutInvalidated_ = true; }
 
         // 控件鼠标捕获（按窗口路由）
