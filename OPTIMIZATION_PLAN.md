@@ -304,3 +304,59 @@ float childH = child->GetHeight() > 0 ? child->GetHeight() : child->GetDesiredSi
 4. 传播触发点：`InvalidateMeasure/Arrange` 冒泡 + 结构变化仅在"已挂窗口"时冒泡。
 5. 5.3 约束传递不在本清单。
 6. 改名以 `MeasureOverride = 0` 纯虚做安全网，防静默塌布局。
+
+---
+
+# 第 2 期强制修正（评审第 4 轮新增，实现前必读）
+
+## C1（🔴）`InvalidateMeasure` 去掉 `break`，无条件冒泡到根
+§2.2 原来的"遇脏即停"有漏洞：Measure 过程中"子被跳过（如 PageHost 非当前页 / GridLayout 隐藏 item）"会打破不变式——子仍 dirty 而祖先已被清 → 对子的后代再失效时在子处 break，根永不重排 → 布局卡死。
+**改**：删掉 `if (e->measureDirty_) break;`，一直冒泡到根（深度 < 10，成本可忽略）。`InvalidateArrange` 同样处理。
+
+```cpp
+void InvalidateMeasure() {
+    for (UIElement* e = this; e; e = e->parent_) { e->measureDirty_ = true; e->arrangeDirty_ = true; }
+    if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
+}
+void InvalidateArrange() {
+    for (UIElement* e = this; e; e = e->parent_) e->arrangeDirty_ = true;
+    if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
+}
+```
+
+## C2（🟡）Arrange 包装器的重测条件按"约束是否变"判断
+`if (r.width != desiredSize_.width ...)` 对固定尺寸控件（Button 的 `MeasureOverride` 直接返回 `Size(width_, height_)`）会每次 Arrange 都重测。
+**改**：与"上轮 availableSize"比较：
+
+```cpp
+if (r.width  != previousAvailableSize_.width || r.height != previousAvailableSize_.height)
+    Measure(Size(r.width, r.height));   // 只有约束变了才重测
+```
+
+## C3（🟡）GridLayout 的 Arrange 保留"定向重测"（保守版）
+GridLayout 是二维 stretch：cell 最终尺寸可与 Measure 阶段 availableSize 完全不同（stretch 列 80→300），此时 FillWidth 换行控件用旧 `GetDesiredSize()` 会得到错误高度。
+**改**：GridLayout 不照搬 §2.5① 的删法；对"最终 cell 尺寸 ≠ 上轮 availableSize"的子元素**只重测那一个**。ColumnBox（一维堆叠、宽度=父宽）可安全删。
+
+## C4（🟡）排查 `MeasureOverride` 里的可变副作用，改显式 `PrepareMeasure()`
+`ComboBox::Measure` 的 `if (itemWidthsDirty_) RecalcItemWidths();`、`Label::Measure` 的 `measuredIconW_` 等"惰性前置计算"改 `MeasureOverride` 后会因缓存命中而**永不执行** → 数据变更（AddItem 等）后用到旧数据。
+**新增任务**：把所有"测量前置计算"从 `MeasureOverride` 移出，改为 `PrepareMeasure()` 显式入口，由数据变更 API（`AddItem/SetItems/SetColumnWidth/SetIcon`…）显式调用。
+
+## C5（🟡）L13：`SetParent` 幽灵节点（第 2 期做）
+元素从容器 A 挪到 B 时，A 的 `children_` 仍留它。
+**改**：基类加 `virtual bool RemoveChild(UIElement*)`（默认 false），各容器重写；`SetParent(newP)` 里 `if (parent_ && parent_ != newP) parent_->RemoveChild(this);`。收口到 `AdoptChild/OrphanChild` 更彻底，第 2 期随布局重构一起做。
+
+## C6（🟢）X1 的 `lastClientW_/H_` 初始化时机
+已在 `Window::Create`（hwnd 创建、dpi 取到之后）显式 `GetClientRect` 初始化。**已完成**（随第 1 期提交）。
+
+---
+
+# 第 1 期实际完成情况（commit `e5cece9` / tag `phase1-done`）
+
+- ✅ X1（含 C6 初始化时机）
+- ✅ M1（NavigateTo 删 InvalidateLayout）
+- ✅ M3（PageHost 用 SetVisibleNoInvalidate）
+- ✅ L1–L12、D6
+- ✅ E1、E2、D4（部分：未截断复用 measureLayout）、D5
+- ⏸ **推迟到第 2 期**：R2（图像缓存 epoch）、R3（TreeNode::parent 弱引用）、R4（checkAnim_ key）、L13（幽灵节点）、D3（表头重复线，判定为非真 bug，暂不动）
+  - 理由：R3/R4/L13 涉及容器/Tree 结构重构，与第 2 期布局改动同域，合并做更安全；R2 需要自定义 hash，一并放第 2 期。
+

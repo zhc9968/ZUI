@@ -142,12 +142,12 @@ namespace ZUI {
         void OnMouseEnter() override { if (!IsEffectivelyEnabled()) return; hovered_ = true; pressed_ = false; RequestRepaint(); }
         void OnMouseLeave() override { hovered_ = false; RequestRepaint(); }   // 只清 hover；按下后移出再松手仍应触发 Click（对齐原生）
         void OnMouseDown(float, float) override { if (!IsEffectivelyEnabled()) return; pressed_ = true; RequestRepaint(); }
-        void OnMouseUp(float, float) override {
+        void OnMouseUp(float x, float y) override {
             if (!pressed_) return;
             pressed_ = false;
             RequestRepaint();
             if (!IsEffectivelyEnabled()) return;
-            Clicked.Fire();
+            if (arrangedRect_.Contains(x, y)) Clicked.Fire();   // 松开时仍在按钮内才触发（移出后松开不触发）
         }
         void SetAnimationSpeed(float s) { animSpeed_ = max(0.1f, s); }
         void SetPressedVisual(bool p) { pressed_ = p; RequestRepaint(); }   // 只改视觉，不触发动作
