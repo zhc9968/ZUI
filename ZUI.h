@@ -1928,12 +1928,8 @@ namespace ZUI {
                     toIndex_ = -1;
                     justFinished = true;
                 }
-                // 动画过程中强制重绘子页面，确保缓存更新
-                if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size())
-                    pages_[fromIndex_]->RequestRepaint();
-                if (toIndex_ >= 0 && toIndex_ < (int)pages_.size())
-                    pages_[toIndex_]->RequestRepaint();
-                RequestRepaint(); // 页面容器也需要重绘
+                // A6：过渡只改变换（GetChildRenderTransform），页面内容不变 —— 不再每帧 RequestRepaint 两个
+                // 页面（那会每帧重建两页的离屏缓存）。窗口重合成由 PageHost 的活跃动画 + lastActiveAnimElements_ 驱动。
             }
             // 更新页面动画：动画中只更新源/目标页，否则只更新当前页。
             // 注意：动画期间 currentIndex_ == fromIndex_，若三条路径都走会导致同一页每帧被更新两次、速度翻倍。
@@ -4187,6 +4183,15 @@ namespace ZUI {
                 // 第 2 期：不再 ClearAllCaches()——Arrange 包装器已把真正重排元素的 cacheValid_ 置 false，
                 // 未变化的子树缓存保持有效（这正是省内存的关键）。
                 CollectDragRegions();   // 拖动区依赖布局：只在重排后重建（原来每帧全树收集）
+                npBefore_.clear(); npAfter_.clear();
+                if (rootElement_) {
+                    CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawBeforeLayout, npBefore_);
+                    CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawAfterLayout, npAfter_);
+                }
+                if (customTitleBar_) {
+                    if (customTitleBar_->GetLayoutParticipation() == UIElement::LayoutParticipation::DrawBeforeLayout) npBefore_.push_back(customTitleBar_.get());
+                    else npAfter_.push_back(customTitleBar_.get());
+                }
             }
 
             // 3. 动画更新
@@ -4237,20 +4242,9 @@ namespace ZUI {
 
                 if (rootElement_ || customTitleBar_) {
                     D2D1_RECT_F full = D2D1::RectF(0, 0, rsz.width, rsz.height);
-                    std::vector<UIElement*> beforeElems, afterElems;
-                    if (rootElement_) {
-                        CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawBeforeLayout, beforeElems);
-                        CollectNonParticipating(rootElement_.get(), UIElement::LayoutParticipation::DrawAfterLayout, afterElems);
-                    }
-                    if (customTitleBar_) {
-                        if (customTitleBar_->GetLayoutParticipation() == UIElement::LayoutParticipation::DrawBeforeLayout)
-                            beforeElems.push_back(customTitleBar_.get());
-                        else
-                            afterElems.push_back(customTitleBar_.get());
-                    }
-                    for (auto* e : beforeElems) ComposeImpl(e, renderTarget_, full, true);
+                    for (auto* e : npBefore_) ComposeImpl(e, renderTarget_, full, true);
                     if (rootElement_) ComposeImpl(rootElement_.get(), renderTarget_, full, true);
-                    for (auto* e : afterElems) ComposeImpl(e, renderTarget_, full, true);
+                    for (auto* e : npAfter_) ComposeImpl(e, renderTarget_, full, true);
                 }
 
                 UIZSignals::DrawOverlay(this, renderTarget_);
@@ -5045,6 +5039,7 @@ namespace ZUI {
         WindowCorner corner_ = WindowCorner::Default;
         bool customFrame_ = false;          // 是否处于自定义边框模式
         std::vector<Rect> dragRegions_;     // 收集到的可拖动区域（客户坐标 DIP）
+        std::vector<UIElement*> npBefore_, npAfter_;   // 不参与布局的元素（仅重排后重建，避免每帧全树收集）
         OwnedMinimizePolicy ownedMinimizePolicy_ = OwnedMinimizePolicy::Hide;   // 见 OwnedMinimizePolicy
         bool wasMinimized_ = false;         // 上一状态是否最小化（只有“最小化→还原”才恢复 owned 子窗口）
         bool inSizeMove_ = false;           // 正在拖动/缩放循环：WM_NCHITTEST 直接返回 HTCAPTION，避免每次全树命中检测
