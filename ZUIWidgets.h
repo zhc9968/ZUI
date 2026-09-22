@@ -26,64 +26,58 @@ namespace ZUI {
 
         float maxWidth = rect.right - rect.left;
         float maxHeight = rect.bottom - rect.top;
-        std::wstring displayText = text;
+        if (maxWidth <= 0.0f || maxHeight <= 0.0f) return;
 
-        // 测量原始文本
-        ComPtr<IDWriteTextLayout> measureLayout;
-        dwriteFactory->CreateTextLayout(displayText.c_str(), (UINT32)displayText.length(),
-            fmt, maxWidth, maxHeight, &measureLayout);
-        if (!measureLayout) return;
-        if (forceNoWrap) measureLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-        DWRITE_TEXT_METRICS metrics;
-        measureLayout->GetMetrics(&metrics);
-
-        // 如果宽度超出，二分截断并添加省略号（避免逐字符重排的 O(n²) 开销）
-        if (metrics.width > maxWidth && displayText.length() > 3) {
-            const std::wstring suffix = L"...";
-            int len = (int)displayText.length();
-            int lo = 0, hi = len - 1, best = -1;
-            while (lo <= hi) {
-                int mid = (lo + hi) / 2;
-                std::wstring test = displayText.substr(0, mid) + suffix;
-                ComPtr<IDWriteTextLayout> testLayout;
-                dwriteFactory->CreateTextLayout(test.c_str(), (UINT32)test.length(),
-                    fmt, maxWidth, maxHeight, &testLayout);
-                if (!testLayout) break;
-                if (forceNoWrap) testLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-                DWRITE_TEXT_METRICS tm;
-                testLayout->GetMetrics(&tm);
-                if (tm.width <= maxWidth) { best = mid; lo = mid + 1; }
-                else hi = mid - 1;
+        FontManager& fm = FontManager::Instance();
+        // 热路径：显示布局缓存命中（key=原文本+宽高+格式）→ 直接画，跳过整段"测量 + 二分截断"
+        IDWriteTextLayout* finalLayout = fm.GetDisplayLayout(text, fmt, maxWidth, maxHeight, forceNoWrap);
+        if (!finalLayout) {
+            // 未命中：原始布局（也走缓存）测宽 → 超宽二分截断（中间 layout 不缓存）
+            IDWriteTextLayout* measureLayout = fm.GetRawLayout(text, fmt, maxWidth, maxHeight, forceNoWrap);
+            if (!measureLayout) return;
+            DWRITE_TEXT_METRICS metrics;
+            measureLayout->GetMetrics(&metrics);
+            std::wstring displayText = text;
+            if (metrics.width > maxWidth && displayText.length() > 3) {
+                const std::wstring suffix = L"...";
+                int len = (int)displayText.length();
+                int lo = 0, hi = len - 1, best = -1;
+                while (lo <= hi) {
+                    int mid = (lo + hi) / 2;
+                    std::wstring test;                       // reserve+assign 消掉 substr/+ 的临时分配
+                    test.reserve((size_t)mid + suffix.size());
+                    test.assign(displayText, 0, mid);
+                    test += suffix;
+                    ComPtr<IDWriteTextLayout> testLayout;
+                    dwriteFactory->CreateTextLayout(test.c_str(), (UINT32)test.length(),
+                        fmt, maxWidth, maxHeight, &testLayout);
+                    if (!testLayout) break;
+                    if (forceNoWrap) testLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+                    DWRITE_TEXT_METRICS tm;
+                    testLayout->GetMetrics(&tm);
+                    if (tm.width <= maxWidth) { best = mid; lo = mid + 1; }
+                    else hi = mid - 1;
+                }
+                displayText = (best >= 0) ? (displayText.substr(0, best) + suffix) : suffix;
+                finalLayout = fm.GetRawLayout(displayText, fmt, maxWidth, maxHeight, forceNoWrap);
             }
-            displayText = (best >= 0) ? (displayText.substr(0, best) + suffix) : suffix;
+            else {
+                finalLayout = measureLayout;   // 未截断 → 复用原始布局
+            }
+            if (!finalLayout) return;
+            fm.CacheDisplayLayout(text, fmt, maxWidth, maxHeight, forceNoWrap, finalLayout);
         }
 
-        // 准备画刷
-        if (!textBrush) {
-            rt->CreateSolidColorBrush(color, textBrush.GetAddressOf());
-        }
-        else {
-            textBrush->SetColor(color);
-        }
+        if (!textBrush) rt->CreateSolidColorBrush(color, textBrush.GetAddressOf());
+        else textBrush->SetColor(color);
 
-        // 创建最终布局并绘制；未截断时复用测量布局，省一次 CreateTextLayout
-        ComPtr<IDWriteTextLayout> finalLayout;
-        if (displayText == text) finalLayout = measureLayout;
-        else {
-            dwriteFactory->CreateTextLayout(displayText.c_str(), (UINT32)displayText.length(),
-                fmt, maxWidth, maxHeight, &finalLayout);
-            if (finalLayout && forceNoWrap) finalLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-        }
-        if (finalLayout) {
-            if (displayText != text && forceNoWrap) finalLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-            DWRITE_TEXT_METRICS fm{};
-            finalLayout->GetMetrics(&fm);
-            float drawX = rect.left;
-            if (align == TextHAlign::Center) drawX = rect.left + (maxWidth - fm.width) / 2.0f;
-            else if (align == TextHAlign::Right) drawX = rect.left + (maxWidth - fm.width);
-            if (drawX < rect.left) drawX = rect.left;
-            rt->DrawTextLayout(D2D1::Point2F(Snap(drawX), Snap(rect.top)), finalLayout.Get(), textBrush.Get());
-        }
+        DWRITE_TEXT_METRICS fm2{};
+        finalLayout->GetMetrics(&fm2);
+        float drawX = rect.left;
+        if (align == TextHAlign::Center) drawX = rect.left + (maxWidth - fm2.width) / 2.0f;
+        else if (align == TextHAlign::Right) drawX = rect.left + (maxWidth - fm2.width);
+        if (drawX < rect.left) drawX = rect.left;
+        rt->DrawTextLayout(D2D1::Point2F(Snap(drawX), Snap(rect.top)), finalLayout, textBrush.Get());
     }
 
     // ---------- 标签（支持对齐、换行/省略号，最终修正版） ----------
@@ -155,14 +149,15 @@ namespace ZUI {
             InvalidateLayout(); RequestRepaint();
         }
         void ClearChildren() {
-            for (auto& c : children_) if (c) c->SetParent(nullptr);
+            for (auto& c : children_) if (c) { c->SetParent(nullptr); }
             children_.clear();
+            MarkChildrenDirty();   // 移除子元素：本地标记（SetParent(nullptr) 不会标到旧父）
             InvalidateLayout(); RequestRepaint();
         }
         size_t GetChildCount() const { return children_.size(); }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             for (auto& c : children_) if (c) childrenView_.push_back(c.get());
             return childrenView_;
         }
@@ -308,21 +303,26 @@ namespace ZUI {
                     DWRITE_TEXT_METRICS metrics;
                     measureLayout->GetMetrics(&metrics);
                     if (metrics.width > (rect.right - rect.left) && displayText.length() > 3) {
-                        std::wstring suffix = L"...";
-                        while (displayText.length() > 1) {
-                            displayText = displayText.substr(0, displayText.length() - 1);
-                            std::wstring testText = displayText + suffix;
+                        const std::wstring suffix = L"...";
+                        int len = (int)displayText.length();
+                        int lo = 0, hi = len - 1, best = -1;
+                        while (lo <= hi) {                       // 二分（与 DrawTextWithEllipsis 对齐；原来逐字符 O(n)）
+                            int mid = (lo + hi) / 2;
+                            std::wstring test;
+                            test.reserve((size_t)mid + suffix.size());
+                            test.assign(displayText, 0, mid);
+                            test += suffix;
                             ComPtr<IDWriteTextLayout> testLayout;
-                            factory->CreateTextLayout(testText.c_str(), (UINT32)testText.length(), fmt,
+                            factory->CreateTextLayout(test.c_str(), (UINT32)test.length(), fmt,
                                 rect.right - rect.left, rect.bottom - rect.top, &testLayout);
                             if (!testLayout) break;
                             testLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-                            testLayout->GetMetrics(&metrics);
-                            if (metrics.width <= (rect.right - rect.left)) {
-                                displayText = testText;
-                                break;
-                            }
+                            DWRITE_TEXT_METRICS tm;
+                            testLayout->GetMetrics(&tm);
+                            if (tm.width <= (rect.right - rect.left)) { best = mid; lo = mid + 1; }
+                            else hi = mid - 1;
                         }
+                        displayText = (best >= 0) ? (displayText.substr(0, best) + suffix) : suffix;
                     }
                 }
             }
@@ -2784,7 +2784,7 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             if (content_)
                 childrenView_.push_back(content_.get());
             if (vScrollBar_)

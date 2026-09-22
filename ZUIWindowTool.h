@@ -256,7 +256,7 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             for (auto& b : buttons_) childrenView_.push_back(b.get());
             return childrenView_;
         }

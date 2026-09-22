@@ -41,6 +41,7 @@
 #include <mmsystem.h>
 #include <unordered_set>
 #include <unordered_map>
+#include <deque>
 #include <array>
 #include "ZUIAcrylic.h"   // 手写 DComp 效果类 + 官方亚克力/云母配方（需放在 namespace ZUI 之前）
 
@@ -536,6 +537,22 @@ namespace ZUI {
     };
 
     // 全局字体管理器：单例，持有唯一的 DWriteFactory 和 IDWriteTextFormat 缓存
+    // 全局文本布局缓存 key：文本 + 格式 + 量化后的宽高（0.5 DIP）+ noWrap + mode(0=原始,1=显示)
+    struct TextLayoutKey {
+        std::wstring text; const void* fmt; int w2, h2; bool noWrap; int mode;
+        bool operator==(const TextLayoutKey& o) const {
+            return fmt == o.fmt && w2 == o.w2 && h2 == o.h2 && noWrap == o.noWrap && mode == o.mode && text == o.text;
+        }
+    };
+    struct TextLayoutKeyHash {
+        size_t operator()(const TextLayoutKey& k) const {
+            size_t h = std::hash<std::wstring>{}(k.text);
+            h ^= std::hash<const void*>{}(k.fmt) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= (size_t)(k.w2 * 73856093) ^ (size_t)(k.h2 * 19349663) ^ (size_t)(k.noWrap ? 1 : 0) ^ (size_t)(k.mode * 83492791);
+            return h;
+        }
+    };
+
     class FontManager {
     public:
         static FontManager& Instance() {
@@ -574,7 +591,27 @@ namespace ZUI {
             return raw;
         }
 
-        // 设置全局默认字体，触发 GlobalFontChanged 让所有未覆盖的控件重建
+        // ---- 全局文本布局缓存（跨所有控件共享，避免每帧每单元格 CreateTextLayout）----
+        // 安全性依赖 formatCache_ **永不淘汰**（同一 FontSpec 永远返回同一 IDWriteTextFormat*）；
+        // 若未来给 formatCache_ 加淘汰，必须同时清空 layoutCache_。
+        // 只返回"基础"layout 供绘制，调用方**不得修改**它（需 lineSpacing/trimming 的请自建旁路缓存）。
+        IDWriteTextLayout* GetRawLayout(const std::wstring& text, IDWriteTextFormat* fmt,
+            float maxWidth, float maxHeight, bool noWrap) {
+            return GetOrCreate(text, fmt, maxWidth, maxHeight, noWrap, 0);
+        }
+        // 显示布局：按【原文本】缓存截断后的最终 layout（命中即跳过整段截断计算）
+        IDWriteTextLayout* GetDisplayLayout(const std::wstring& origText, IDWriteTextFormat* fmt,
+            float maxWidth, float maxHeight, bool noWrap) {
+            if (!fmt || origText.empty() || maxWidth <= 0.0f || maxHeight <= 0.0f) return nullptr;
+            auto it = layoutCache_.find(Key(origText, fmt, maxWidth, maxHeight, noWrap, 1));
+            return (it != layoutCache_.end() && it->second) ? it->second.Get() : nullptr;
+        }
+        void CacheDisplayLayout(const std::wstring& origText, IDWriteTextFormat* fmt,
+            float maxWidth, float maxHeight, bool noWrap, IDWriteTextLayout* layout) {
+            if (!fmt || origText.empty() || !layout) return;
+            Store(Key(origText, fmt, maxWidth, maxHeight, noWrap, 1), layout);
+        }
+
         void SetGlobalFont(const FontSpec& spec) {
             globalFont_ = spec;
             GlobalFontChanged();
@@ -589,8 +626,42 @@ namespace ZUI {
         FontManager(const FontManager&) = delete;
         FontManager& operator=(const FontManager&) = delete;
 
+        TextLayoutKey Key(const std::wstring& text, IDWriteTextFormat* fmt, float w, float h, bool noWrap, int mode) {
+            return TextLayoutKey{ text, fmt, (int)std::lround(w * 2.0f), (int)std::lround(h * 2.0f), noWrap, mode };
+        }
+        void Store(TextLayoutKey key, IDWriteTextLayout* layout) {
+            if (!layout) return;
+            if (layoutCache_.size() >= kLayoutCacheMax) {   // 有界：一次淘汰最旧的 1/4
+                size_t toDrop = layoutCache_.size() / 4 + 1;
+                for (size_t i = 0; i < toDrop && !layoutFifo_.empty(); ++i) {
+                    layoutCache_.erase(layoutFifo_.front());
+                    layoutFifo_.pop_front();
+                }
+            }
+            layoutCache_[key] = layout;              // ComPtr 赋值会 AddRef
+            layoutFifo_.push_back(std::move(key));
+        }
+        IDWriteTextLayout* GetOrCreate(const std::wstring& text, IDWriteTextFormat* fmt,
+            float w, float h, bool noWrap, int mode) {
+            if (!fmt || text.empty() || w <= 0.0f || h <= 0.0f) return nullptr;
+            TextLayoutKey key = Key(text, fmt, w, h, noWrap, mode);
+            auto it = layoutCache_.find(key);
+            if (it != layoutCache_.end() && it->second) return it->second.Get();
+            IDWriteFactory* factory = GetFactory();
+            if (!factory) return nullptr;
+            ComPtr<IDWriteTextLayout> layout;
+            if (FAILED(factory->CreateTextLayout(text.c_str(), (UINT32)text.length(), fmt, w, h, &layout)) || !layout) return nullptr;
+            if (noWrap) layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+            Store(std::move(key), layout.Get());
+            return layout.Get();
+        }
+
         ComPtr<IDWriteFactory> dwriteFactory_;
-        std::unordered_map<FontSpec, ComPtr<IDWriteTextFormat>, FontSpecHash> formatCache_;
+        std::unordered_map<FontSpec, ComPtr<IDWriteTextFormat>, FontSpecHash> formatCache_;   // 契约：永不淘汰
+        // 全局文本布局缓存（跨控件共享；有界 FIFO）
+        static constexpr size_t kLayoutCacheMax = 400;
+        std::unordered_map<TextLayoutKey, ComPtr<IDWriteTextLayout>, TextLayoutKeyHash> layoutCache_;
+        std::deque<TextLayoutKey> layoutFifo_;
         FontSpec globalFont_;
     };
 
@@ -828,12 +899,14 @@ namespace ZUI {
 
         // ---------- 父子关系 ----------
         void SetParent(UIElement* parent) {
+            if (parent) parent->childrenDirty_ = true;   // 新挂载 → 父的子元素列表缓存失效
             parent_ = parent;
             // 挂到已属于某窗口的父级时，立即把自己的子树也归属到该窗口；
             // 若父级尚未挂载，则等父级挂载时由 AttachWindowRecursive 统一传播。
             AttachWindowRecursive(parent ? parent->GetWindow() : nullptr);
         }
         UIElement* GetParent() const { return parent_; }
+        void MarkChildrenDirty() { childrenDirty_ = true; }   // 子元素列表变化时手动置脏（如 PageHost 的动画状态）
 
         // 所属窗口（挂载到窗口的树后由框架设置；未挂载或窗口已销毁时返回 nullptr）
         // 说明：内部用“窗口 id”而非裸指针保存归属，窗口销毁后查找返回 nullptr，
@@ -1058,6 +1131,7 @@ namespace ZUI {
         bool useCache_; // 默认 true，可被重写
         int windowId_ = 0;  // 所属窗口 id（0 表示未挂载）；用 id 而非裸指针，避免窗口销毁后悬垂
         mutable std::vector<UIElement*> childrenView_; // GetChildren 复用的视图缓冲，避免每帧分配
+        mutable bool childrenDirty_ = true;            // 子元素列表变了才重建 childrenView_（由 SetParent 置脏）
 
         // ---------- 字体相关成员 ----------
         std::optional<FontSpec> fontOverride_;
@@ -1133,7 +1207,7 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             for (auto& child : children_) childrenView_.push_back(child.get());
             return childrenView_;
         }
@@ -1230,7 +1304,7 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             for (auto& child : children_) childrenView_.push_back(child.get());
             return childrenView_;
         }
@@ -1496,7 +1570,7 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             for (auto& item : items_) childrenView_.push_back(item.element.get());
             return childrenView_;
         }
@@ -1564,7 +1638,7 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             if (layout_) childrenView_.push_back(layout_.get());
             return childrenView_;
         }
@@ -1807,6 +1881,7 @@ namespace ZUI {
             toIndex_ = index;
             animating_ = true;
             animProgress_ = 0.0f;
+            MarkChildrenDirty();   // 子元素列表随 animating_ 变化
             RequestRepaint(); // 动画开始需要重绘
         }
 
@@ -1856,7 +1931,7 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            childrenView_.clear();
+            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
             if (animating_) {
                 if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size())
                     childrenView_.push_back(pages_[fromIndex_].get());
@@ -1936,6 +2011,7 @@ namespace ZUI {
                     currentIndex_ = toIndex_;
                     fromIndex_ = -1;
                     toIndex_ = -1;
+                    MarkChildrenDirty();   // 子元素列表随 animating_ 变化
                     justFinished = true;
                 }
                 // A6：过渡只改变换（GetChildRenderTransform），页面内容不变 —— 不再每帧 RequestRepaint 两个
@@ -3894,10 +3970,8 @@ namespace ZUI {
                     elem->cacheRT_->GetBitmap(&bitmap);
                     if (bitmap) {
                         Rect r = elem->GetArrangedRect();
-                        FLOAT dpiX, dpiY;
-                        renderTarget_->GetDpi(&dpiX, &dpiY);
-                        float scaleX = dpiX / 96.0f;
-                        float scaleY = dpiY / 96.0f;
+                        float scaleX = (float)dpi_ / 96.0f;   // DPI 一帧内恒定：直接用成员，免掉每元素 GetDpi() COM 调用
+                        float scaleY = (float)dpi_ / 96.0f;
 
                         // 目标像素尺寸必须与缓存位图的像素尺寸“完全一致”，否则任何插值
                         // 都会把缓存内容整体重采样，文字/线条就会发糊。
@@ -4103,9 +4177,7 @@ namespace ZUI {
                         elem->cacheValid_ = false;
                         elem->cacheRT_->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
                         elem->cacheRT_->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);   // 必须改回 GRAYSCALE
-                        FLOAT dpiX, dpiY;
-                        renderTarget_->GetDpi(&dpiX, &dpiY);
-                        elem->cacheRT_->SetDpi(dpiX, dpiY);
+                        elem->cacheRT_->SetDpi((FLOAT)dpi_, (FLOAT)dpi_);
                     }
                 }
             }
