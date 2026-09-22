@@ -308,6 +308,41 @@ float childH = child->GetHeight() > 0 ? child->GetHeight() : child->GetDesiredSi
 
 ---
 
+# 数据控件改造（**推迟**，未来独立阶段）
+
+现状（已核实，非"bug"而是有意的简化）：
+- `ListView/TableView/TreeView` 里的 `shared_ptr<Label>` **只被 `GetText()` 使用**：不在 `GetChildren()`、不走 `ComposeImpl`、`EnsureCache`/`cacheRT_` 从不创建 → Label 的缓存机制完全失效；数据控件自己 `SetUseCache(false)`，每帧每可见项/格都走一次 `DrawTextWithEllipsis`。
+- 因此数据控件唯一的降本手段就是**全局文本布局缓存**（已在 `FontManager` 落地，见阶段 5）。
+- **`SetItem(shared_ptr<Label>)` 是"撒谎接口"**：Label 的字体/颜色/对齐/子元素**全被忽略**，只读 `GetText()`；`TreeView` 连单项颜色都没有。**建议先只加注释止血**。
+
+目标（用户初衷）：让数据控件能用完整 Label（图标 / 多格式 / 内嵌 Label），即**让 Label 走 Window 正常流程**。清单：
+
+| # | 内容 | 风险 |
+|---|---|---|
+| D1 | `ListView/TableView` 的 `GetChildren()` 返回项 Label；`ArrangeOverride` 里 Arrange（可见项即可，屏幕外由 clip 剔除）；`GetClipRect()` 返回自身范围（关键，否则屏幕外也画）；`UpdateAnimation`/`HasActiveAnimation`/`AttachWindowRecursive` 递归子元素；加项时 `label->SetUseCache(false)` | 低 |
+| D2 | 删除数据控件 `Draw` 里的 `DrawTextWithEllipsis`，改由 `ComposeImpl` 递归画 Label（天然在网格线之上、天然事件不命中、天然点击穿透到父） | 低 |
+| D3 | `SetItemTextColor` 等改为**转发给 Label**（`items_[i]->SetTextColor(c)`），删 `itemTextColors_`/`cellTextColors_` 等控件侧 per-item 元数据 | 中（接口收敛，破坏源码兼容） |
+| D4 | `TreeView` 重构：`TreeNode.columns` 由 `std::wstring` 改 `std::shared_ptr<Label>`（破坏性，所有 `node->columns[i]` 改用 `->GetText()`） | 中 |
+| D5 | `Label` 自身的**布局缓存**（当前 `Label::Draw` 会 `SetTextAlignment/SetWordWrapping/SetLineSpacing/Trimming` **修改** layout，不能共用全局缓存）→ 需按 `text+宽高+fmt+对齐+换行+overflow+maxLines` 建独立 keyed cache | 中 |
+| D6 | `SetItem(shared_ptr<Label>)` 系列**加注释止血**：明确"仅 `GetText()` 被读取，其余属性被忽略" | 零（先做） |
+
+**顺序**：D6 立即做（零风险）→ 阶段 5（全局 layout 缓存，已完成）→ D1/D2 → D3+D4 → D5。
+
+---
+
+# 阶段 5 已完成（commit `b49862d` / tag `phase5-done`）
+
+- **FontManager 全局文本布局缓存**（跨所有控件共享）：key = `text + fmt指针 + 量化宽高(0.5 DIP) + noWrap + mode`；两模式（0=原始布局、1=显示布局=按原文本缓存截断结果）；有界 FIFO（上限 400，一次淘汰 1/4）；`formatCache_ 永不淘汰` 契约已注明。**数据控件是最大受益者**（它们没有 Label 缓存兜底）。
+- `DrawTextWithEllipsis`：命中显示缓存 → 直接画（跳过整段测量+二分）；未命中 → 原始布局也走缓存 + 二分截断（`reserve/assign` 消临时分配）+ 把显示布局按原文本缓存。
+- `Label::Draw`：Ellipsis 由**逐字符 O(n)** 改**二分**（与 DrawTextWithEllipsis 对齐）。Label 的布局缓存见 D5（推迟，因为 Label 会修改 layout）。
+- `ComposeImpl` / `EnsureCache`：用 `dpi_` 直接算，去掉**每元素每帧** `renderTarget_->GetDpi()` 的 COM 调用。
+- `childrenDirty_`：`GetChildren()` 结果缓存（`SetParent` 置脏；`PageHost` 动画状态变化 / `Label::ClearChildren` 也置脏）。
+
+**未做（按用户决定）**：页级"整平"缓存、事件驱动 `CollectActiveAnimations`、合并 `UpdateAnimation`+`CollectActiveAnimations`。
+
+
+---
+
 # 第 2 期强制修正（评审第 4 轮新增，实现前必读）
 
 ## C1（🔴）`InvalidateMeasure` 去掉 `break`，无条件冒泡到根
