@@ -648,7 +648,7 @@ namespace ZUI {
         // ---------- 布局相关 ----------
         void InvalidateLayout();   // 定义见文件末尾（需要 Window 完整类型才能路由到所属窗口）
         // 布局是否需要重算（第 2 期：两级脏位）
-        bool NeedsLayout() const { return measureDirty_ || arrangeDirty_; }
+        bool NeedsLayout() const { return measureDirty_ || selfArrangeDirty_ || subtreeDirty_; }
 
         void SetMinWidth(float w) { minWidth_ = w; InvalidateLayout(); }
         void SetMinHeight(float h) { minHeight_ = h; InvalidateLayout(); }
@@ -693,7 +693,11 @@ namespace ZUI {
         Size Measure(const Size& avail) {
             if (!measureDirty_ && avail.width == previousAvailableSize_.width
                 && avail.height == previousAvailableSize_.height) return desiredSize_;
-            desiredSize_ = MeasureOverride(avail);
+            Size newSize = MeasureOverride(avail);
+            // 自身自然尺寸真的变了才作废缓存（祖先虽因冒泡也重测，但尺寸没变→不动缓存，避免"子变脏拖累祖先"）
+            if (newSize.width != desiredSize_.width || newSize.height != desiredSize_.height)
+                cacheValid_ = false;
+            desiredSize_ = newSize;
             previousAvailableSize_ = avail;
             measureDirty_ = false;
             return desiredSize_;
@@ -701,17 +705,22 @@ namespace ZUI {
         virtual Size MeasureOverride(const Size& availableSize) = 0;
         Size GetDesiredSize() const { return desiredSize_; }
 
-        // Arrange：基类包装；最终矩形变了或自身脏才做，且缓存作废
+        // Arrange：基类包装。
+        //   selfArrangeDirty_ : 我自己要重跑 ArrangeOverride
+        //   subtreeDirty_     : 我的子树里有脏节点（要跑 ArrangeOverride 才能到达）
+        // 二者都不为真且矩形没变 → 整棵子树跳过；缓存只由"尺寸变化/重测"驱动，位置变化不清缓存。
         void Arrange(const Rect& finalRect) {
             bool rectChanged = !(finalRect.x == arrangedRect_.x && finalRect.y == arrangedRect_.y
                 && finalRect.width == arrangedRect_.width && finalRect.height == arrangedRect_.height);
-            if (!arrangeDirty_ && !rectChanged) return;
+            bool sizeChanged = (finalRect.width != arrangedRect_.width || finalRect.height != arrangedRect_.height);
+            if (!selfArrangeDirty_ && !subtreeDirty_ && !rectChanged) return;
             // 仅在"约束变了"时重测（C2）；命中缓存则 O(1)
             if (finalRect.width != previousAvailableSize_.width || finalRect.height != previousAvailableSize_.height)
                 Measure(Size(finalRect.width, finalRect.height));
             ArrangeOverride(finalRect);   // arrangedRect_ 由 ArrangeOverride（或其基类默认实现）设置，包装器不再覆盖
-            arrangeDirty_ = false;
-            cacheValid_ = false;   // 本元素重排过 → 自己的离屏缓存作废（父缓存只含父自身绘制，不必动）
+            selfArrangeDirty_ = false;
+            subtreeDirty_ = false;
+            if (sizeChanged) cacheValid_ = false;   // 只有尺寸变化才需要重建缓存（位置变化位图照 blit）
         }
         virtual void ArrangeOverride(const Rect& finalRect) { arrangedRect_ = finalRect; }
         Rect GetArrangedRect() const { return arrangedRect_; }
@@ -1034,7 +1043,8 @@ namespace ZUI {
         Size desiredSize_{};                                  // Measure 输出（DesiredSize 缓存）
         Size previousAvailableSize_{ -1.0f, -1.0f };          // 上轮测量可用的尺寸
         bool measureDirty_ = true;
-        bool arrangeDirty_ = true;
+        bool selfArrangeDirty_ = true;    // 自身需要重跑 ArrangeOverride
+        bool subtreeDirty_ = false;       // 子树里有脏节点（需跑 ArrangeOverride 到达）
         std::shared_ptr<Menu> contextMenu_;
         std::optional<float> horizontalStretchWeight_;
         std::optional<float> verticalStretchWeight_;
@@ -3507,6 +3517,7 @@ namespace ZUI {
                 break;
             case WM_NCMOUSEMOVE:
                 if (customFrame_) {
+                    if (inSizeMove_) return 0;   // 拖动/缩放中不做 hover 命中（否则每帧整树 HitTest + 触发按钮 hover 动画 → 每帧重绘）
                     // 按钮在非客户区（HTMINBUTTON/HTMAXBUTTON/HTCLOSE），用 NC 移动驱动自定义 hover
                     POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
                     ScreenToClient(hwnd_, &pt);
@@ -4203,6 +4214,7 @@ namespace ZUI {
             }
 
             // 自动收集活跃动画元素（确保动画期间每帧重绘这些元素）
+            std::swap(activeAnimScratch_, lastActiveAnimElements_);   // 交换缓冲代替每帧 hashset 深拷贝；last 保留上一帧活跃集
             activeAnimScratch_.clear();
             CollectActiveAnimations(rootElement_.get(), activeAnimScratch_);
             if (customTitleBar_) CollectActiveAnimations(customTitleBar_.get(), activeAnimScratch_);
@@ -4215,7 +4227,6 @@ namespace ZUI {
                     pendingRepaint_.insert(elem);
                 }
             }
-            lastActiveAnimElements_ = activeAnimScratch_;   // 复用成员缓冲与容量
 
             // 4. 合成绘制（D2D 1.1 DeviceContext -> 交换链后备缓冲 -> Present）
             SetGlobalDpiScale(dpi_ / 96.0f);
@@ -5070,8 +5081,10 @@ namespace ZUI {
         else UIZSignals::RepaintRequest(nullptr, this);
     }
     inline void UIElement::InvalidateLayout() {
-        // 冒泡到根（不做"遇脏即停"——C1：Measure 过程会打破该不变式）；深度 < 10，成本可忽略
-        for (UIElement* e = this; e; e = e->parent_) { e->measureDirty_ = true; e->arrangeDirty_ = true; }
+        // measureDirty_ 冒泡到根（父需读子新 desiredSize，C1 正确）；
+        // selfArrangeDirty_ 只置自身；祖先只标 subtreeDirty_（"子树有脏"），不再把自身重排语义污染给祖先。
+        measureDirty_ = true; selfArrangeDirty_ = true;
+        for (UIElement* p = parent_; p; p = p->parent_) { p->measureDirty_ = true; p->subtreeDirty_ = true; }
         if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
         else UIZSignals::LayoutInvalidated(nullptr);
     }
