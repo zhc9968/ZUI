@@ -304,6 +304,7 @@ float childH = child->GetHeight() > 0 ? child->GetHeight() : child->GetDesiredSi
 4. 传播触发点：`InvalidateMeasure/Arrange` 冒泡 + 结构变化仅在"已挂窗口"时冒泡。
 5. 5.3 约束传递不在本清单。
 6. 改名以 `MeasureOverride = 0` 纯虚做安全网，防静默塌布局。
+7. **【重要更正】缓存是"逐控件"的，不是整平的**：`ComposeImpl` 对缓存元素画完自身缓存位图后**仍会递归画子元素**，所以父缓存只含**父自身的绘制**、不含子树。因此：子元素变化**不需要**作废父缓存（曾误加"作废祖先链"→过度作废、反而变慢，已撤销）。`Arrange` 包装器只作废**自身** `cacheValid_` 即可。
 
 ---
 
