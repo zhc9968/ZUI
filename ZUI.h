@@ -1841,39 +1841,8 @@ namespace ZUI {
         }
 
         void Draw(ID2D1RenderTarget* rt) override {
-            if (!visible_ || pages_.empty()) return;
-            rt->PushAxisAlignedClip(arrangedRect_.ToD2D(), D2D1_ANTIALIAS_MODE_ALIASED);
-
-            if (!animating_) {
-                if (currentIndex_ >= 0 && currentIndex_ < (int)pages_.size())
-                    pages_[currentIndex_]->Draw(rt);
-            }
-            else {
-                float t = EasedProgress();
-                float w = arrangedRect_.width, h = arrangedRect_.height;
-                float oldOffsetX = 0, oldOffsetY = 0, newOffsetX = 0, newOffsetY = 0;
-                switch (direction_) {
-                case TransitionDirection::Left: oldOffsetX = -w * t; newOffsetX = w * (1 - t); break;
-                case TransitionDirection::Right: oldOffsetX = w * t; newOffsetX = -w * (1 - t); break;
-                case TransitionDirection::Up: oldOffsetY = -h * t; newOffsetY = h * (1 - t); break;
-                case TransitionDirection::Down: oldOffsetY = h * t; newOffsetY = -h * (1 - t); break;
-                }
-
-                D2D1::Matrix3x2F oldTransform;
-                rt->GetTransform(&oldTransform);
-
-                if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size()) {
-                    rt->SetTransform(D2D1::Matrix3x2F::Translation(oldOffsetX, oldOffsetY));
-                    pages_[fromIndex_]->Draw(rt);
-                }
-                if (toIndex_ >= 0 && toIndex_ < (int)pages_.size()) {
-                    rt->SetTransform(D2D1::Matrix3x2F::Translation(newOffsetX, newOffsetY));
-                    pages_[toIndex_]->Draw(rt);
-                }
-                rt->SetTransform(oldTransform);
-            }
-
-            rt->PopAxisAlignedClip();
+            // M5：不在这里画页面——页面（背景+子树）由合成通道通过 GetChildren + GetChildRenderTransform 递归绘制，
+            // 原来的 pages_[i]->Draw 是同一帧的重复背景绘制 + 与递归变换双通道。这里留空。
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
@@ -3534,6 +3503,7 @@ namespace ZUI {
                 break;
             case WM_NCHITTEST:
                 if (customFrame_) {
+                    if (inSizeMove_) return HTCAPTION;   // 拖动/缩放中直接返回，避免每次 NCHITTEST 都整树命中检测（拖动高 CPU 主因）
                     POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
                     ScreenToClient(hwnd_, &pt);
                     return HitTestNonClient(pt);
@@ -3580,6 +3550,12 @@ namespace ZUI {
             case 0x00AF:   // WM_NCUAHDRAWFRAME
                 if (customFrame_) return 0;
                 break;
+            case WM_ENTERSIZEMOVE:
+                inSizeMove_ = true;       // 拖动/缩放循环：期间跳过整树命中检测
+                return 0;
+            case WM_EXITSIZEMOVE:
+                inSizeMove_ = false;
+                return 0;
             case WM_MOVE:
                 UpdateWallpaperLayer();   // 手动背景：只挪图层 Offset，不重画 -> 实时跟手
                 return 0;
@@ -5071,6 +5047,7 @@ namespace ZUI {
         std::vector<Rect> dragRegions_;     // 收集到的可拖动区域（客户坐标 DIP）
         OwnedMinimizePolicy ownedMinimizePolicy_ = OwnedMinimizePolicy::Hide;   // 见 OwnedMinimizePolicy
         bool wasMinimized_ = false;         // 上一状态是否最小化（只有“最小化→还原”才恢复 owned 子窗口）
+        bool inSizeMove_ = false;           // 正在拖动/缩放循环：WM_NCHITTEST 直接返回 HTCAPTION，避免每次全树命中检测
         bool imePosUpdating_ = false;
         HIMC defaultIMC_ = nullptr;
 

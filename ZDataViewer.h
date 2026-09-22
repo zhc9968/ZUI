@@ -79,9 +79,7 @@ namespace ZUI {
             if (!label) return;
             items_.push_back(label);
             label->SetParent(this);
-            UpdateScrollInfo();
-            InvalidateLayout();
-            RequestRepaint();
+            if (batchUpdate_ == 0) { UpdateScrollInfo(); InvalidateLayout(); RequestRepaint(); }
         }
         void AddItem(const std::wstring& text) {
             auto label = std::make_shared<Label>(text);
@@ -94,15 +92,19 @@ namespace ZUI {
             label->SetParent(this);
             if (selectedIndex_ >= index) selectedIndex_++;
             ShiftMultiSelForInsert(index, 1);
-            UpdateScrollInfo();
-            InvalidateLayout();
-            RequestRepaint();
+            if (batchUpdate_ == 0) { UpdateScrollInfo(); InvalidateLayout(); RequestRepaint(); }
         }
         void InsertItem(int index, const std::wstring& text) {
             auto label = std::make_shared<Label>(text);
             label->SetTextColor(Color(textColor_.r, textColor_.g, textColor_.b, textColor_.a));
             InsertItem(index, label);
         }
+        // P1：批量增删。BeginUpdate 期间挂起刷新，EndUpdate 统一刷新一次（批量添加 N 项只刷新一次）
+        void BeginUpdate() { ++batchUpdate_; }
+        void EndUpdate() {
+            if (batchUpdate_ > 0 && --batchUpdate_ == 0) { UpdateScrollInfo(); InvalidateLayout(); RequestRepaint(); }
+        }
+        int batchUpdate_ = 0;
         void RemoveItem(int index) {
             if (index < 0 || index >= (int)items_.size()) return;
             {
@@ -124,9 +126,7 @@ namespace ZUI {
                 for (int s : checked_) { if (s == index) continue; nc.insert(s > index ? s - 1 : s); }
                 checked_ = std::move(nc);
             }
-            UpdateScrollInfo();
-            InvalidateLayout();
-            RequestRepaint();
+            if (batchUpdate_ == 0) { UpdateScrollInfo(); InvalidateLayout(); RequestRepaint(); }
         }
         void Clear() {
             items_.clear();
