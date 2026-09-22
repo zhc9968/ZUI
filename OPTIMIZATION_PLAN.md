@@ -1,398 +1,125 @@
-# ZUI 优化与修复清单（三期）
+# ZUI 优化与修复：成果 / 待办 / 雷区
 
-> 版本：2026-09-20 · 依据三方评审 + 源码逐条核对。
-> 说明：所有行号为当前（tag `pre-optimization-2026-09-20`）源码行号。级别：🔴 严重 / 🟡 中等 / 🟢 轻微。
-> 承诺：**每一期结束 = 一次 git commit + 一次物理备份**；先做低风险、后做高风险；布局机制重构采用"保守版"（正确优先于性能）。
-
----
-
-## 0. 总览表
-
-| 编号 | 位置 | 问题 | 级别 | 期次 |
-|---|---|---|---|---|
-| X1 | `Window::WndProc` WM_SIZE | 窗口拖动/SetWindowPos 触发 WM_SIZE 但客户区未变 → 空全量重排 | 🟡 | 1 |
-| M1 | `PageHost::NavigateTo` | 切页调 `InvalidateLayout()` → 全树重建 | 🔴 | 1 |
-| M3 | `PageHost::UpdateAnimation` | 每帧 `SetVisible` → 可见性变化又 `InvalidateLayout()` | 🔴 | 1 |
-| L1..L12, D6 | 见 §2 | 逻辑 bug 一批 | 🟡/🟢 | 1 |
-| E1,E2,D3,D4,D5,R2,R3,R4 | 见 §3 | 绘制/事件/资源一批 | 🟡/🟢 | 1 |
-| 布局机制 | `UIElement` + 22 个类 + `Window::OnPaint` | Measure/Arrange 无缓存、Arrange 内重复 Measure、Invalidate 粒度粗、ClearLayoutDirty 语义乱 | 🔴 | 2 |
-| M5 | `PageHost::Draw` + `GetChildren` | 同帧页面被画两次（双通道） | 🔴 | 2 |
-| P6/A6 | `Window::OnPaint` 每帧遍历 | CollectDragRegions / CollectActiveAnimations 全树每帧跑 | 🔴 | 3 |
-| P1..P4, P7 | 见 §5 | 性能细节一批 | 🟡/🟢 | 3 |
-| M8/M9/M10 | `EnsureCache` / 释放粒度 | 已推迟（不在本清单内做） | — | 推迟 |
-| 5.3 约束传递 | `ColumnBox::Measure` | 传"剩余高度"是行为变更，明确不在本清单 | — | 不做 |
+> 状态日期：2026-09-20 · 当前提交 `b1d7876` · tag `phase6-done` · 工作区干净
+> 说明：本文是唯一权威清单。**已做**、**待办**、**雷区**三部分。级别：🔴严重 / 🟡中等 / 🟢轻微。
 
 ---
 
-# 第 1 期：低风险 bug + 小改（先做，独立提交验收益）
+## 0. 结论
 
-## X1：WM_SIZE 空触发守卫（🟡）
-
-**位置**：`ZUI.h` `case WM_SIZE:`（约 3527）
-
-**问题**：窗口拖动或 `SetWindowPos` 会发 `WM_SIZE` 但客户区尺寸未变，当前仍无条件 `layoutNeeded_=layoutInvalidated_=true` + `InvalidateRect` + `ResizeSwapChain`。
-
-**改法**：新增成员 `UINT lastClientW_ = 0, lastClientH_ = 0;`（`Window` 私有区），WM_SIZE 里先比较：
-
-```cpp
-case WM_SIZE: {
-    UpdateTimerState();
-    if (wParam == SIZE_MINIMIZED) { /* 原最小化分支不变 */ return 0; }
-    if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED) { /* 原还原分支不变 */ }
-    RECT rc; GetClientRect(hwnd_, &rc);
-    UINT nw = (UINT)(rc.right - rc.left), nh = (UINT)(rc.bottom - rc.top);
-    if (nw == lastClientW_ && nh == lastClientH_) return 0;   // ★ 尺寸没变直接跳过
-    lastClientW_ = nw; lastClientH_ = nh;
-    clientWidthDip_  = nw * 96.0f / dpi_;
-    clientHeightDip_ = nh * 96.0f / dpi_;
-    if (swapChain_) ResizeSwapChain(nw, nh);
-    layoutNeeded_ = true; layoutInvalidated_ = true;
-    InvalidateRect(hwnd_, nullptr, FALSE);
-    return 0;
-}
-```
-
-> 创建窗口时把 `lastClientW_/H_` 初始化为当前客户区尺寸，避免首帧误判。
-
-## M1：NavigateTo 去掉 InvalidateLayout（🔴）
-
-**位置**：`ZUI.h:1757`
-
-```cpp
-void NavigateTo(int index) {
-    if (index < 0 || index >= (int)pages_.size() || index == currentIndex_) return;
-    fromIndex_ = currentIndex_; toIndex_ = index;
-    animating_ = true; animProgress_ = 0.0f;
-    RequestRepaint();
-    InvalidateLayout();   // ← 删掉此行
-}
-```
-
-**依据**：所有 page 在 `PageHost::Arrange`(1802) 里每个布局周期都被 Arrange；任何内容变化都会通过 `InvalidateLayout→MarkLayoutInvalidated` 置窗口级标志，下一帧仍会布局。故删掉安全。
-
-## M3：PageHost 用 SetVisibleNoInvalidate（🔴）
-
-**位置**：`ZUI.h:1957-1962`
-
-```cpp
-// 前
-pages_[i]->SetVisible(vis);
-// 后（page 填满 host，可见性不影响 host 布局）
-pages_[i]->SetVisibleNoInvalidate(vis);
-```
-
-> 已确认 `SetVisibleNoInvalidate`(824) 仍调 `OnVisibilityChanged` → ComboBox 自动收起等行为保留。
+- 优化整体已完成，**当前版本为实测最优**（切页内存峰值 300–400MB → **~30MB 封顶**、停止切页后数秒回落；CPU 为各版本中最低）。
+- CPU% 用任务管理器测低占用进程**噪声很大**，同一版本会有 0.2 vs 0.8 的跳动；已用 tag 二分确认"每版都有、且当前版最低"，**不存在回归**。
 
 ---
 
-# 第 1 期续：逻辑 bug（批次 1）
+## 一、已完成（按主题）
 
-## L1：HasActiveAnimation 死代码（🟡）
-**位置**：`ZUI.h:1983`。`if (animating_) return true;`(1975) 之后的 `if (animating_) { from/to 检查 }` 整段删除。
+### 1. 内存 / 缓存（切页峰值 300–400MB → ~30MB）
+- **M1** `PageHost::NavigateTo` 去掉 `InvalidateLayout()`（切页不再触发全量重排）。
+- **M3** `PageHost` 可见性同步改用 `SetVisibleNoInvalidate`（page 填满 host，可见性不影响布局）。
+- **M2** OnPaint 布局分支**删除 `ClearAllCaches()`**；不再"任何布局失效就重建所有缓存"。
+- **修2** `PageHost` 资源释放时机：由"过渡完成那一帧(`justFinished`)"改为**"页面可见→不可见那一帧"**。
+  （高频切换时 `animProgress_` 被反复重置 → `justFinished` 永不触发 → 隐藏页缓存无限累积；改后 ~30MB 封顶。）
+- **缓存语义更正**：缓存是**逐控件**的（`ComposeImpl` 对缓存元素画完自身位图后**仍会递归画子元素**）→ 父缓存只含父自身绘制，**子变化不作废父缓存**。
 
-## L2：UpdateAnimation 调试判断错误（🟢）
-**位置**：`ZUI.h:1892`。`if (!animating_ && animProgress_ == 0.0f)` 恒真（初始值 0）。把 `justFinished` 提前定义（1924）并在调试块里用它判断"刚结束那一帧"。
+### 2. 布局机制（第 2 期核心）
+- `UIElement` 加 **DesiredSize 缓存**：`Measure` 为非虚包装器（`MeasureOverride` 为子类纯虚实现）+ `GetDesiredSize()`。
+- `Arrange` 包装器（`ArrangeOverride` 子类实现），并：
+  - 只在**约束变了**时重测（C2）；
+  - `cacheValid_ = false` **只由"尺寸变化"驱动**（位置变化位图照 blit）；
+  - `Measure` 里 `cacheValid_ = false` 只由 **`desiredSize_` 真的变了**驱动。
+- **两级脏位**（拆分原 `arrangeDirty_` 被塞进的三个语义）：
+  - `measureDirty_`：自身/子树需重测 → **冒泡到根**；
+  - `selfArrangeDirty_`：自身要重跑 ArrangeOverride（只置自身）；
+  - `subtreeDirty_`：子树有脏节点（沿祖先链置位，让父 ArrangeOverride 跑起来到达脏节点）。
+- `InvalidateLayout`：`measureDirty_+selfArrangeDirty_` 置自身；祖先只 `measureDirty_+subtreeDirty_`；**冒泡到根，不做"遇脏即停"**（C1）。
+- 22 个类 `Measure→MeasureOverride` / `Arrange→ArrangeOverride`（`MeasureOverride` 纯虚做安全网，漏改即编译失败）。
+- `ColumnBox`/`RowBox`：去掉 Arrange 内 `Measure`，改 `GetDesiredSize()`；`MeasureOverride` 与 Arrange 用**同一约束**。
 
-## L3：TreeView 父勾选动画缺失（🟡）
-**位置**：`ZDataViewer.h UpdateParentCheckState`。设完父 `checkState` 后补 `EnsureCheckAnim(parent);`。
+### 3. 渲染 / CPU
+- **X1** `WM_SIZE` 尺寸守卫（客户区没变直接跳过；拖动/`SetWindowPos` 空触发）。
+- **拖动短路**：`inSizeMove_` 期间 `WM_NCHITTEST` 直接返回 `HTCAPTION`、`WM_NCMOUSEMOVE` 直接 return（免每帧整树 HitTest + 按钮 hover 抖动）。
+- **HasRenderWork** 不再每 tick 做全树 `HasActiveAnimation()`，改用上次合成的 `activeAnimScratch_`。
+- **CollectDragRegions / CollectNonParticipating** 由"每帧全树"改为**仅重排后**（`dragRegions_` / `npBefore_`,`npAfter_`）。
+- **lastActiveAnimElements_** 由 hashset 深拷贝改 **swap**。
+- **M5** `PageHost::Draw` 空实现（页面背景+子树由 `GetChildren`+`GetChildRenderTransform` 通道递归绘制，原来同帧重复画一遍背景）。
+- **A6** `PageHost` 过渡不再每帧对两页 `RequestRepaint()`（过渡只是变换，页面缓存应保持有效）。
+- **③** `ComposeImpl`/`EnsureCache` 直接用 `dpi_`，去掉**每元素每帧** `renderTarget_->GetDpi()`。
 
-## L4：SetSelectedNode Multi 重复触发（🟢）
-**位置**：`ZDataViewer.h SetSelectedNode`（Multi 分支）。循环内加 `if (selectedNode_ == node) return;`。
+### 4. 文本
+- **① FontManager 全局文本布局缓存**（跨所有控件共享）：key=`文本+fmt指针+量化宽高(0.5 DIP)+noWrap+mode`；mode 0=原始布局、1=显示布局（按**原文本**缓存截断结果）；有界 FIFO（400，一次淘汰 1/4）；`Store` 防重。
+- `DrawTextWithEllipsis`：命中显示缓存 → 直接画（跳过测量+二分）；未命中 → 原始布局走缓存 + 二分截断（`reserve/assign` 消临时分配）+ 缓存显示布局。
+- **②** `Label::Draw` 的 Ellipsis 由**逐字符 O(n)** 改**二分**。
+- D4：`DrawTextWithEllipsis` 未截断时复用测量布局。
 
-## L5：SetCurrentCell row=-1 语义（🟡）
-**位置**：`ZDataViewer.h SetCurrentCell`。开头 `if (row < 0) { 清空当前 cell; return; }`，别让 `row=-1, col=0` 混进后续判断。
-
-## L6：Sort 后不发 SelectionChanged（🟡）
-**位置**：`ZDataViewer.h ListView::Sort / TableView::SortByColumn`。排序使选中项复位/移动后，补发一次 `SelectionChanged`（或调用方同步）。
-
-## L7：TextBox::SetText 撤销栈（🟡）
-**位置**：`ZUIWidgets.h TextBox::SetText`。**只保留 `ClearUndoHistory();`**（删掉紧随的 `PushUndoState()`）。编程式 `SetText` 不产生撤销点（对齐 QTextEdit）。
-
-## L8：VK_DELETE 重复赋值（🟢）
-**位置**：`ZUIWidgets.h TextBox::OnKeyDown`。删掉重复的 `selectionAnchor_ = cursorPos_;`。
-
-## L9：Slider/ProgressBar SetValue 空触发（🟢）
-**位置**：`ZUIWidgets.h`。`SetValue` 开头 `if (value == value_) return;`（Slider 用 Snap 后的值比较）。
-
-## L10：ComboBox ApplyFilter 重置选中（🟡）
-**位置**：`ZUIWidgets.h ComboBox::ApplyFilter`。过滤后：原选中项若仍在结果里 → 保留其索引；否则才回 0。
-
-## L11：ComboBox justExpanded_ 未生效（🟢）
-**位置**：`ZUIWidgets.h ComboBox::OnMouseDown`。展开那一帧用 `justExpanded_` 跳过 `PlaceCaretFromX`。
-
-## L12：CaptionButton 按下移出松手不 Click（🟢）
-**位置**：`ZUIWindowTool.h CaptionButton::OnMouseLeave/OnMouseUp`。移出只清 `hovered_`（保留 `pressed_`）；`OnMouseUp` 里 `if (pressed_ && Contains(x,y)) Clicked.Fire();`。
-
-## D6：ListView::Draw 偏移不一致（🟢）
-**位置**：`ZDataViewer.h ListView::Draw`。`firstVisible` 用 `Snap(scrollOffsetY_)` 计算，与 itemRect 的 Snap 偏移统一。
-
----
-
-# 第 1 期续：绘制/事件/资源（批次 2）
-
-## E1：OnMouseDown 未过滤 disabled（🟡）
-**位置**：`ZUI.h Window::OnMouseDown`。命中后 `if (!hit->IsEffectivelyEnabled()) { 交给父/跳过; }`，与 `UpdateHover` 保持一致。
-
-## E2：ZSignal::Fire tlSnapshot 常驻（🟢）
-**位置**：`ZUI.h ZSignal::Fire`(~450)。Fire 结束 `tlSnapshot.clear();`（释放最后一次快照）。
-
-## D3：表头分隔线画两次（🟢）
-**位置**：`ZDataViewer.h TableView::Draw / TreeView::Draw`。删末尾重复画的分隔线。
-
-## D4：DrawTextWithEllipsis 每次建 layout（🟡）
-**位置**：`ZUIWidgets.h DrawTextWithEllipsis`。加一个小 LRU 缓存（key = `文本 + width + fontSize`，容量 64），命中直接 `DrawTextLayout`。
-
-## D5：DrawScrollBar 除零（🟡）
-**位置**：`ZDataViewer.h` 三处 `DrawScrollBar`。进入前 `if (maxScrollY_ <= 0.0f) return;`（X 同理）。
-
-## R2：ImageDeviceCache key 裸指针（🟡）
-**位置**：`ZUIImages.h ImageDeviceCache`。key 由 `ID2D1RenderTarget*` 改为 `{deviceEpoch_, renderTarget*}`；`DeviceReset` 时 `++deviceEpoch_` 并清空。
-
-## R3：TreeNode::parent 裸指针（🟡）
-**位置**：`ZDataViewer.h TreeNode`。`TreeNode* parent` → `std::weak_ptr<TreeNode>`（或节点持 id + map 查找）。
-
-## R4：TreeView::checkAnim_ 悬垂 key（🟡）
-**位置**：`ZDataViewer.h TreeView`。`checkAnim_` 的 key `TreeNode*` → `nodeId`；或 `TreeNode` 析构时从 map erase 自身。
-
-### 剔除/降级
-- **R1（MenuWindow 资源）**：非真 bug，剔除。
-- **A5（GetChildren 返回可变成员）**：单线程无实际风险，剔除。
-- **P7（100Hz 定时器）**：MenuWindow 专用，影响小，降级 🟢（第 3 期顺手）。
+### 5. 其它 bug / 健壮性（第 1 期）
+- 逻辑：**L1–L12**（死代码、父勾选动画、Multi 重复触发、`SetCurrentCell` -1 语义、排序补发 `SelectionChanged`、`TextBox` 撤销栈、VK_DELETE 重复赋值、`SetValue` 空触发、`ComboBox::ApplyFilter` 保留选中、`justExpanded_` 生效、`CaptionButton` 移出不清 pressed）、**D6**（ListView firstVisible 与 itemRect 统一 Snap）。
+- 绘制/事件/资源：**E1**（`OnMouseDown` 过滤 disabled）、**E2**（`ZSignal::Fire` 释放 `tlSnapshot`）、**D3/D5**（滚动条除零守卫）、**R2**（图像缓存 key 加设备 epoch）、**P1**（`ListView` 批量增删 `BeginUpdate/EndUpdate`）、**P3**（`TreeView::GetVisibleIndex` 惰性索引）。
+- **④ `childrenDirty_`**：`GetChildren()` 结果缓存（`SetParent` 置脏；`PageHost` 动画状态变化 / `Label::ClearChildren` 也置脏）。
 
 ---
 
-# 第 2 期：布局机制重构（高风险，一次到位）
+## 二、待办（TODO）
 
-## 目标
-把"全量重排 + Arrange 内重复 Measure"改为 **DesiredSize 缓存 + MeasureOverride/ArrangeOverride + 惰性脏标记**。这是第 1 期之后、收益最大但风险最高的一期。
+| 优先级 | 项 | 说明 | 风险 |
+|---|---|---|---|
+| 随时可做 | **D6 注释止血** | 给 `SetItem(shared_ptr<Label>)` 系列加注释："仅 `GetText()` 被读取，其余属性被忽略；单项样式请用 `SetItemTextColor` 等" | 零 |
+| 下一阶段 | **D1/D2 数据控件 Label 化** | `ListView/TableView` 的 `GetChildren` 返回项 Label + `ArrangeOverride` 里 Arrange + `GetClipRect` 返回自身范围 + `UpdateAnimation/HasActiveAnimation/AttachWindowRecursive` 递归 + 加项时 `label->SetUseCache(false)`；删 `Draw` 里的 `DrawTextWithEllipsis`（改由合成递归画） | 低 |
+| 下一阶段 | **D3 接口收敛** | `SetItemTextColor` 等转发给 Label，删 `itemTextColors_`/`cellTextColors_` | 中（破坏源码兼容） |
+| 下一阶段 | **D4 TreeView 重构** | `TreeNode.columns` 由 `std::wstring` 改 `std::shared_ptr<Label>` | 中（破坏性） |
+| 下一阶段 | **D5 Label 布局缓存** | `Label::Draw` 会 `SetTextAlignment/SetWordWrapping/SetLineSpacing/Trimming` **修改** layout，不能共用全局缓存 → 需按 `text+宽高+fmt+对齐+换行+overflow+maxLines` 建独立 keyed cache | 中 |
+| 按需 | **M7 缓存预算/LRU** | 给离屏缓存加"总像素预算 + 淘汰"，大容器才不爆 | 中 |
+| 按需 | **R3/R4/L13** | `TreeNode::parent` 弱引用；`checkAnim_` key 改 nodeId；`SetParent` 幽灵节点（需基类虚 `RemoveChild` + 各容器实现） | 中 |
+| 按需 | **M8/M9/M10** | 单元素缓存像素上限；`ReleaseDeviceResources` 是否递归；多页时懒构建/卸载 | 中 |
+| 可选 | **layout 缓存 key 零拷贝** | 现在每次调用构造 key（含一次文本拷贝）。若要再压：`wstring_view` + 自定义 hash（注意生命周期） | 低 |
+| 可选 | **C4 `PrepareMeasure()`** | 排查 `MeasureOverride` 里的可变副作用（`ComboBox::RecalcItemWidths`、`Label::measuredIconW_`），外提到显式入口 | 中 |
+| 可选 | **C3 GridLayout 定向重测** | Grid 是二维 stretch，保留"最终 cell 尺寸 ≠ 上轮 availableSize 才重测单个子" | 中 |
+| 可选 | **P2/P4** | `TreeView::FindNode` 建 id→node 映射；`BuildVisibleList` 增量 | 中 |
+| 可选 | **P6/P7** | `MenuWindow` 10ms 定时器提高步长/改 DWM 动画 | 低 |
 
-## 2.1 UIElement 新增字段与包装器（收口 A1/A2/A4/A5）
+---
 
-```cpp
-// 成员（替换旧 layoutDirty_）
-Size  desiredSize_{};
-Size  previousAvailableSize_{ -1, -1 };
-bool  measureDirty_ = true;
-bool  arrangeDirty_ = true;
+## 三、雷区（不要做 / 已证明是坑）
 
-Size Measure(const Size& avail) {                    // 非虚；子类实现 MeasureOverride
-    if (!measureDirty_ && avail.width  == previousAvailableSize_.width
-                       && avail.height == previousAvailableSize_.height) return desiredSize_;
-    desiredSize_ = MeasureOverride(avail);
-    previousAvailableSize_ = avail;
-    measureDirty_ = false;
-    return desiredSize_;
-}
-Size GetDesiredSize() const { return desiredSize_; }
-bool NeedsLayout() const { return measureDirty_ || arrangeDirty_; }
+### A. 明确"不做"的设计（做了会更糟）
+1. **页级"整平"缓存**（把子树合成到一张位图）——❌ 不做。单控件动画会导致整张位图更新、与子控件内容重复、内存巨大、收益低。
+2. **事件驱动 `CollectActiveAnimations`**（pull→push）——❌ 不做。"是否在动"是**派生量**不是独立状态；要在每个 setter/动画点发通知，条件触发的 bug（卡住/幽灵/悬垂）极难测；收益仅 1%~3%。
+3. **合并 `UpdateAnimation` + `CollectActiveAnimations`**——❌ 不做。容器（ColumnBox/RowBox/GridLayout/Page/LayoutHost/Card/PageHost/ScrollViewer）的 `UpdateAnimation` **自带递归**，外部再遍历会让**子元素 UpdateAnimation 被调两次 → 线性动画速度翻倍**。
+4. **让数据控件里的 Label 走缓存（`cacheRT_`）**——❌ 负优化。项多、滚动频繁、内容变化多 → 每项一张 GPU 位图，创建成本 > 收益。数据控件应保持 `SetUseCache(false)` + 直接绘制（靠全局 layout 缓存降本）。
 
-void Arrange(const Rect& r) {
-    bool rectChanged = !(r.x==arrangedRect_.x && r.y==arrangedRect_.y
-                      && r.width==arrangedRect_.width && r.height==arrangedRect_.height);
-    if (!arrangeDirty_ && !rectChanged) return;      // ★ A1：绝不无条件标子脏
-    if (r.width != desiredSize_.width || r.height != desiredSize_.height)
-        Measure(Size(r.width, r.height));            // Fill/Stretch/换行 → 按最终尺寸重测（命中缓存 O(1)）
-    ArrangeOverride(r);
-    arrangedRect_ = r; arrangeDirty_ = false;
-    cacheValid_ = false;                             // ★ A2：真重排 → 自身缓存作废
-}
-```
-
-- **A1**：删掉 `dirtySubtree_` 与"每帧标子脏"；"父变→子重测"由 `Arrange` 里的 `Measure(最终尺寸)` 承担（只有尺寸真的不同才测）。
-- **A2**：缓存作废逐元素、在包装器内做，不需要集合/去重/`ClearAllCaches`（设备重建仍走 `ReleaseDeviceResources`）。
-- **A4**：入口改用 `NeedsLayout()`；删 `IsLayoutDirty()`。
-- **A5**：删 `ClearLayoutDirty()`（含递归版）与 `layoutDirty_`。
-
-## 2.2 失效传播（收口 A3）
-
-```cpp
-void InvalidateMeasure() {
-    for (UIElement* e = this; e; e = e->parent_) {
-        if (e->measureDirty_) break;                 // ★ 已脏即停 → 均摊 O(1)
-        e->measureDirty_ = true; e->arrangeDirty_ = true;
-    }
-    if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
-}
-void InvalidateArrange() {
-    for (UIElement* e = this; e; e = e->parent_) {
-        if (e->arrangeDirty_) break;
-        e->arrangeDirty_ = true;
-    }
-    if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
-}
-void InvalidateLayout() { InvalidateMeasure(); }     // 过渡期统一按 Measure（安全）
-```
-
-- **A3**：`SetParent` 不传播（保持只设 `parent_`）；`AddChild/InsertChild/RemoveChild` 末尾 `if (GetWindow()) InvalidateMeasure();`（建树期零成本）；`AttachWindowRecursive` 成功后 `InvalidateMeasure();`。
-- 不变式：`measureDirty_==true ⇒ 祖先也 true`（每次置脏都冒泡、测完自清）→ "遇脏即停"安全。
-
-## 2.3 OnPaint 接入（收口 A2/A4）
-
-```cpp
-// ZUI.h:4184 附近
-if (layoutInvalidated_ || layoutNeeded_ || (rootElement_ && rootElement_->NeedsLayout())) {
-    if (rootElement_) { rootElement_->Measure(Size(availWidth, availHeight));
-                        rootElement_->Arrange(Rect(left, top, availWidth, availHeight)); }
-    layoutNeeded_ = false; layoutInvalidated_ = false;
-    // ★ 不再 ClearAllCaches() / CollectVisibleCachedElements()
-}
-```
-
-## 2.4 改名：22 个类 `Measure→MeasureOverride`（安全网：纯虚）
-
-**防漏机制**：`Size MeasureOverride(const Size&) = 0;` 设为纯虚 → 任何漏改的类**编译失败**（不会静默走空实现返回 {0,0} 塌布局）。`ArrangeOverride` 给基类默认实现。
-
-| 文件 | 类（Measure/Arrange 行） |
+### B. 已经踩过的认知坑（务必按"对"的那列做）
+| 错误做法 | 正确认知 |
 |---|---|
-| ZUI.h | ColumnBox(1055/1069)、RowBox(1147/1161)、GridLayout(1277/1305)、Card(1570/1576)、Page(1677/1683)、PageHost(1790/1802) |
-| ZUIWidgets.h | Label(186/250)、Button(483/485)、TextBox(722)、ToggleSwitch(2248/2238)、ScrollBar(2488/2493)、ScrollViewer(2709/2722)、ProgressBar(3080/3082)、Slider(3264)、CheckBox(3511/3521) |
-| ZDataViewer.h | ListView(429/431)、TableView(1533/1535)、TreeView(3098/3102) |
-| ZUIWindowTool.h | CaptionButton(74)、TitleBar(228/233) |
+| 子元素变化 → 作废**父链**缓存 | 缓存是**逐控件**的；父缓存只含父自身绘制，**子变化不动父缓存** |
+| `Arrange` 里无条件 `cacheValid_ = false` | 只由**尺寸变化**驱动；纯位置变化不清缓存 |
+| 用一个 `arrangeDirty_` 承担"自身脏/子树脏/缓存失效"三个语义 | 拆成 `selfArrangeDirty_` + `subtreeDirty_`；缓存失效独立 |
+| `InvalidateLayout` "遇脏即停" | **冒泡到根**（Measure 过程会打破不变式，遇脏即停会布局卡死） |
+| 手动云母拖动会"重新采样" | 只是 **translate 变换**，合成器不重采样 |
+| 拖动时照常做 hover 命中 | 拖动/缩放循环里 **`WM_NCHITTEST`→HTCAPTION、`WM_NCMOUSEMOVE`→return** |
+| 用"未 Snap 的偏移"算 firstVisible | 与 itemRect 统一用 **Snap 后的值** |
 
-> 改名用机械替换：`Size Measure(const Size& availableSize) override` → `Size MeasureOverride(const Size& availableSize) override`；`void Arrange(const Rect& finalRect) override` → `void ArrangeOverride(const Rect& finalRect) override`。改完全量搜索 `Size Measure(` / `void Arrange(` 兜底。
-
-## 2.5 去掉 Arrange 内的 Measure（典型 3 例，其余照做）
-
-**① ColumnBox（ZUI.h:1080）**
-```cpp
-// 前
-Size childSize = child->Measure(Size(childW, FLT_MAX));
-float childH = child->GetHeight() > 0 ? child->GetHeight() : childSize.height;
-// 后
-float childH = child->GetHeight() > 0 ? child->GetHeight() : child->GetDesiredSize().height;
-```
-**② GridLayout（ZUI.h:1319）**：删 `item.element->Measure(Size(FLT_MAX,FLT_MAX))`，用 Measure 阶段缓存的 `rowMinHeights_/colMinWidths_` 或 `GetDesiredSize()`。
-**③ Card / ScrollViewer（ZUIWidgets.h:233 / 2711）**：同样删 Arrange 内 `Measure`，改 `GetDesiredSize()`。
-
-> ⚠️ **5.3 约束传递（ColumnBox 传"剩余高度"）明确不做**，避免换行/滚动行为变化。
-
-## 2.6 验证要点（第 2 期必做）
-1. 全量重排一次后，动画/悬停应**不再**触发根 Measure/Arrange（用日志计数验证）。
-2. 逐页目视：切页、resize、滚动、文本框输入、列表增删，布局不得塌陷/错位。
-3. 内存：切页峰值应显著回落（对比第 1 期后基线）。
+### C. 平台 / 工程坑（硬事实）
+- **DComp 桌面窗口目标（`CreateDesktopWindowTarget`）的视觉坐标是物理像素**（该目标 DPI=96，不随窗口 200% 走）——不是 DIP。壁纸图层 `Offset = -窗口屏幕坐标`、`Size = 虚拟屏幕尺寸`。
+- **`CreateSwapChainForComposition` + `DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL` 要求 `BufferCount >= 2`**；写 1 会**静默失败**（表现为窗口全透明）。
+- **含中文的源文件必须带 UTF-8 BOM**；否则 MSVC 按 GBK 解析会报莫名的 `C2143/C2259/C2888`。
+- `ID2D1BitmapRenderTarget` 的缓存**不是整平**的：父缓存不含子树。
+- `Measure` 包装器缓存的安全前提：**`FontManager::formatCache_ 永不淘汰`**（同一 FontSpec 永远同一 `IDWriteTextFormat*`）——若将来给它加淘汰，必须同时清 `layoutCache_`。
+- 缓存作废的**唯一可靠来源**：`RequestRepaint()`（→ `pendingRepaint_`）+ `EnsureCache` 的尺寸比对。**任何内容/size 变化的 setter 必须调 `RequestRepaint`/`InvalidateLayout`**，否则缓存会陈旧。
+- `childrenDirty_`：**所有改子元素列表的路径都要置脏**；现靠 `SetParent` 覆盖"增"，`Label::ClearChildren`、`PageHost` 的动画状态变化另置。新增移除/替换 API 时务必补置脏（漏 → 子元素不显示/不刷新）。
 
 ---
 
-# 第 3 期：性能收尾
+## 四、每个阶段的提交与 tag（可回退）
 
-## M5：PageHost 双通道绘制（🔴）
-**位置**：`ZUI.h:1807 PageHost::Draw` + `1843 GetChildren` + `1998 GetChildRenderTransform`。
-**问题**：`Draw` 里手动 SetTransform 画两页，`ComposeImpl` 又通过 `GetChildren` 递归 + `GetChildRenderTransform` 再画一次 → 同帧双绘、变换叠加。
-**改法**：`PageHost::Draw` 改为空实现（`void Draw(ID2D1RenderTarget*) override {}`），只靠 `GetChildRenderTransform` 通道；`Draw` 里的 `PushAxisAlignedClip` 保留到 `GetClipRect`(1862) 已返回 `arrangedRect_`，无需在 Draw 里做。
-
-## P6/A6：OnPaint 每帧全树遍历事件化（🔴）
-**位置**：`ZUI.h:4205 CollectDragRegions` / `4216-4228 CollectActiveAnimations` / `1938-1942 PageHost 每帧 RequestRepaint`。
-**改法**：
-- `CollectDragRegions`：只在 `WM_NCHITTEST` 按需收集；或尺寸/结构变化时重建一次并缓存。
-- `CollectActiveAnimations`：控件动画开始/结束调用 `Window::RegisterActiveAnimation(elem)` / `Unregister`，OnPaint 直接遍历 `activeAnims_`（O(活跃数)）。
-- `PageHost` 过渡期间对两页的 `RequestRepaint()` 改为只标真正变化的元素。
-
-## 批次 3（性能细节）
-- **P1**：`ListView::AddItem/InsertItem` 加 `BeginUpdate/EndUpdate` 批量挂起。
-- **P2**：`TreeView::FindNode` 建 id→node 映射。
-- **P3**：`TreeView::GetVisibleIndex` 文档内记 index。
-- **P4**：`TreeView::BuildVisibleList` 增量更新。
-- **P7**：`MenuWindow::HandleAnimationTimer`（10ms 定时器）提高步长或改 DWM 动画（🟢，顺手）。
-
----
-
-# 附：自我校验结论（三方评审收口）
-
-1. 保守版脏布局：**父 rect 变 → 子强制 Measure+Arrange**（已写入 2.1 的 `Arrange` 包装器）。
-2. 前置：先重构 Layout 分离 Measure/Arrange（已列为第 2 期 2.1–2.5）。
-3. `dirtySubtree_` 冗余，已删；`ClearLayoutDirty` 与 `layoutDirty_` 一并删。
-4. 传播触发点：`InvalidateMeasure/Arrange` 冒泡 + 结构变化仅在"已挂窗口"时冒泡。
-5. 5.3 约束传递不在本清单。
-6. 改名以 `MeasureOverride = 0` 纯虚做安全网，防静默塌布局。
-7. **【重要更正】缓存是"逐控件"的，不是整平的**：`ComposeImpl` 对缓存元素画完自身缓存位图后**仍会递归画子元素**，所以父缓存只含**父自身的绘制**、不含子树。因此：子元素变化**不需要**作废父缓存（曾误加"作废祖先链"→过度作废、反而变慢，已撤销）。`Arrange` 包装器只作废**自身** `cacheValid_` 即可。
-
----
-
-# 数据控件改造（**推迟**，未来独立阶段）
-
-现状（已核实，非"bug"而是有意的简化）：
-- `ListView/TableView/TreeView` 里的 `shared_ptr<Label>` **只被 `GetText()` 使用**：不在 `GetChildren()`、不走 `ComposeImpl`、`EnsureCache`/`cacheRT_` 从不创建 → Label 的缓存机制完全失效；数据控件自己 `SetUseCache(false)`，每帧每可见项/格都走一次 `DrawTextWithEllipsis`。
-- 因此数据控件唯一的降本手段就是**全局文本布局缓存**（已在 `FontManager` 落地，见阶段 5）。
-- **`SetItem(shared_ptr<Label>)` 是"撒谎接口"**：Label 的字体/颜色/对齐/子元素**全被忽略**，只读 `GetText()`；`TreeView` 连单项颜色都没有。**建议先只加注释止血**。
-
-目标（用户初衷）：让数据控件能用完整 Label（图标 / 多格式 / 内嵌 Label），即**让 Label 走 Window 正常流程**。清单：
-
-| # | 内容 | 风险 |
-|---|---|---|
-| D1 | `ListView/TableView` 的 `GetChildren()` 返回项 Label；`ArrangeOverride` 里 Arrange（可见项即可，屏幕外由 clip 剔除）；`GetClipRect()` 返回自身范围（关键，否则屏幕外也画）；`UpdateAnimation`/`HasActiveAnimation`/`AttachWindowRecursive` 递归子元素；加项时 `label->SetUseCache(false)` | 低 |
-| D2 | 删除数据控件 `Draw` 里的 `DrawTextWithEllipsis`，改由 `ComposeImpl` 递归画 Label（天然在网格线之上、天然事件不命中、天然点击穿透到父） | 低 |
-| D3 | `SetItemTextColor` 等改为**转发给 Label**（`items_[i]->SetTextColor(c)`），删 `itemTextColors_`/`cellTextColors_` 等控件侧 per-item 元数据 | 中（接口收敛，破坏源码兼容） |
-| D4 | `TreeView` 重构：`TreeNode.columns` 由 `std::wstring` 改 `std::shared_ptr<Label>`（破坏性，所有 `node->columns[i]` 改用 `->GetText()`） | 中 |
-| D5 | `Label` 自身的**布局缓存**（当前 `Label::Draw` 会 `SetTextAlignment/SetWordWrapping/SetLineSpacing/Trimming` **修改** layout，不能共用全局缓存）→ 需按 `text+宽高+fmt+对齐+换行+overflow+maxLines` 建独立 keyed cache | 中 |
-| D6 | `SetItem(shared_ptr<Label>)` 系列**加注释止血**：明确"仅 `GetText()` 被读取，其余属性被忽略" | 零（先做） |
-
-**顺序**：D6 立即做（零风险）→ 阶段 5（全局 layout 缓存，已完成）→ D1/D2 → D3+D4 → D5。
-
----
-
-# 阶段 5 已完成（commit `b49862d` / tag `phase5-done`）
-
-- **FontManager 全局文本布局缓存**（跨所有控件共享）：key = `text + fmt指针 + 量化宽高(0.5 DIP) + noWrap + mode`；两模式（0=原始布局、1=显示布局=按原文本缓存截断结果）；有界 FIFO（上限 400，一次淘汰 1/4）；`formatCache_ 永不淘汰` 契约已注明。**数据控件是最大受益者**（它们没有 Label 缓存兜底）。
-- `DrawTextWithEllipsis`：命中显示缓存 → 直接画（跳过整段测量+二分）；未命中 → 原始布局也走缓存 + 二分截断（`reserve/assign` 消临时分配）+ 把显示布局按原文本缓存。
-- `Label::Draw`：Ellipsis 由**逐字符 O(n)** 改**二分**（与 DrawTextWithEllipsis 对齐）。Label 的布局缓存见 D5（推迟，因为 Label 会修改 layout）。
-- `ComposeImpl` / `EnsureCache`：用 `dpi_` 直接算，去掉**每元素每帧** `renderTarget_->GetDpi()` 的 COM 调用。
-- `childrenDirty_`：`GetChildren()` 结果缓存（`SetParent` 置脏；`PageHost` 动画状态变化 / `Label::ClearChildren` 也置脏）。
-
-**未做（按用户决定）**：页级"整平"缓存、事件驱动 `CollectActiveAnimations`、合并 `UpdateAnimation`+`CollectActiveAnimations`。
-
-
----
-
-# 第 2 期强制修正（评审第 4 轮新增，实现前必读）
-
-## C1（🔴）`InvalidateMeasure` 去掉 `break`，无条件冒泡到根
-§2.2 原来的"遇脏即停"有漏洞：Measure 过程中"子被跳过（如 PageHost 非当前页 / GridLayout 隐藏 item）"会打破不变式——子仍 dirty 而祖先已被清 → 对子的后代再失效时在子处 break，根永不重排 → 布局卡死。
-**改**：删掉 `if (e->measureDirty_) break;`，一直冒泡到根（深度 < 10，成本可忽略）。`InvalidateArrange` 同样处理。
-
-```cpp
-void InvalidateMeasure() {
-    for (UIElement* e = this; e; e = e->parent_) { e->measureDirty_ = true; e->arrangeDirty_ = true; }
-    if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
-}
-void InvalidateArrange() {
-    for (UIElement* e = this; e; e = e->parent_) e->arrangeDirty_ = true;
-    if (Window* w = GetWindow()) w->MarkLayoutInvalidated();
-}
-```
-
-## C2（🟡）Arrange 包装器的重测条件按"约束是否变"判断
-`if (r.width != desiredSize_.width ...)` 对固定尺寸控件（Button 的 `MeasureOverride` 直接返回 `Size(width_, height_)`）会每次 Arrange 都重测。
-**改**：与"上轮 availableSize"比较：
-
-```cpp
-if (r.width  != previousAvailableSize_.width || r.height != previousAvailableSize_.height)
-    Measure(Size(r.width, r.height));   // 只有约束变了才重测
-```
-
-## C3（🟡）GridLayout 的 Arrange 保留"定向重测"（保守版）
-GridLayout 是二维 stretch：cell 最终尺寸可与 Measure 阶段 availableSize 完全不同（stretch 列 80→300），此时 FillWidth 换行控件用旧 `GetDesiredSize()` 会得到错误高度。
-**改**：GridLayout 不照搬 §2.5① 的删法；对"最终 cell 尺寸 ≠ 上轮 availableSize"的子元素**只重测那一个**。ColumnBox（一维堆叠、宽度=父宽）可安全删。
-
-## C4（🟡）排查 `MeasureOverride` 里的可变副作用，改显式 `PrepareMeasure()`
-`ComboBox::Measure` 的 `if (itemWidthsDirty_) RecalcItemWidths();`、`Label::Measure` 的 `measuredIconW_` 等"惰性前置计算"改 `MeasureOverride` 后会因缓存命中而**永不执行** → 数据变更（AddItem 等）后用到旧数据。
-**新增任务**：把所有"测量前置计算"从 `MeasureOverride` 移出，改为 `PrepareMeasure()` 显式入口，由数据变更 API（`AddItem/SetItems/SetColumnWidth/SetIcon`…）显式调用。
-
-## C5（🟡）L13：`SetParent` 幽灵节点（第 2 期做）
-元素从容器 A 挪到 B 时，A 的 `children_` 仍留它。
-**改**：基类加 `virtual bool RemoveChild(UIElement*)`（默认 false），各容器重写；`SetParent(newP)` 里 `if (parent_ && parent_ != newP) parent_->RemoveChild(this);`。收口到 `AdoptChild/OrphanChild` 更彻底，第 2 期随布局重构一起做。
-
-## C6（🟢）X1 的 `lastClientW_/H_` 初始化时机
-已在 `Window::Create`（hwnd 创建、dpi 取到之后）显式 `GetClientRect` 初始化。**已完成**（随第 1 期提交）。
-
----
-
-# 第 1 期实际完成情况（commit `e5cece9` / tag `phase1-done`）
-
-- ✅ X1（含 C6 初始化时机）
-- ✅ M1（NavigateTo 删 InvalidateLayout）
-- ✅ M3（PageHost 用 SetVisibleNoInvalidate）
-- ✅ L1–L12、D6
-- ✅ E1、E2、D4（部分：未截断复用 measureLayout）、D5
-- ⏸ **推迟到第 2 期**：R2（图像缓存 epoch）、R3（TreeNode::parent 弱引用）、R4（checkAnim_ key）、L13（幽灵节点）、D3（表头重复线，判定为非真 bug，暂不动）
-  - 理由：R3/R4/L13 涉及容器/Tree 结构重构，与第 2 期布局改动同域，合并做更安全；R2 需要自定义 hash，一并放第 2 期。
-
+| tag | commit 主题 |
+|---|---|
+| `pre-optimization-2026-09-20` | 优化前基线 |
+| `phase1-done` | WM_SIZE 守卫 / M1 / M3 / 逻辑 bug L1–L12 / D6 / E1,E2,D4,D5 |
+| `phase2-done` | 布局机制：DesiredSize 缓存 + 包装器 + 两级脏位 + 去 ClearAllCaches |
+| `phase2b-done` | 撤销"作废祖先缓存"过度作废 |
+| `phase2c-done` | ColumnBox/RowBox 去 Arrange 内 Measure |
+| `phase3-done` | 拖动短路 + M5 + P1 + P3 + R2 |
+| `phase3c-done` | A6（切页不每帧重画两页）+ CollectNonParticipating 缓存 |
+| `phase4-done` | 拆 arrangeDirty_ + cacheValid_ 只由尺寸驱动 |
+| `phase5-done` | FontManager 全局 layout 缓存 + Label 二分 + DPI + childrenDirty_ |
+| `phase6-done` | PageHost 释放时机（内存封顶）+ Store 防重 + GetChildren 守卫整理 |
