@@ -29,25 +29,43 @@ namespace ZUI {
     // ------------------------------------------------------------------
     // ImageDeviceCache：某个 Image 在“每个渲染目标”上的 D2D 位图缓存
     // ------------------------------------------------------------------
+    // R2：设备世代。每次 DeviceReset 递增，使"渲染目标地址被复用"时的旧缓存 key 自动失效。
+    inline unsigned long long g_imageDeviceEpoch = 0;
+    struct ImageCacheKey {
+        unsigned long long epoch; ID2D1RenderTarget* rt;
+        bool operator==(const ImageCacheKey& o) const { return epoch == o.epoch && rt == o.rt; }
+    };
+    struct ImageCacheKeyHash {
+        size_t operator()(const ImageCacheKey& k) const {
+            return std::hash<unsigned long long>{}(k.epoch) ^ (std::hash<void*>{}(k.rt) + 0x9e3779b9u);
+        }
+    };
+
     class ImageDeviceCache {
     public:
         ID2D1Bitmap* Get(ID2D1RenderTarget* rt, IWICBitmapSource* src) {
             if (!rt || !src) return nullptr;
             std::lock_guard<std::mutex> lock(mtx_);
-            auto it = map_.find(rt);
+            ImageCacheKey key{ g_imageDeviceEpoch, rt };
+            auto it = map_.find(key);
             if (it != map_.end() && it->second) return it->second.Get();
             ComPtr<ID2D1Bitmap> bmp;
             HRESULT hr = rt->CreateBitmapFromWicBitmap(src, nullptr, bmp.GetAddressOf());
             if (FAILED(hr) || !bmp) return nullptr;
-            map_[rt] = bmp;
+            map_[key] = bmp;
             return bmp.Get();
         }
         void Clear() { std::lock_guard<std::mutex> lock(mtx_); map_.clear(); }
-        void Clear(ID2D1RenderTarget* rt) { std::lock_guard<std::mutex> lock(mtx_); map_.erase(rt); }
+        void Clear(ID2D1RenderTarget* rt) {
+            std::lock_guard<std::mutex> lock(mtx_);
+            for (auto it = map_.begin(); it != map_.end(); ) {
+                if (it->first.rt == rt) it = map_.erase(it); else ++it;
+            }
+        }
 
     private:
         std::mutex mtx_;
-        std::unordered_map<ID2D1RenderTarget*, ComPtr<ID2D1Bitmap>> map_;
+        std::unordered_map<ImageCacheKey, ComPtr<ID2D1Bitmap>, ImageCacheKeyHash> map_;
     };
 
     // ------------------------------------------------------------------
@@ -72,6 +90,7 @@ namespace ZUI {
         // 设备丢失/重建时调用：清空所有图像在各渲染目标上的 D2D 位图缓存
         void ClearAllDeviceCaches() {
             std::lock_guard<std::mutex> lock(mtx_);
+            ++g_imageDeviceEpoch;   // R2：设备换代，旧地址 key 全部失效
             for (auto it = caches_.begin(); it != caches_.end(); ) {
                 if (auto c = it->lock()) { c->Clear(); ++it; }
                 else it = caches_.erase(it);

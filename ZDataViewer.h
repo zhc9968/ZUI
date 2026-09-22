@@ -3848,6 +3848,7 @@ namespace ZUI {
             EmitMultiSelection();
         }
         void BuildVisibleList() {
+            visibleIndexDirty_ = true;   // P3：可见列表变了，索引映射作废
             float oldScrollX = scrollOffsetX_;
             float oldScrollY = scrollOffsetY_;
             visibleNodes_.clear();
@@ -3923,11 +3924,16 @@ namespace ZUI {
         }
 
         int GetVisibleIndex(std::shared_ptr<TreeNode> node) const {
-            for (int i = 0; i < (int)visibleNodes_.size(); ++i) {
-                if (visibleNodes_[i] == node) return i;
+            if (visibleIndexDirty_) {   // P3：惰性建 node->index 映射，避免每次选中都 O(n) 遍历
+                visibleIndex_.clear();
+                for (int i = 0; i < (int)visibleNodes_.size(); ++i) visibleIndex_[visibleNodes_[i].get()] = i;
+                visibleIndexDirty_ = false;
             }
-            return -1;
+            auto it = visibleIndex_.find(node.get());
+            return it == visibleIndex_.end() ? -1 : it->second;
         }
+        mutable std::unordered_map<TreeNode*, int> visibleIndex_;
+        mutable bool visibleIndexDirty_ = true;
 
         float GetEffectiveColumnWidth(int col) const {
             if (col < 0 || col >= (int)columnWidths_.size()) return DefaultMinColumnWidth;
