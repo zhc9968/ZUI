@@ -1084,10 +1084,15 @@ namespace ZUI {
             float maxWidth = 0;
             for (auto& child : children_) {
                 if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
-                Size childSize = child->Measure(availableSize);
+                Thickness m = child->GetMargin();
+                float availW = availableSize.width - m.left - m.right;
+                float childW = child->GetWidth() > 0 ? child->GetWidth() : availW;
+                if (child->GetFillWidth()) childW = availW;
+                childW = clamp(childW, child->GetMinWidth(), child->GetMaxWidth());
+                Size childSize = child->Measure(Size(childW, FLT_MAX));   // 与 Arrange 同一约束，使 GetDesiredSize 可信
                 totalHeight += childSize.height;
-                maxWidth = max(maxWidth, childSize.width + child->GetMargin().left + child->GetMargin().right);
-                totalHeight += child->GetMargin().top + child->GetMargin().bottom;
+                maxWidth = max(maxWidth, childSize.width + m.left + m.right);
+                totalHeight += m.top + m.bottom;
             }
             if (!children_.empty()) totalHeight += spacing_ * (children_.size() - 1);
             return Size(width_ > 0 ? width_ : maxWidth, height_ > 0 ? height_ : totalHeight);
@@ -1104,7 +1109,7 @@ namespace ZUI {
                 float childW = child->GetWidth() > 0 ? child->GetWidth() : availW;
                 if (child->GetFillWidth()) childW = availW;
                 childW = clamp(childW, child->GetMinWidth(), child->GetMaxWidth());
-                Size childSize = child->Measure(Size(childW, FLT_MAX));
+                Size childSize = child->GetDesiredSize();   // 用测量缓存，避免 Arrange 内重复 Measure
                 float childH = child->GetHeight() > 0 ? child->GetHeight() : childSize.height;
                 if (child->GetFillHeight()) childH = finalRect.height - y;
                 childH = clamp(childH, child->GetMinHeight(), child->GetMaxHeight());
@@ -1176,10 +1181,15 @@ namespace ZUI {
             float maxHeight = 0;
             for (auto& child : children_) {
                 if (!child->IsVisible() || !child->ParticipatesInLayout()) continue;
-                Size childSize = child->Measure(availableSize);
+                Thickness m = child->GetMargin();
+                float availH = availableSize.height - m.top - m.bottom;
+                float childH = child->GetHeight() > 0 ? child->GetHeight() : availH;
+                if (child->GetFillHeight()) childH = availH;
+                childH = clamp(childH, child->GetMinHeight(), child->GetMaxHeight());
+                Size childSize = child->Measure(Size(FLT_MAX, childH));   // 与 Arrange 同一约束
                 totalWidth += childSize.width;
-                maxHeight = max(maxHeight, childSize.height + child->GetMargin().top + child->GetMargin().bottom);
-                totalWidth += child->GetMargin().left + child->GetMargin().right;
+                maxHeight = max(maxHeight, childSize.height + m.top + m.bottom);
+                totalWidth += m.left + m.right;
             }
             if (!children_.empty()) totalWidth += spacing_ * (children_.size() - 1);
             return Size(width_ > 0 ? width_ : totalWidth, height_ > 0 ? height_ : maxHeight);
@@ -1196,7 +1206,7 @@ namespace ZUI {
                 float childH = child->GetHeight() > 0 ? child->GetHeight() : availH;
                 if (child->GetFillHeight()) childH = availH;
                 childH = clamp(childH, child->GetMinHeight(), child->GetMaxHeight());
-                Size childSize = child->Measure(Size(FLT_MAX, childH));
+                Size childSize = child->GetDesiredSize();   // 用测量缓存，避免 Arrange 内重复 Measure
                 float childW = child->GetWidth() > 0 ? child->GetWidth() : childSize.width;
                 if (child->GetFillWidth()) childW = finalRect.width - x;
                 childW = clamp(childW, child->GetMinWidth(), child->GetMaxWidth());
