@@ -612,6 +612,7 @@ namespace ZUI {
             Store(Key(origText, fmt, maxWidth, maxHeight, noWrap, 1), layout);
         }
 
+        // 设置全局默认字体，触发 GlobalFontChanged 让所有未覆盖的控件重建
         void SetGlobalFont(const FontSpec& spec) {
             globalFont_ = spec;
             GlobalFontChanged();
@@ -631,6 +632,8 @@ namespace ZUI {
         }
         void Store(TextLayoutKey key, IDWriteTextLayout* layout) {
             if (!layout) return;
+            auto exist = layoutCache_.find(key);
+            if (exist != layoutCache_.end()) { exist->second = layout; return; }   // 已存在：覆盖，不 push fifo（防 map/fifo 不同步）
             if (layoutCache_.size() >= kLayoutCacheMax) {   // 有界：一次淘汰最旧的 1/4
                 size_t toDrop = layoutCache_.size() / 4 + 1;
                 for (size_t i = 0; i < toDrop && !layoutFifo_.empty(); ++i) {
@@ -1207,7 +1210,9 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
+            if (!childrenDirty_) return childrenView_;
+            childrenDirty_ = false;
+            childrenView_.clear();
             for (auto& child : children_) childrenView_.push_back(child.get());
             return childrenView_;
         }
@@ -1304,7 +1309,9 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
+            if (!childrenDirty_) return childrenView_;
+            childrenDirty_ = false;
+            childrenView_.clear();
             for (auto& child : children_) childrenView_.push_back(child.get());
             return childrenView_;
         }
@@ -1570,7 +1577,9 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
+            if (!childrenDirty_) return childrenView_;
+            childrenDirty_ = false;
+            childrenView_.clear();
             for (auto& item : items_) childrenView_.push_back(item.element.get());
             return childrenView_;
         }
@@ -1638,7 +1647,9 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
+            if (!childrenDirty_) return childrenView_;
+            childrenDirty_ = false;
+            childrenView_.clear();
             if (layout_) childrenView_.push_back(layout_.get());
             return childrenView_;
         }
@@ -1931,7 +1942,9 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
+            if (!childrenDirty_) return childrenView_;
+            childrenDirty_ = false;
+            childrenView_.clear();
             if (animating_) {
                 if (fromIndex_ >= 0 && fromIndex_ < (int)pages_.size())
                     childrenView_.push_back(pages_[fromIndex_].get());
@@ -2032,9 +2045,13 @@ namespace ZUI {
             // 同步页面可见性：非当前、非过渡页设为不可见（可让其中的展开控件自动收起，且不参与绘制）
             for (size_t i = 0; i < pages_.size(); ++i) {
                 if (!pages_[i]) continue;
-                bool vis = ((int)i == currentIndex_) ||
+                bool shouldBeVisible = ((int)i == currentIndex_) ||
                     (animating_ && ((int)i == fromIndex_ || (int)i == toIndex_));
-                pages_[i]->SetVisibleNoInvalidate(vis);   // page 填满 host，可见性不影响布局，避免每次切页触发全量重排
+                bool wasVisible = pages_[i]->IsVisible();
+                pages_[i]->SetVisibleNoInvalidate(shouldBeVisible);   // page 填满 host，可见性不影响布局
+                // 关键：释放时机从"过渡完成那一帧"(高频切换时 animProgress_ 被反复重置、justFinished 永不触发 → 从不释放)
+                // 改为"任何页由可见变不可见的那一帧"，避免隐藏页的离屏缓存无限累积。
+                if (wasVisible && !shouldBeVisible) pages_[i]->ReleaseDeviceResources();
             }
 
             if (justFinished) {

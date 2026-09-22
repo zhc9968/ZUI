@@ -157,7 +157,9 @@ namespace ZUI {
         size_t GetChildCount() const { return children_.size(); }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
+            if (!childrenDirty_) return childrenView_;
+            childrenDirty_ = false;
+            childrenView_.clear();
             for (auto& c : children_) if (c) childrenView_.push_back(c.get());
             return childrenView_;
         }
@@ -2784,7 +2786,9 @@ namespace ZUI {
         }
 
         const std::vector<UIElement*>& GetChildren() const override {
-            if (!childrenDirty_) return childrenView_; childrenDirty_ = false; childrenView_.clear();
+            if (!childrenDirty_) return childrenView_;
+            childrenDirty_ = false;
+            childrenView_.clear();
             if (content_)
                 childrenView_.push_back(content_.get());
             if (vScrollBar_)
