@@ -260,14 +260,25 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // Backdrop implementation (which API)
-    enum class BackdropMode {
-        Auto,    // auto: prefer Win11 host backdrop / system material, fall back to AccentState
-        System,  // force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
-        Accent   // force: SetWindowCompositionAttribute(AccentState)
+    // Backdrop layer (only three options): None = transparent / Acrylic / Mica
+    // enum class Backdrop { None, Acrylic, Mica };
+    // SetBackdrop(layer, overlayArgb): the overlay is an ARGB colour composited on top of the layer
+    void SetBackdrop(Backdrop layer, DWORD overlayArgb = 0x00000000);
+    Backdrop GetBackdrop() const;
+
+    // Background "4-layer parameter model" (all tunable — see below)
+    struct BackgroundParams {
+        float        blurAmount;    // Blur layer: Gaussian sigma
+        float        saturation;    // Luminosity layer: saturation (used by the Legacy/RS2 recipe)
+        D2D1_COLOR_F tint;          // Tint layer: colour (with alpha, i.e. the veil)
+        D2D1_COLOR_F luminosity;    // Luminosity layer: brightness colour
+        float        noiseOpacity;  // Noise layer
     };
-    void SetBackdropMode(BackdropMode m);
-    BackdropMode GetBackdropMode() const;
+    inline static BackgroundParams AcrylicParams;   // Acrylic: source = host backdrop (window behind)
+    inline static BackgroundParams MicaParams;      // Mica: source = cached desktop wallpaper
+    enum class AcrylicPreset { Legacy, Luminosity, Base, Thin };   // official acrylic presets
+    static void SetBackgroundParams(Backdrop layer, const BackgroundParams&amp; p);  // set all params
+    static void SetBackgroundParams(Backdrop layer, AcrylicPreset preset);       // use a preset
 
     // Event signals
     ZSignal&lt;bool*&gt; Closing;           // close requested; set *cancel = true to cancel
@@ -307,7 +318,7 @@ class Window {
 };
 ```
 
-`Backdrop` (what effect): `None`, `Normal`, `Blur`, `Acrylic`, `Mica`, `MicaAlt`. `BackdropMode` (which API): `Auto`, `System`, `Accent`.
+`Backdrop` (**backdrop layer**, only three options): `None` (fully transparent), `Acrylic`, `Mica`. The second argument of `SetBackdrop` is the **overlay**: an ARGB colour composited on top of the layer (`A` = how much is revealed/covered, `RGB` = the colour). **`BackdropMode` no longer exists** — backdrops are always rendered by ZUI itself (no system material), so Win10 and Win11 look the same.
 
 **Behavior and pitfalls:**
 
@@ -322,14 +333,18 @@ class Window {
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
 - **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
 - **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
-- **Backdrop (`Backdrop` = what, `BackdropMode` = which API)**: `Acrylic` uses a DComp `HostBackdropBrush` + Gaussian blur (`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`), falling back to `ACRYLICBLURBEHIND` on Win10; `Mica`/`MicaAlt` use Win11's `DWMWA_SYSTEMBACKDROP_TYPE`; `Blur` uses `AccentState(BLURBEHIND)`; `Normal` uses `AccentState(GRADIENT)`. If the requested effect cannot be realized by the current implementation, `BackdropUnsupported` fires and it does **not** substitute another effect.
+- **Backdrop (`Backdrop` is a 3-way layer + overlay colour)**: the layer is only `None / Acrylic / Mica`, and it is **always rendered by ZUI itself** — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).
+  - `Acrylic`: our own DirectComposition implementation of the official acrylic recipe (Border noise tiling → Opacity → Gaussian blur → Luminosity/Color blends → noise multiply, plus a Saturation step and a `CompositeStep` for the tint so its alpha takes effect); source = **host backdrop** (the content behind the window).
+  - `Mica`: reads the desktop wallpaper (`SPI_GETDESKWALLPAPER` + WIC) → blur / desaturate / white veil / noise, baked once into a bitmap placed on a **separate compositor layer** (below the content layer); moving the window only changes that layer's `Offset` (a pure translation, no resampling).
+  - Parameters follow the "**4-layer model**" (Blur / Luminosity / Tint / Noise): `SetBackgroundParams(layer, BackgroundParams)` to set all of them, or `SetBackgroundParams(layer, AcrylicPreset)` for an official preset (`Legacy / Luminosity / Base / Thin`). `AcrylicParams` / `MicaParams` hold the defaults (the latter is a tuned look).
+  - If the requested effect cannot be realized on the current system, `BackdropUnsupported` fires and it does **not** substitute another effect.
 - **Rendering (1.8.0)**: Direct2D 1.1 + DXGI flip SwapChain + DirectComposition (`WS_EX_NOREDIRECTIONBITMAP`), per-pixel transparent; a process-wide shared D3D11/D2D device and WinRT `ICompositor`. `Create` **no longer shows the window**; call `Show()` explicitly.
 - **Border / resize / corners**: `SetResizable` controls edge resizing; when snapped, the DWM border/shadow is preserved (`WM_NCCALCSIZE` only insets the snapped edges), and maximizing does not inset. `SetWindowCorner` maps to `DWMWA_WINDOW_CORNER_PREFERENCE`.</pre></div></div>
 <div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 9 · Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 9</span><h1>Window</h1><p class="chapter-summary">Creation, backdrop, title bar, and root layout</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-a98683b6', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-3aa33c5b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Backdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">              </span><span class="c1">// None</span>
@@ -390,14 +405,25 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
 <span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="c1">// Backdrop implementation (which API)</span>
-<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BackdropMode</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">    </span><span class="c1">// auto: prefer Win11 host backdrop / system material, fall back to AccentState</span>
-<span class="w">        </span><span class="n">System</span><span class="p">,</span><span class="w">  </span><span class="c1">// force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE</span>
-<span class="w">        </span><span class="n">Accent</span><span class="w">   </span><span class="c1">// force: SetWindowCompositionAttribute(AccentState)</span>
+<span class="w">    </span><span class="c1">// Backdrop layer (only three options): None = transparent / Acrylic / Mica</span>
+<span class="w">    </span><span class="c1">// enum class Backdrop { None, Acrylic, Mica };</span>
+<span class="w">    </span><span class="c1">// SetBackdrop(layer, overlayArgb): the overlay is an ARGB colour composited on top of the layer</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdrop</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">layer</span><span class="p">,</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">overlayArgb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x00000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Backdrop</span><span class="w"> </span><span class="nf">GetBackdrop</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Background "4-layer parameter model" (all tunable — see below)</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">BackgroundParams</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">float</span><span class="w">        </span><span class="n">blurAmount</span><span class="p">;</span><span class="w">    </span><span class="c1">// Blur layer: Gaussian sigma</span>
+<span class="w">        </span><span class="kt">float</span><span class="w">        </span><span class="n">saturation</span><span class="p">;</span><span class="w">    </span><span class="c1">// Luminosity layer: saturation (used by the Legacy/RS2 recipe)</span>
+<span class="w">        </span><span class="n">D2D1_COLOR_F</span><span class="w"> </span><span class="n">tint</span><span class="p">;</span><span class="w">          </span><span class="c1">// Tint layer: colour (with alpha, i.e. the veil)</span>
+<span class="w">        </span><span class="n">D2D1_COLOR_F</span><span class="w"> </span><span class="n">luminosity</span><span class="p">;</span><span class="w">    </span><span class="c1">// Luminosity layer: brightness colour</span>
+<span class="w">        </span><span class="kt">float</span><span class="w">        </span><span class="n">noiseOpacity</span><span class="p">;</span><span class="w">  </span><span class="c1">// Noise layer</span>
 <span class="w">    </span><span class="p">};</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropMode</span><span class="p">(</span><span class="n">BackdropMode</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
-<span class="w">    </span><span class="n">BackdropMode</span><span class="w"> </span><span class="nf">GetBackdropMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">BackgroundParams</span><span class="w"> </span><span class="n">AcrylicParams</span><span class="p">;</span><span class="w">   </span><span class="c1">// Acrylic: source = host backdrop (window behind)</span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">BackgroundParams</span><span class="w"> </span><span class="n">MicaParams</span><span class="p">;</span><span class="w">      </span><span class="c1">// Mica: source = cached desktop wallpaper</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">AcrylicPreset</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Legacy</span><span class="p">,</span><span class="w"> </span><span class="n">Luminosity</span><span class="p">,</span><span class="w"> </span><span class="n">Base</span><span class="p">,</span><span class="w"> </span><span class="n">Thin</span><span class="w"> </span><span class="p">};</span><span class="w">   </span><span class="c1">// official acrylic presets</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundParams</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">layer</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">BackgroundParams</span><span class="o">&amp;</span><span class="w"> </span><span class="n">p</span><span class="p">);</span><span class="w">  </span><span class="c1">// set all params</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundParams</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">layer</span><span class="p">,</span><span class="w"> </span><span class="n">AcrylicPreset</span><span class="w"> </span><span class="n">preset</span><span class="p">);</span><span class="w">       </span><span class="c1">// use a preset</span>
 
 <span class="w">    </span><span class="c1">// Event signals</span>
 <span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">Closing</span><span class="p">;</span><span class="w">           </span><span class="c1">// close requested; set *cancel = true to cancel</span>
@@ -436,7 +462,7 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-a98683b6" style="display: none;">class Window {
+<pre id="code-3aa33c5b" style="display: none;">class Window {
     static Backdrop DefaultBackdrop;              // None
     static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // transparent
@@ -495,14 +521,25 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // Backdrop implementation (which API)
-    enum class BackdropMode {
-        Auto,    // auto: prefer Win11 host backdrop / system material, fall back to AccentState
-        System,  // force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
-        Accent   // force: SetWindowCompositionAttribute(AccentState)
+    // Backdrop layer (only three options): None = transparent / Acrylic / Mica
+    // enum class Backdrop { None, Acrylic, Mica };
+    // SetBackdrop(layer, overlayArgb): the overlay is an ARGB colour composited on top of the layer
+    void SetBackdrop(Backdrop layer, DWORD overlayArgb = 0x00000000);
+    Backdrop GetBackdrop() const;
+
+    // Background "4-layer parameter model" (all tunable — see below)
+    struct BackgroundParams {
+        float        blurAmount;    // Blur layer: Gaussian sigma
+        float        saturation;    // Luminosity layer: saturation (used by the Legacy/RS2 recipe)
+        D2D1_COLOR_F tint;          // Tint layer: colour (with alpha, i.e. the veil)
+        D2D1_COLOR_F luminosity;    // Luminosity layer: brightness colour
+        float        noiseOpacity;  // Noise layer
     };
-    void SetBackdropMode(BackdropMode m);
-    BackdropMode GetBackdropMode() const;
+    inline static BackgroundParams AcrylicParams;   // Acrylic: source = host backdrop (window behind)
+    inline static BackgroundParams MicaParams;      // Mica: source = cached desktop wallpaper
+    enum class AcrylicPreset { Legacy, Luminosity, Base, Thin };   // official acrylic presets
+    static void SetBackgroundParams(Backdrop layer, const BackgroundParams&amp; p);  // set all params
+    static void SetBackgroundParams(Backdrop layer, AcrylicPreset preset);       // use a preset
 
     // Event signals
     ZSignal&lt;bool*&gt; Closing;           // close requested; set *cancel = true to cancel
@@ -541,7 +578,7 @@ class Window {
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
 </div>
-<p><code>Backdrop</code> (what effect): <code>None</code>, <code>Normal</code>, <code>Blur</code>, <code>Acrylic</code>, <code>Mica</code>, <code>MicaAlt</code>. <code>BackdropMode</code> (which API): <code>Auto</code>, <code>System</code>, <code>Accent</code>.</p>
+<p><code>Backdrop</code> (<strong>backdrop layer</strong>, only three options): <code>None</code> (fully transparent), <code>Acrylic</code>, <code>Mica</code>. The second argument of <code>SetBackdrop</code> is the <strong>overlay</strong>: an ARGB colour composited on top of the layer (<code>A</code> = how much is revealed/covered, <code>RGB</code> = the colour). <strong><code>BackdropMode</code> no longer exists</strong> — backdrops are always rendered by ZUI itself (no system material), so Win10 and Win11 look the same.</p>
 <p><strong>Behavior and pitfalls:</strong></p>
 <ul>
 <li><code>Create</code> creates the window, initializes Direct2D, applies the backdrop, and builds a default root layout: a <code>ColumnBox</code> with <code>margin 20</code> and <code>spacing 10</code>. <code>GetRootColumnBox()</code> returns it.</li>
@@ -555,7 +592,11 @@ class Window {
 <li><strong><code>OwnedMinimizePolicy</code></strong>: how an owned child handles being minimized on its own. <code>None</code> does nothing; <code>Hide</code> intercepts minimize and hides, restoring when the owner restores/activates; <code>DisableMinimize</code> grays out the minimize button and ignores minimize-related messages.</li>
 <li><strong>Dangling cleanup</strong>: on destroy a window clears every reference other windows hold to it (<code>owner_</code> and hidden lists), so address reuse can never affect unrelated windows.</li>
 <li><strong>Custom title bar</strong>: <code>SetCustomTitleBar(bar)</code> installs a non-layout title bar control (see "Window tools"); the window places it at <code>(0,0)</code> and shifts the root layout down by its height. Pass <code>nullptr</code> to restore the native title bar (sends <code>SWP_FRAMECHANGED</code>). <code>SetTitleBarVisible(false)</code> hides it while keeping the custom frame.</li>
-<li><strong>Backdrop (<code>Backdrop</code> = what, <code>BackdropMode</code> = which API)</strong>: <code>Acrylic</code> uses a DComp <code>HostBackdropBrush</code> + Gaussian blur (<code>DWMWA_USE_HOSTBACKDROPBRUSH</code> + <code>AccentState(HOSTBACKDROP)</code>), falling back to <code>ACRYLICBLURBEHIND</code> on Win10; <code>Mica</code>/<code>MicaAlt</code> use Win11's <code>DWMWA_SYSTEMBACKDROP_TYPE</code>; <code>Blur</code> uses <code>AccentState(BLURBEHIND)</code>; <code>Normal</code> uses <code>AccentState(GRADIENT)</code>. If the requested effect cannot be realized by the current implementation, <code>BackdropUnsupported</code> fires and it does <strong>not</strong> substitute another effect.</li>
+<li><strong>Backdrop (<code>Backdrop</code> is a 3-way layer + overlay colour)</strong>: the layer is only <code>None / Acrylic / Mica</code>, and it is <strong>always rendered by ZUI itself</strong> — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).</li>
+<li><code>Acrylic</code>: our own DirectComposition implementation of the official acrylic recipe (Border noise tiling → Opacity → Gaussian blur → Luminosity/Color blends → noise multiply, plus a Saturation step and a <code>CompositeStep</code> for the tint so its alpha takes effect); source = <strong>host backdrop</strong> (the content behind the window).</li>
+<li><code>Mica</code>: reads the desktop wallpaper (<code>SPI_GETDESKWALLPAPER</code> + WIC) → blur / desaturate / white veil / noise, baked once into a bitmap placed on a <strong>separate compositor layer</strong> (below the content layer); moving the window only changes that layer's <code>Offset</code> (a pure translation, no resampling).</li>
+<li>Parameters follow the "<strong>4-layer model</strong>" (Blur / Luminosity / Tint / Noise): <code>SetBackgroundParams(layer, BackgroundParams)</code> to set all of them, or <code>SetBackgroundParams(layer, AcrylicPreset)</code> for an official preset (<code>Legacy / Luminosity / Base / Thin</code>). <code>AcrylicParams</code> / <code>MicaParams</code> hold the defaults (the latter is a tuned look).</li>
+<li>If the requested effect cannot be realized on the current system, <code>BackdropUnsupported</code> fires and it does <strong>not</strong> substitute another effect.</li>
 <li><strong>Rendering (1.8.0)</strong>: Direct2D 1.1 + DXGI flip SwapChain + DirectComposition (<code>WS_EX_NOREDIRECTIONBITMAP</code>), per-pixel transparent; a process-wide shared D3D11/D2D device and WinRT <code>ICompositor</code>. <code>Create</code> <strong>no longer shows the window</strong>; call <code>Show()</code> explicitly.</li>
 <li><strong>Border / resize / corners</strong>: <code>SetResizable</code> controls edge resizing; when snapped, the DWM border/shadow is preserved (<code>WM_NCCALCSIZE</code> only insets the snapped edges), and maximizing does not inset. <code>SetWindowCorner</code> maps to <code>DWMWA_WINDOW_CORNER_PREFERENCE</code>.</li>
 </ul>

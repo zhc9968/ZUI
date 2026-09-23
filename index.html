@@ -16,7 +16,7 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:'Noto Sans SC','Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;
        min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:8vh 20px}
-  .wrap{max-width:820px;width:100%}
+  .wrap{max-width:900px;width:100%}
   h1{font-size:3rem;margin:0;letter-spacing:.02em;background:linear-gradient(90deg,#3498db,#8e44ad);-webkit-background-clip:text;background-clip:text;color:transparent}
   .sub{color:var(--muted);margin:.4em 0 2.2em;font-size:1.05rem}
   .sub .en{display:block;font-size:.9rem;margin-top:.4em;opacity:.85}
@@ -29,6 +29,17 @@
   .card a{color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;transition:background .2s ease,color .2s ease}
   .card a:hover{background:rgba(52,152,219,.12);color:var(--primary)}
   .badge{font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:1px 8px;margin-left:auto}
+  /* 阅读辅助 */
+  .aid{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px 22px;box-shadow:var(--shadow);margin-top:18px}
+  .aid h2{margin:0 0 6px;font-size:1.15rem;color:var(--primary)}
+  .aid .hint{color:var(--muted);font-size:.86rem;margin:0 0 14px}
+  .aid details{border:1px solid var(--border);border-radius:10px;margin:8px 0;overflow:hidden}
+  .aid summary{cursor:pointer;padding:9px 14px;font-weight:600;background:rgba(52,152,219,.07)}
+  .aid ol{margin:0;padding:10px 14px 14px 34px}
+  .aid ol li{margin:5px 0}
+  .aid ol a{color:var(--text);text-decoration:none}
+  .aid ol a:hover{color:var(--primary);text-decoration:underline}
+  .aid ol .num{display:inline-block;min-width:1.7em;color:var(--muted)}
   footer{margin-top:34px;color:var(--muted);font-size:.82rem;text-align:center}
   footer a{color:var(--primary);text-decoration:none}
   @media (max-width:640px){ .grid{grid-template-columns:1fr} h1{font-size:2.2rem} }
@@ -46,18 +57,82 @@
       <section class="card">
         <h2>中文文档</h2>
         <ul>
-          <li><a href="README.html">项目说明与构建 <span class="badge">README</span></a></li>
-          <li><a href="docs/API.html">API 参考（12 章） <span class="badge">API</span></a></li>
+          <li><a href="README.html">项目说明 · 构建 · 快速开始 <span class="badge">README</span></a></li>
+          <li><a href="docs/API.html">API 参考（15 章） <span class="badge">API</span></a></li>
         </ul>
       </section>
       <section class="card">
         <h2>English Docs</h2>
         <ul>
-          <li><a href="README.en.html">README &amp; Build <span class="badge">README</span></a></li>
-          <li><a href="docs/API.en.html">API Reference (12 chapters) <span class="badge">API</span></a></li>
+          <li><a href="README.en.html">README &amp; Build &amp; Quick start <span class="badge">README</span></a></li>
+          <li><a href="docs/API.en.html">API Reference (15 chapters) <span class="badge">API</span></a></li>
         </ul>
       </section>
     </div>
+
+    <!-- ============ 阅读辅助 ============ -->
+    <section class="aid">
+      <h2>阅读辅助 · Reading aid</h2>
+      <p class="hint">所有 README 与文档的原始内容入口，以及 API 参考的完整章节树。点击展开。</p>
+
+      <details open>
+        <summary>中文 · 文档</summary>
+        <ol>
+          <li><a href="README.html">README（项目说明 / 环境要求 / 构建 / 快速开始 / 更新日志）</a></li>
+          <li><a href="docs/API.html">API 参考 · 总目录</a></li>
+        </ol>
+      </details>
+
+      <details>
+        <summary>中文 · API 章节树（15 章）</summary>
+        <ol>
+          <li><span class="num">1.</span><a href="docs/API.1.html">约定 — 命名空间、单位、生命周期、默认值约定</a></li>
+          <li><span class="num">2.</span><a href="docs/API.2.html">基础类型 — Color、Rect、Thickness、Size</a></li>
+          <li><span class="num">3.</span><a href="docs/API.3.html">全局函数与 DPI — clamp、DPI 缩放、像素吸附</a></li>
+          <li><span class="num">4.</span><a href="docs/API.4.html">信号与连接 — ZSignal、Connection、ConnectionGroup 与全局信号</a></li>
+          <li><span class="num">5.</span><a href="docs/API.5.html">字体 — FontSpec 与 FontManager</a></li>
+          <li><span class="num">6.</span><a href="docs/API.6.html">核心元素 UIElement — 尺寸、布局、绘制、事件、字体接口</a></li>
+          <li><span class="num">7.</span><a href="docs/API.7.html">布局 — Layout、ColumnBox、RowBox、GridLayout、LayoutHost、Card、Page、PageHost</a></li>
+          <li><span class="num">8.</span><a href="docs/API.8.html">菜单 — MenuItem、Menu 与 MenuWindow</a></li>
+          <li><span class="num">9.</span><a href="docs/API.9.html">窗口 Window — 创建、背景、标题栏、根布局</a></li>
+          <li><span class="num">10.</span><a href="docs/API.10.html">应用与多窗口 — Application 与多窗口</a></li>
+          <li><span class="num">11.</span><a href="docs/API.11.html">基础控件 — Label、Button、TextBox、ComboBox、ToggleSwitch、CheckBox、ScrollViewer、ProgressBar、Slider</a></li>
+          <li><span class="num">12.</span><a href="docs/API.12.html">数据视图 — ListView、TableView、TreeNode、TreeView</a></li>
+          <li><span class="num">13.</span><a href="docs/API.13.html">图像 — Image、ImageManager、ImageDeviceCache</a></li>
+          <li><span class="num">14.</span><a href="docs/API.14.html">窗口工具 — 自定义标题栏 TitleBar / CaptionButton / DefaultTitleBar</a></li>
+          <li><span class="num">15.</span><a href="docs/API.15.html">附录 — 信号一览、默认值速查与常见坑</a></li>
+        </ol>
+      </details>
+
+      <details>
+        <summary>English · Docs</summary>
+        <ol>
+          <li><a href="README.en.html">README (overview / requirements / build / quick start / changelog)</a></li>
+          <li><a href="docs/API.en.html">API Reference · index</a></li>
+        </ol>
+      </details>
+
+      <details>
+        <summary>English · API chapter tree (15 chapters)</summary>
+        <ol>
+          <li><span class="num">1.</span><a href="docs/API.en.1.html">Conventions — namespace, units, lifetime, defaults</a></li>
+          <li><span class="num">2.</span><a href="docs/API.en.2.html">Basic types — Color, Rect, Thickness, Size</a></li>
+          <li><span class="num">3.</span><a href="docs/API.en.3.html">Global functions and DPI — clamp, DPI scale, pixel snapping</a></li>
+          <li><span class="num">4.</span><a href="docs/API.en.4.html">Signals and connections — ZSignal, Connection, ConnectionGroup</a></li>
+          <li><span class="num">5.</span><a href="docs/API.en.5.html">Fonts — FontSpec and FontManager</a></li>
+          <li><span class="num">6.</span><a href="docs/API.en.6.html">Core element UIElement</a></li>
+          <li><span class="num">7.</span><a href="docs/API.en.7.html">Layout — Layout, ColumnBox, RowBox, GridLayout, LayoutHost, Card, Page, PageHost</a></li>
+          <li><span class="num">8.</span><a href="docs/API.en.8.html">Menus — MenuItem, Menu, MenuWindow</a></li>
+          <li><span class="num">9.</span><a href="docs/API.en.9.html">Window — creation, backdrop, title bar, root layout</a></li>
+          <li><span class="num">10.</span><a href="docs/API.en.10.html">Application and multiple windows</a></li>
+          <li><span class="num">11.</span><a href="docs/API.en.11.html">Basic controls — Label, Button, TextBox, ComboBox, ToggleSwitch, CheckBox, ScrollViewer, ProgressBar, Slider</a></li>
+          <li><span class="num">12.</span><a href="docs/API.en.12.html">Data views — ListView, TableView, TreeNode, TreeView</a></li>
+          <li><span class="num">13.</span><a href="docs/API.en.13.html">Images — Image, ImageManager, ImageDeviceCache</a></li>
+          <li><span class="num">14.</span><a href="docs/API.en.14.html">Window tools — TitleBar / CaptionButton / DefaultTitleBar</a></li>
+          <li><span class="num">15.</span><a href="docs/API.en.15.html">Appendix — signal list, default values, common pitfalls</a></li>
+        </ol>
+      </details>
+    </section>
 
     <footer>
       © zhc9968 · MIT License ·

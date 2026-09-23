@@ -260,14 +260,25 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // 背景实现方式（用什么 API）
-    enum class BackdropMode {
-        Auto,    // 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState
-        System,  // 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
-        Accent   // 强制：SetWindowCompositionAttribute(AccentState)
+    // 背景层（只有三个选项）：None=无（完全透明）/ Acrylic=亚克力 / Mica=云母
+    // enum class Backdrop { None, Acrylic, Mica };
+    // SetBackdrop(背景层, 背景叠加层)：叠加层是带 Alpha 的颜色，直接叠在背景层之上
+    void SetBackdrop(Backdrop layer, DWORD overlayArgb = 0x00000000);
+    Backdrop GetBackdrop() const;
+
+    // 背景“4 层参数模型”（全部可调，见下方说明）
+    struct BackgroundParams {
+        float        blurAmount;    // Blur 层：高斯模糊 σ
+        float        saturation;    // Luminosity 层：饱和度（Legacy/RS2 配方用；Luminosity 配方无此步）
+        D2D1_COLOR_F tint;          // Tint 层：颜色（含 alpha，即“叠色/白纱”）
+        D2D1_COLOR_F luminosity;    // Luminosity 层：亮度色
+        float        noiseOpacity;  // Noise 层：噪点不透明度
     };
-    void SetBackdropMode(BackdropMode m);
-    BackdropMode GetBackdropMode() const;
+    inline static BackgroundParams AcrylicParams;   // 亚克力：源 = 宿主背景（后面窗口的内容）
+    inline static BackgroundParams MicaParams;      // 云母：源 = 缓存的桌面壁纸
+    enum class AcrylicPreset { Legacy, Luminosity, Base, Thin };   // 官方亚克力配方预设
+    static void SetBackgroundParams(Backdrop layer, const BackgroundParams&amp; p);  // 用一套参数
+    static void SetBackgroundParams(Backdrop layer, AcrylicPreset preset);       // 用预设
 
     // 事件信号
     ZSignal&lt;bool*&gt; Closing;           // 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）
@@ -307,7 +318,7 @@ class Window {
 };
 ```
 
-`Backdrop` 取值（表示**要什么效果**）：`None`、`Normal`、`Blur`、`Acrylic`、`Mica`、`MicaAlt`；`BackdropMode`（表示**用什么 API**）：`Auto`、`System`、`Accent`。
+`Backdrop`（**背景层**，只有三选一）：`None`（无 —— 背景完全透明）、`Acrylic`（亚克力）、`Mica`（云母）。`SetBackdrop` 第二个参数是**背景叠加层**：一个带 Alpha 的颜色，直接叠在背景层之上（`A` = 透出/覆盖面，`RGB` = 叠加色）。**不再有 `BackdropMode`** —— 背景一律由 ZUI 自己实现（不依赖系统材质），Win10/Win11 效果一致。
 
 **行为与易混点**：
 
@@ -322,14 +333,18 @@ class Window {
 - **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
 - **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
 - **自定义标题栏**：`SetCustomTitleBar(bar)` 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 `(0,0)`、根布局整体下移其高度；传入 `nullptr` 恢复原生标题栏（会发 `SWP_FRAMECHANGED` 全量刷新）。`SetTitleBarVisible(false)` 可隐藏标题栏但保留自定义边框。
-- **背景（`Backdrop` = 要什么，`BackdropMode` = 用什么 API）**：`Acrylic` 走 DComp `HostBackdropBrush` + 高斯模糊（`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`），Win10 自动回退 `ACRYLICBLURBEHIND`；`Mica`/`MicaAlt` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`；`Blur` 走 `AccentState(BLURBEHIND)`；`Normal` 走 `AccentState(GRADIENT)`。当前实现不支持所请求效果时触发 `BackdropUnsupported` 信号，**不会**用别的效果凑合。
+- **背景（`Backdrop` 三选一 + 叠加色）**：背景层只有 `None / Acrylic / Mica`，且**一律由 ZUI 自己实现**——不再分"系统/手动"、不依赖系统材质（Win10/Win11 效果一致）。
+  - `Acrylic`：我们自己的 DirectComposition 官方亚克力配方（Border 噪点平铺 → Opacity → 高斯模糊 → Luminosity/Color 混合 → 噪点叠乘，另加 Saturation 与 tint 的 `CompositeStep` 让 alpha 生效）；源 = **宿主背景**（窗口后面的内容）。
+  - `Mica`：读取桌面壁纸（`SPI_GETDESKWALLPAPER` + WIC 解码）→ 模糊 / 降饱和 / 叠白 / 噪点，一次性烘焙成位图，放进**独立合成器图层**（位于内容层下方）；窗口移动时只改该图层 `Offset`（只是平移变换，不重采样）。
+  - 参数走"**4 层模型**"（Blur / Luminosity / Tint / Noise）：`SetBackgroundParams(背景层, BackgroundParams)` 传整套参数，或 `SetBackgroundParams(背景层, AcrylicPreset)` 传官方预设（`Legacy / Luminosity / Base / Thin`）。`AcrylicParams` / `MicaParams` 是默认值（`MicaParams` 为调好的观感）。
+  - 所请求效果在当前系统无法实现时触发 `BackdropUnsupported` 信号，**不会**用别的效果凑合。
 - **渲染架构（1.8.0）**：Direct2D 1.1 + DXGI flip SwapChain + DirectComposition（`WS_EX_NOREDIRECTIONBITMAP`），支持逐像素透明；进程级共享 D3D11/D2D 设备与 WinRT `ICompositor`。`Create` **不再自动显示窗口**，需应用显式 `Show()`。
 - **边框/调整/圆角**：`SetResizable` 控制拖边缩放；分屏时会保留 DWM 边框/阴影（`WM_NCCALCSIZE` 只内缩被吸附的边），最大化不做内缩。`SetWindowCorner` 映射到 `DWMWA_WINDOW_CORNER_PREFERENCE`。</pre></div></div>
 <div class="breadcrumb"><a href="API.html">ZUI API 参考</a><span class="sep">/</span><span>第 9 章 · 窗口 Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">第 9 章</span><h1>窗口 Window</h1><p class="chapter-summary">创建、背景、标题栏与根布局</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-a9069089', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
+<button class="copy-btn" onclick="copyCode('code-f1fb066e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">复制</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Backdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">              </span><span class="c1">// None</span>
@@ -390,14 +405,25 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetOwnedMinimizePolicy</span><span class="p">(</span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
 <span class="w">    </span><span class="n">OwnedMinimizePolicy</span><span class="w"> </span><span class="nf">GetOwnedMinimizePolicy</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="w">    </span><span class="c1">// 背景实现方式（用什么 API）</span>
-<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">BackdropMode</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">Auto</span><span class="p">,</span><span class="w">    </span><span class="c1">// 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState</span>
-<span class="w">        </span><span class="n">System</span><span class="p">,</span><span class="w">  </span><span class="c1">// 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE</span>
-<span class="w">        </span><span class="n">Accent</span><span class="w">   </span><span class="c1">// 强制：SetWindowCompositionAttribute(AccentState)</span>
+<span class="w">    </span><span class="c1">// 背景层（只有三个选项）：None=无（完全透明）/ Acrylic=亚克力 / Mica=云母</span>
+<span class="w">    </span><span class="c1">// enum class Backdrop { None, Acrylic, Mica };</span>
+<span class="w">    </span><span class="c1">// SetBackdrop(背景层, 背景叠加层)：叠加层是带 Alpha 的颜色，直接叠在背景层之上</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdrop</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">layer</span><span class="p">,</span><span class="w"> </span><span class="n">DWORD</span><span class="w"> </span><span class="n">overlayArgb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x00000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Backdrop</span><span class="w"> </span><span class="nf">GetBackdrop</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 背景“4 层参数模型”（全部可调，见下方说明）</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">BackgroundParams</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">float</span><span class="w">        </span><span class="n">blurAmount</span><span class="p">;</span><span class="w">    </span><span class="c1">// Blur 层：高斯模糊 σ</span>
+<span class="w">        </span><span class="kt">float</span><span class="w">        </span><span class="n">saturation</span><span class="p">;</span><span class="w">    </span><span class="c1">// Luminosity 层：饱和度（Legacy/RS2 配方用；Luminosity 配方无此步）</span>
+<span class="w">        </span><span class="n">D2D1_COLOR_F</span><span class="w"> </span><span class="n">tint</span><span class="p">;</span><span class="w">          </span><span class="c1">// Tint 层：颜色（含 alpha，即“叠色/白纱”）</span>
+<span class="w">        </span><span class="n">D2D1_COLOR_F</span><span class="w"> </span><span class="n">luminosity</span><span class="p">;</span><span class="w">    </span><span class="c1">// Luminosity 层：亮度色</span>
+<span class="w">        </span><span class="kt">float</span><span class="w">        </span><span class="n">noiseOpacity</span><span class="p">;</span><span class="w">  </span><span class="c1">// Noise 层：噪点不透明度</span>
 <span class="w">    </span><span class="p">};</span>
-<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackdropMode</span><span class="p">(</span><span class="n">BackdropMode</span><span class="w"> </span><span class="n">m</span><span class="p">);</span>
-<span class="w">    </span><span class="n">BackdropMode</span><span class="w"> </span><span class="nf">GetBackdropMode</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">BackgroundParams</span><span class="w"> </span><span class="n">AcrylicParams</span><span class="p">;</span><span class="w">   </span><span class="c1">// 亚克力：源 = 宿主背景（后面窗口的内容）</span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">BackgroundParams</span><span class="w"> </span><span class="n">MicaParams</span><span class="p">;</span><span class="w">      </span><span class="c1">// 云母：源 = 缓存的桌面壁纸</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">AcrylicPreset</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Legacy</span><span class="p">,</span><span class="w"> </span><span class="n">Luminosity</span><span class="p">,</span><span class="w"> </span><span class="n">Base</span><span class="p">,</span><span class="w"> </span><span class="n">Thin</span><span class="w"> </span><span class="p">};</span><span class="w">   </span><span class="c1">// 官方亚克力配方预设</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundParams</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">layer</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">BackgroundParams</span><span class="o">&amp;</span><span class="w"> </span><span class="n">p</span><span class="p">);</span><span class="w">  </span><span class="c1">// 用一套参数</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetBackgroundParams</span><span class="p">(</span><span class="n">Backdrop</span><span class="w"> </span><span class="n">layer</span><span class="p">,</span><span class="w"> </span><span class="n">AcrylicPreset</span><span class="w"> </span><span class="n">preset</span><span class="p">);</span><span class="w">       </span><span class="c1">// 用预设</span>
 
 <span class="w">    </span><span class="c1">// 事件信号</span>
 <span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">Closing</span><span class="p">;</span><span class="w">           </span><span class="c1">// 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）</span>
@@ -436,7 +462,7 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-a9069089" style="display: none;">class Window {
+<pre id="code-f1fb066e" style="display: none;">class Window {
     static Backdrop DefaultBackdrop;              // None
     static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // 透明
@@ -495,14 +521,25 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // 背景实现方式（用什么 API）
-    enum class BackdropMode {
-        Auto,    // 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState
-        System,  // 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
-        Accent   // 强制：SetWindowCompositionAttribute(AccentState)
+    // 背景层（只有三个选项）：None=无（完全透明）/ Acrylic=亚克力 / Mica=云母
+    // enum class Backdrop { None, Acrylic, Mica };
+    // SetBackdrop(背景层, 背景叠加层)：叠加层是带 Alpha 的颜色，直接叠在背景层之上
+    void SetBackdrop(Backdrop layer, DWORD overlayArgb = 0x00000000);
+    Backdrop GetBackdrop() const;
+
+    // 背景“4 层参数模型”（全部可调，见下方说明）
+    struct BackgroundParams {
+        float        blurAmount;    // Blur 层：高斯模糊 σ
+        float        saturation;    // Luminosity 层：饱和度（Legacy/RS2 配方用；Luminosity 配方无此步）
+        D2D1_COLOR_F tint;          // Tint 层：颜色（含 alpha，即“叠色/白纱”）
+        D2D1_COLOR_F luminosity;    // Luminosity 层：亮度色
+        float        noiseOpacity;  // Noise 层：噪点不透明度
     };
-    void SetBackdropMode(BackdropMode m);
-    BackdropMode GetBackdropMode() const;
+    inline static BackgroundParams AcrylicParams;   // 亚克力：源 = 宿主背景（后面窗口的内容）
+    inline static BackgroundParams MicaParams;      // 云母：源 = 缓存的桌面壁纸
+    enum class AcrylicPreset { Legacy, Luminosity, Base, Thin };   // 官方亚克力配方预设
+    static void SetBackgroundParams(Backdrop layer, const BackgroundParams&amp; p);  // 用一套参数
+    static void SetBackgroundParams(Backdrop layer, AcrylicPreset preset);       // 用预设
 
     // 事件信号
     ZSignal&lt;bool*&gt; Closing;           // 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）
@@ -541,7 +578,7 @@ class Window {
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
 </div>
-<p><code>Backdrop</code> 取值（表示<strong>要什么效果</strong>）：<code>None</code>、<code>Normal</code>、<code>Blur</code>、<code>Acrylic</code>、<code>Mica</code>、<code>MicaAlt</code>；<code>BackdropMode</code>（表示<strong>用什么 API</strong>）：<code>Auto</code>、<code>System</code>、<code>Accent</code>。</p>
+<p><code>Backdrop</code>（<strong>背景层</strong>，只有三选一）：<code>None</code>（无 —— 背景完全透明）、<code>Acrylic</code>（亚克力）、<code>Mica</code>（云母）。<code>SetBackdrop</code> 第二个参数是<strong>背景叠加层</strong>：一个带 Alpha 的颜色，直接叠在背景层之上（<code>A</code> = 透出/覆盖面，<code>RGB</code> = 叠加色）。<strong>不再有 <code>BackdropMode</code></strong> —— 背景一律由 ZUI 自己实现（不依赖系统材质），Win10/Win11 效果一致。</p>
 <p><strong>行为与易混点</strong>：</p>
 <ul>
 <li><code>Create</code> 创建窗口、初始化渲染资源、应用背景，并生成一个默认根布局：带 <code>margin 20</code>、<code>spacing 10</code> 的 <code>ColumnBox</code>（<code>GetRootColumnBox()</code> 即它）。<strong>1.8.0 起 <code>Create</code> 不再自动显示窗口</strong>，需要显示时由应用调用 <code>Show()</code>。</li>
@@ -555,7 +592,11 @@ class Window {
 <li><strong><code>OwnedMinimizePolicy</code></strong>：处理 owned 子窗口被“单独最小化”的情况。<code>None</code> 不处理（会出现老式小瓷砖）；<code>Hide</code> 拦截最小化改为隐藏、父窗口还原/激活时恢复；<code>DisableMinimize</code> 置灰最小化按钮并忽略最小化相关消息。</li>
 <li><strong>裸引用清理</strong>：窗口销毁时会清除其它窗口对它的引用（<code>owner_</code> 与隐藏列表），避免地址被复用后牵连不相干的窗口。</li>
 <li><strong>自定义标题栏</strong>：<code>SetCustomTitleBar(bar)</code> 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 <code>(0,0)</code>、根布局整体下移其高度；传入 <code>nullptr</code> 恢复原生标题栏（会发 <code>SWP_FRAMECHANGED</code> 全量刷新）。<code>SetTitleBarVisible(false)</code> 可隐藏标题栏但保留自定义边框。</li>
-<li><strong>背景（<code>Backdrop</code> = 要什么，<code>BackdropMode</code> = 用什么 API）</strong>：<code>Acrylic</code> 走 DComp <code>HostBackdropBrush</code> + 高斯模糊（<code>DWMWA_USE_HOSTBACKDROPBRUSH</code> + <code>AccentState(HOSTBACKDROP)</code>），Win10 自动回退 <code>ACRYLICBLURBEHIND</code>；<code>Mica</code>/<code>MicaAlt</code> 走 Win11 <code>DWMWA_SYSTEMBACKDROP_TYPE</code>；<code>Blur</code> 走 <code>AccentState(BLURBEHIND)</code>；<code>Normal</code> 走 <code>AccentState(GRADIENT)</code>。当前实现不支持所请求效果时触发 <code>BackdropUnsupported</code> 信号，<strong>不会</strong>用别的效果凑合。</li>
+<li><strong>背景（<code>Backdrop</code> 三选一 + 叠加色）</strong>：背景层只有 <code>None / Acrylic / Mica</code>，且<strong>一律由 ZUI 自己实现</strong>——不再分"系统/手动"、不依赖系统材质（Win10/Win11 效果一致）。</li>
+<li><code>Acrylic</code>：我们自己的 DirectComposition 官方亚克力配方（Border 噪点平铺 → Opacity → 高斯模糊 → Luminosity/Color 混合 → 噪点叠乘，另加 Saturation 与 tint 的 <code>CompositeStep</code> 让 alpha 生效）；源 = <strong>宿主背景</strong>（窗口后面的内容）。</li>
+<li><code>Mica</code>：读取桌面壁纸（<code>SPI_GETDESKWALLPAPER</code> + WIC 解码）→ 模糊 / 降饱和 / 叠白 / 噪点，一次性烘焙成位图，放进<strong>独立合成器图层</strong>（位于内容层下方）；窗口移动时只改该图层 <code>Offset</code>（只是平移变换，不重采样）。</li>
+<li>参数走"<strong>4 层模型</strong>"（Blur / Luminosity / Tint / Noise）：<code>SetBackgroundParams(背景层, BackgroundParams)</code> 传整套参数，或 <code>SetBackgroundParams(背景层, AcrylicPreset)</code> 传官方预设（<code>Legacy / Luminosity / Base / Thin</code>）。<code>AcrylicParams</code> / <code>MicaParams</code> 是默认值（<code>MicaParams</code> 为调好的观感）。</li>
+<li>所请求效果在当前系统无法实现时触发 <code>BackdropUnsupported</code> 信号，<strong>不会</strong>用别的效果凑合。</li>
 <li><strong>渲染架构（1.8.0）</strong>：Direct2D 1.1 + DXGI flip SwapChain + DirectComposition（<code>WS_EX_NOREDIRECTIONBITMAP</code>），支持逐像素透明；进程级共享 D3D11/D2D 设备与 WinRT <code>ICompositor</code>。<code>Create</code> <strong>不再自动显示窗口</strong>，需应用显式 <code>Show()</code>。</li>
 <li><strong>边框/调整/圆角</strong>：<code>SetResizable</code> 控制拖边缩放；分屏时会保留 DWM 边框/阴影（<code>WM_NCCALCSIZE</code> 只内缩被吸附的边），最大化不做内缩。<code>SetWindowCorner</code> 映射到 <code>DWMWA_WINDOW_CORNER_PREFERENCE</code>。</li>
 </ul>
