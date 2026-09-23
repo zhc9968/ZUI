@@ -1,4 +1,4 @@
-# ZUI
+﻿# ZUI
 
 > A C++ native Win32 custom-drawn UI framework based on Direct2D, with layout, controls, signals/slots, and high-DPI adaptation.
 
@@ -69,7 +69,7 @@ ZUI/
 #include "ZUIWidgets.h"
 using namespace ZUI;
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     Window win;
     if (!win.Create(1000, 700, L"ZUI Demo"))
         return 1;
@@ -108,7 +108,43 @@ Key points:
 - Bind events with `Connect(signal, slot)`; connections are automatically disconnected when the control is destroyed;
 - Finally, call `win.Run()` to enter the message loop.
 
+Result (that exact code above):
+
+![Quick start: a window + a button + a toggle](docs/images/quickstart.png)
+
+### Two more steps
+
+**Step 2: change the background.** Only three backdrop layers exist — `None / Acrylic / Mica` — with an ARGB tint composited on top:
+
+```cpp
+win.SetBackdrop(Backdrop::Mica, 0x00000000);   // Mica + fully transparent tint
+```
+
+![Backdrop: manual Mica](docs/images/backdrop-mica.png)
+
+**Step 3: a custom title bar.**
+
+```cpp
+#include "ZUIWindowTool.h"   // DefaultTitleBar lives here
+
+auto bar = std::make_shared<DefaultTitleBar>();
+win.SetCustomTitleBar(bar);
+```
+
+![Custom title bar](docs/images/custom-titlebar.png)
+
+A tour of the widgets (first page of the demo):
+
+![ZUI demo](docs/images/demo-main.png)
+
 ## Changelog
+
+### 2026-09-20 — Performance work + backdrop API consolidation (v1.9.6)
+
+- **Performance**: page-switch peak memory 300–400MB → **capped at ~30MB**; layout rework (DesiredSize cache + two-level dirty flags; no more "clear all caches on any layout invalidation"; page switches no longer trigger a full relayout); no per-frame full-tree hit-testing while dragging/resizing; **global cross-widget text-layout cache** + binary-search ellipsis for `Label`; no per-element `GetDpi()`.
+- **Backdrop API consolidated to "a 3-way layer + an overlay colour"**: `Backdrop` is only `None / Acrylic / Mica`; **`BackdropMode` removed**; `ReloadAcrylic/ReloadMica` removed; new `SetBackgroundParams(layer, BackgroundParams/AcrylicPreset)` plus `AcrylicParams`/`MicaParams`. Acrylic/Mica are rendered by ZUI itself, **identical on Win10 and Win11**.
+- **Data views**: `ListView` gains `BeginUpdate/EndUpdate` for batched add/remove.
+- **Fixes**: sort now emits `SelectionChanged`; `ComboBox` filtering keeps the selection; `TextBox` undo stack; `CaptionButton` press behaviour; scrollbar divide-by-zero guards; image cache device epoch.
 
 ### 2026-09-19 — Post-1.8.0 fixes and polish (v1.8.1)
 

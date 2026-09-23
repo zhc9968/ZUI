@@ -702,14 +702,25 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // 背景实现方式（用什么 API）
-    enum class BackdropMode {
-        Auto,    // 自动：优先 Win11 宿主背景/系统材质，不支持再回退 AccentState
-        System,  // 强制：DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
-        Accent   // 强制：SetWindowCompositionAttribute(AccentState)
+    // 背景层（只有三个选项）：None=无（完全透明）/ Acrylic=亚克力 / Mica=云母
+    // enum class Backdrop { None, Acrylic, Mica };
+    // SetBackdrop(背景层, 背景叠加层)：叠加层是带 Alpha 的颜色，直接叠在背景层之上
+    void SetBackdrop(Backdrop layer, DWORD overlayArgb = 0x00000000);
+    Backdrop GetBackdrop() const;
+
+    // 背景“4 层参数模型”（全部可调，见下方说明）
+    struct BackgroundParams {
+        float        blurAmount;    // Blur 层：高斯模糊 σ
+        float        saturation;    // Luminosity 层：饱和度（Legacy/RS2 配方用；Luminosity 配方无此步）
+        D2D1_COLOR_F tint;          // Tint 层：颜色（含 alpha，即“叠色/白纱”）
+        D2D1_COLOR_F luminosity;    // Luminosity 层：亮度色
+        float        noiseOpacity;  // Noise 层：噪点不透明度
     };
-    void SetBackdropMode(BackdropMode m);
-    BackdropMode GetBackdropMode() const;
+    inline static BackgroundParams AcrylicParams;   // 亚克力：源 = 宿主背景（后面窗口的内容）
+    inline static BackgroundParams MicaParams;      // 云母：源 = 缓存的桌面壁纸
+    enum class AcrylicPreset { Legacy, Luminosity, Base, Thin };   // 官方亚克力配方预设
+    static void SetBackgroundParams(Backdrop layer, const BackgroundParams& p);  // 用一套参数
+    static void SetBackgroundParams(Backdrop layer, AcrylicPreset preset);       // 用预设
 
     // 事件信号
     ZSignal<bool*> Closing;           // 请求关闭；槽置 *cancel = true 可取消（如关闭前询问保存）
@@ -749,7 +760,7 @@ class Window {
 };
 ```
 
-`Backdrop` 取值（表示**要什么效果**）：`None`、`Normal`、`Blur`、`Acrylic`、`Mica`、`MicaAlt`；`BackdropMode`（表示**用什么 API**）：`Auto`、`System`、`Accent`。
+`Backdrop`（**背景层**，只有三选一）：`None`（无 —— 背景完全透明）、`Acrylic`（亚克力）、`Mica`（云母）。`SetBackdrop` 第二个参数是**背景叠加层**：一个带 Alpha 的颜色，直接叠在背景层之上（`A` = 透出/覆盖面，`RGB` = 叠加色）。**不再有 `BackdropMode`** —— 背景一律由 ZUI 自己实现（不依赖系统材质），Win10/Win11 效果一致。
 
 **行为与易混点**：
 
@@ -764,7 +775,11 @@ class Window {
 - **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
 - **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
 - **自定义标题栏**：`SetCustomTitleBar(bar)` 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 `(0,0)`、根布局整体下移其高度；传入 `nullptr` 恢复原生标题栏（会发 `SWP_FRAMECHANGED` 全量刷新）。`SetTitleBarVisible(false)` 可隐藏标题栏但保留自定义边框。
-- **背景（`Backdrop` = 要什么，`BackdropMode` = 用什么 API）**：`Acrylic` 走 DComp `HostBackdropBrush` + 高斯模糊（`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`），Win10 自动回退 `ACRYLICBLURBEHIND`；`Mica`/`MicaAlt` 走 Win11 `DWMWA_SYSTEMBACKDROP_TYPE`；`Blur` 走 `AccentState(BLURBEHIND)`；`Normal` 走 `AccentState(GRADIENT)`。当前实现不支持所请求效果时触发 `BackdropUnsupported` 信号，**不会**用别的效果凑合。
+- **背景（`Backdrop` 三选一 + 叠加色）**：背景层只有 `None / Acrylic / Mica`，且**一律由 ZUI 自己实现**——不再分"系统/手动"、不依赖系统材质（Win10/Win11 效果一致）。
+  - `Acrylic`：我们自己的 DirectComposition 官方亚克力配方（Border 噪点平铺 → Opacity → 高斯模糊 → Luminosity/Color 混合 → 噪点叠乘，另加 Saturation 与 tint 的 `CompositeStep` 让 alpha 生效）；源 = **宿主背景**（窗口后面的内容）。
+  - `Mica`：读取桌面壁纸（`SPI_GETDESKWALLPAPER` + WIC 解码）→ 模糊 / 降饱和 / 叠白 / 噪点，一次性烘焙成位图，放进**独立合成器图层**（位于内容层下方）；窗口移动时只改该图层 `Offset`（只是平移变换，不重采样）。
+  - 参数走"**4 层模型**"（Blur / Luminosity / Tint / Noise）：`SetBackgroundParams(背景层, BackgroundParams)` 传整套参数，或 `SetBackgroundParams(背景层, AcrylicPreset)` 传官方预设（`Legacy / Luminosity / Base / Thin`）。`AcrylicParams` / `MicaParams` 是默认值（`MicaParams` 为调好的观感）。
+  - 所请求效果在当前系统无法实现时触发 `BackdropUnsupported` 信号，**不会**用别的效果凑合。
 - **渲染架构（1.8.0）**：Direct2D 1.1 + DXGI flip SwapChain + DirectComposition（`WS_EX_NOREDIRECTIONBITMAP`），支持逐像素透明；进程级共享 D3D11/D2D 设备与 WinRT `ICompositor`。`Create` **不再自动显示窗口**，需应用显式 `Show()`。
 - **边框/调整/圆角**：`SetResizable` 控制拖边缩放；分屏时会保留 DWM 边框/阴影（`WM_NCCALCSIZE` 只内缩被吸附的边），最大化不做内缩。`SetWindowCorner` 映射到 `DWMWA_WINDOW_CORNER_PREFERENCE`。
 
@@ -1198,6 +1213,8 @@ class ListView : public UIElement {
     std::wstring GetItemText(int index) const;
     int GetItemCount() const;
     void InsertItems(int index, const std::vector<std::wstring>&);
+    void BeginUpdate();   // 批量增删：挂起刷新（v1.9.6）
+    void EndUpdate();     // 结束时统一刷新一次
     void MoveItem(int from, int to);
     void SwapItems(int a, int b);
     void Sort(bool ascending = true);                 // 使用 SetSortComparator

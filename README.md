@@ -1,4 +1,4 @@
-# ZUI
+﻿# ZUI
 
 > 基于 Direct2D 的 C++ 原生 Win32 自绘 UI 框架，含布局、控件、信号槽与高 DPI 适配。
 
@@ -69,7 +69,7 @@ ZUI/
 #include "ZUIWidgets.h"
 using namespace ZUI;
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     Window win;
     if (!win.Create(1000, 700, L"ZUI Demo"))
         return 1;
@@ -108,7 +108,43 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - 用 `Connect(信号, 槽)` 绑定事件，连接会随控件析构自动断开；
 - 最后调用 `win.Run()` 进入消息循环。
 
+运行效果（就是上面这段代码）：
+
+![快速开始：一个窗口 + 按钮 + 开关](docs/images/quickstart.png)
+
+### 再走两步
+
+**第 2 步：换个背景。** 只有三个背景层可选——`无 / 亚克力 / 云母`，背景层之上再叠一个带 Alpha 的颜色：
+
+```cpp
+win.SetBackdrop(Backdrop::Mica, 0x00000000);   // 云母 + 全透明叠加色
+```
+
+![背景层：手动云母](docs/images/backdrop-mica.png)
+
+**第 3 步：自定义标题栏。** 换个标题栏，窗口立刻不一样：
+
+```cpp
+#include "ZUIWindowTool.h"   // DefaultTitleBar 在这里
+
+auto bar = std::make_shared<DefaultTitleBar>();
+win.SetCustomTitleBar(bar);
+```
+
+![自定义标题栏](docs/images/custom-titlebar.png)
+
+更多控件的总览（主示例程序首屏）：
+
+![ZUI 示例程序](docs/images/demo-main.png)
+
 ## 更新日志
+
+### 2026-09-20 — 性能优化 + 背景 API 收敛（v1.9.6）
+
+- **性能**：切页内存峰值 300–400MB → **~30MB 封顶**；布局机制重构（DesiredSize 缓存 + 两级脏位，去掉"布局失效即全清缓存"、切页不再全量重排）；拖动/缩放期间不再每帧整树命中检测；**全局文本布局缓存**（跨控件共享）+ `Label` 省略号改二分；去每元素 `GetDpi()`。
+- **背景 API 收敛为"背景层三选一 + 叠加色"**：`Backdrop` 只有 `None / Acrylic / Mica`；**删除 `BackdropMode`**；删除 `ReloadAcrylic/ReloadMica`；新增 `SetBackgroundParams(层, BackgroundParams/AcrylicPreset)` 与 `AcrylicParams`/`MicaParams`。亚克力/云母一律由 ZUI 自己实现，**Win10 与 Win11 效果一致**。
+- **数据控件**：`ListView` 新增 `BeginUpdate/EndUpdate` 批量增删。
+- **一批修复**：排序补发 `SelectionChanged`、`ComboBox` 过滤保留选中、`TextBox` 撤销栈、`CaptionButton` 按下行为、滚动条除零守卫、图像缓存加设备代次等。
 
 ### 2026-09-19 — 1.8.0 后续修复与完善（v1.8.1）
 

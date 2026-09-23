@@ -195,6 +195,7 @@ namespace ZUI {
         TitleBar() { height_ = 32.0f; }
 
         void SetTitle(const std::wstring& t) { title_ = t; RequestRepaint(); }
+        void SetWindowTitle(const std::wstring& t) override { SetTitle(t); }   // 窗口 SetTitle/SetWindowText 时同步
         const std::wstring& GetTitle() const { return title_; }
         void SetIcon(std::shared_ptr<Image> img) { icon_ = std::move(img); RequestRepaint(); }
         std::shared_ptr<Image> GetIcon() const { return icon_; }

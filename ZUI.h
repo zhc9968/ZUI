@@ -72,9 +72,9 @@
 
 // ---------- ZUI 版本 ----------
 #define ZUI_VERSION_MAJOR 1
-#define ZUI_VERSION_MINOR 8
-#define ZUI_VERSION_PATCH 1
-#define ZUI_VERSION_STRING L"1.8.1"
+#define ZUI_VERSION_MINOR 9
+#define ZUI_VERSION_PATCH 6
+#define ZUI_VERSION_STRING L"1.9.6"
 
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34
@@ -899,6 +899,9 @@ namespace ZUI {
         ZSignal<> Blurred;
 
         virtual bool IsFocusable() const { return false; }
+
+        // 窗口标题变化时通知（自定义标题栏元素可重写以同步显示；默认无操作）
+        virtual void SetWindowTitle(const std::wstring&) {}
 
         // ---------- 父子关系 ----------
         void SetParent(UIElement* parent) {
@@ -3161,6 +3164,8 @@ namespace ZUI {
                     customTitleBar_->SetLayoutParticipation(UIElement::LayoutParticipation::DrawAfterLayout);
                 // 套用当前标题栏可见性，避免“先 SetTitleBarVisible(false) 再装栏”时状态不一致
                 customTitleBar_->SetVisible(titleBarVisible_);
+                // 把当前窗口标题灌进标题栏（否则自定义标题栏标题为空）
+                { wchar_t buf[512] = {}; if (hwnd_) GetWindowTextW(hwnd_, buf, 512); lastWindowTitle_ = buf; customTitleBar_->SetWindowTitle(lastWindowTitle_); }
             }
             bool wasCustom = customFrame_;
             customFrame_ = (customTitleBar_ != nullptr);
@@ -3656,6 +3661,13 @@ namespace ZUI {
             case WM_EXITSIZEMOVE:
                 inSizeMove_ = false;
                 return 0;
+            case WM_SETTEXT:
+                // 系统/应用改动窗口标题（SetWindowText/SetTitle）时，同步给自定义标题栏
+                if (customTitleBar_) {
+                    lastWindowTitle_ = lParam ? std::wstring((const wchar_t*)lParam) : std::wstring();
+                    customTitleBar_->SetWindowTitle(lastWindowTitle_);
+                }
+                break;   // 交给 DefWindowProc 真正设置窗口标题
             case WM_MOVE:
                 UpdateWallpaperLayer();   // 手动背景：只挪图层 Offset，不重画 -> 实时跟手
                 return 0;
@@ -3737,6 +3749,16 @@ namespace ZUI {
                     // ---- 调试输出结束 ----
 #endif
                     UpdateTooltip();
+                    // 兜底：轮询真实窗口标题，变化就同步给自定义标题栏并重绘
+                    // （不依赖 WM_SETTEXT 是否到达——外部 SetWindowText/系统改标题都能覆盖）
+                    if (customTitleBar_) {
+                        wchar_t tbuf[512] = {};
+                        GetWindowTextW(hwnd_, tbuf, 512);
+                        if (lastWindowTitle_ != tbuf) {
+                            lastWindowTitle_ = tbuf;
+                            customTitleBar_->SetWindowTitle(lastWindowTitle_);
+                        }
+                    }
                     if (HasRenderWork()) {          // 关键：先判断是否有工作
                         InvalidateRect(hwnd_, nullptr, FALSE);
                     }
@@ -5095,6 +5117,7 @@ namespace ZUI {
         ISpriteVisual* contentVisual_ = nullptr;
         float clientWidthDip_ = 0.0f, clientHeightDip_ = 0.0f;
         UINT lastClientW_ = 0, lastClientH_ = 0;   // WM_SIZE 尺寸守卫：拖动/SetWindowPos 空触发时跳过重排
+        std::wstring lastWindowTitle_;             // 上次同步到自定义标题栏的窗口标题（定时器轮询比对）
         std::shared_ptr<Layout> rootElement_;
         UIElement* currentHovered_;
         UIElement* pressedElement_;

@@ -693,14 +693,25 @@ class Window {
     void SetOwnedMinimizePolicy(OwnedMinimizePolicy p);
     OwnedMinimizePolicy GetOwnedMinimizePolicy() const;
 
-    // Backdrop implementation (which API)
-    enum class BackdropMode {
-        Auto,    // auto: prefer Win11 host backdrop / system material, fall back to AccentState
-        System,  // force: DWMWA_USE_HOSTBACKDROPBRUSH / DWMWA_SYSTEMBACKDROP_TYPE
-        Accent   // force: SetWindowCompositionAttribute(AccentState)
+    // Backdrop layer (only three options): None = transparent / Acrylic / Mica
+    // enum class Backdrop { None, Acrylic, Mica };
+    // SetBackdrop(layer, overlayArgb): the overlay is an ARGB colour composited on top of the layer
+    void SetBackdrop(Backdrop layer, DWORD overlayArgb = 0x00000000);
+    Backdrop GetBackdrop() const;
+
+    // Background "4-layer parameter model" (all tunable — see below)
+    struct BackgroundParams {
+        float        blurAmount;    // Blur layer: Gaussian sigma
+        float        saturation;    // Luminosity layer: saturation (used by the Legacy/RS2 recipe)
+        D2D1_COLOR_F tint;          // Tint layer: colour (with alpha, i.e. the veil)
+        D2D1_COLOR_F luminosity;    // Luminosity layer: brightness colour
+        float        noiseOpacity;  // Noise layer
     };
-    void SetBackdropMode(BackdropMode m);
-    BackdropMode GetBackdropMode() const;
+    inline static BackgroundParams AcrylicParams;   // Acrylic: source = host backdrop (window behind)
+    inline static BackgroundParams MicaParams;      // Mica: source = cached desktop wallpaper
+    enum class AcrylicPreset { Legacy, Luminosity, Base, Thin };   // official acrylic presets
+    static void SetBackgroundParams(Backdrop layer, const BackgroundParams& p);  // set all params
+    static void SetBackgroundParams(Backdrop layer, AcrylicPreset preset);       // use a preset
 
     // Event signals
     ZSignal<bool*> Closing;           // close requested; set *cancel = true to cancel
@@ -740,7 +751,7 @@ class Window {
 };
 ```
 
-`Backdrop` (what effect): `None`, `Normal`, `Blur`, `Acrylic`, `Mica`, `MicaAlt`. `BackdropMode` (which API): `Auto`, `System`, `Accent`.
+`Backdrop` (**backdrop layer**, only three options): `None` (fully transparent), `Acrylic`, `Mica`. The second argument of `SetBackdrop` is the **overlay**: an ARGB colour composited on top of the layer (`A` = how much is revealed/covered, `RGB` = the colour). **`BackdropMode` no longer exists** — backdrops are always rendered by ZUI itself (no system material), so Win10 and Win11 look the same.
 
 **Behavior and pitfalls:**
 
@@ -755,7 +766,11 @@ class Window {
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
 - **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
 - **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
-- **Backdrop (`Backdrop` = what, `BackdropMode` = which API)**: `Acrylic` uses a DComp `HostBackdropBrush` + Gaussian blur (`DWMWA_USE_HOSTBACKDROPBRUSH` + `AccentState(HOSTBACKDROP)`), falling back to `ACRYLICBLURBEHIND` on Win10; `Mica`/`MicaAlt` use Win11's `DWMWA_SYSTEMBACKDROP_TYPE`; `Blur` uses `AccentState(BLURBEHIND)`; `Normal` uses `AccentState(GRADIENT)`. If the requested effect cannot be realized by the current implementation, `BackdropUnsupported` fires and it does **not** substitute another effect.
+- **Backdrop (`Backdrop` is a 3-way layer + overlay colour)**: the layer is only `None / Acrylic / Mica`, and it is **always rendered by ZUI itself** — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).
+  - `Acrylic`: our own DirectComposition implementation of the official acrylic recipe (Border noise tiling → Opacity → Gaussian blur → Luminosity/Color blends → noise multiply, plus a Saturation step and a `CompositeStep` for the tint so its alpha takes effect); source = **host backdrop** (the content behind the window).
+  - `Mica`: reads the desktop wallpaper (`SPI_GETDESKWALLPAPER` + WIC) → blur / desaturate / white veil / noise, baked once into a bitmap placed on a **separate compositor layer** (below the content layer); moving the window only changes that layer's `Offset` (a pure translation, no resampling).
+  - Parameters follow the "**4-layer model**" (Blur / Luminosity / Tint / Noise): `SetBackgroundParams(layer, BackgroundParams)` to set all of them, or `SetBackgroundParams(layer, AcrylicPreset)` for an official preset (`Legacy / Luminosity / Base / Thin`). `AcrylicParams` / `MicaParams` hold the defaults (the latter is a tuned look).
+  - If the requested effect cannot be realized on the current system, `BackdropUnsupported` fires and it does **not** substitute another effect.
 - **Rendering (1.8.0)**: Direct2D 1.1 + DXGI flip SwapChain + DirectComposition (`WS_EX_NOREDIRECTIONBITMAP`), per-pixel transparent; a process-wide shared D3D11/D2D device and WinRT `ICompositor`. `Create` **no longer shows the window**; call `Show()` explicitly.
 - **Border / resize / corners**: `SetResizable` controls edge resizing; when snapped, the DWM border/shadow is preserved (`WM_NCCALCSIZE` only insets the snapped edges), and maximizing does not inset. `SetWindowCorner` maps to `DWMWA_WINDOW_CORNER_PREFERENCE`.
 
@@ -1167,6 +1182,8 @@ class ListView : public UIElement {
     std::wstring GetItemText(int index) const;
     int GetItemCount() const;
     void InsertItems(int index, const std::vector<std::wstring>&);
+    void BeginUpdate();   // batched add/remove: suspend refresh (v1.9.6)
+    void EndUpdate();     // refresh once at the end
     void MoveItem(int from, int to);
     void SwapItems(int a, int b);
     void Sort(bool ascending = true);
