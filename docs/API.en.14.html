@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Window tools · ZUI API Reference</title>
+    <title>Window tools · ZufyUI API Reference</title>
     <style>
 
 :root {
@@ -197,10 +197,10 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class="active"><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZufyUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class="active"><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="messagebox-fastbutton"><div class="toc-row"><a href="#messagebox-fastbutton" data-target="messagebox-fastbutton">MessageBox / FastButton</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="window-level-hooks-overridable"><div class="toc-row"><a href="#window-level-hooks-overridable" data-target="window-level-hooks-overridable">Window-level hooks (overridable)</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>Window-level controls live in `ZUIWindowTool.h` (a collection that will later also host a built-in MessageBox, etc.).
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>Window-level controls live in `ZufyUIWindowTool.h` (a collection that will later also host a built-in MessageBox, etc.).
 
 ```cpp
 class TitleBar : public UIElement {
@@ -265,13 +265,72 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 - Hover/press are animated; minimize/maximize hover light gray, **close hover red** (`#C42B1C`).
 - Buttons report system hit codes (`HTMINBUTTON` / `HTMAXBUTTON` / `HTCLOSE`) from `WM_NCHITTEST`, so **hovering the maximize button shows the system Snap Layouts**; clicks are handled in `WM_NCLBUTTONUP`.
 - The title bar's own rect (excluding buttons) is the window **drag region**; dragging / Aero Snap / double-click maximize are handled by the system.
-- It is **not recommended** to `AddChild` the title bar into a layout (it does not participate); use `Window::SetCustomTitleBar`.</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 14 · Window tools</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">Chapter 14</span><h1>Window tools</h1><p class="chapter-summary">Custom title bar TitleBar / CaptionButton / DefaultTitleBar</p></header><p>Window-level controls live in <code>ZUIWindowTool.h</code> (a collection that will later also host a built-in MessageBox, etc.).</p>
+- It is **not recommended** to `AddChild` the title bar into a layout (it does not participate); use `Window::SetCustomTitleBar`.
+
+## MessageBox / FastButton
+
+Preset message box built on `Window` / `DefaultTitleBar` / `Window::RunModal`. It *is* a `Window`, so you can add any controls to it.
+
+```cpp
+enum class FastButton : unsigned {   // bit flags, combine with |
+    None = 0, OK = 1 &lt;&lt; 0, Cancel = 1 &lt;&lt; 1, Apply = 1 &lt;&lt; 2,
+    Close = 1 &lt;&lt; 3, Yes = 1 &lt;&lt; 4, No = 1 &lt;&lt; 5, Help = 1 &lt;&lt; 6
+};
+FastButton operator|(FastButton, FastButton);
+FastButton operator&amp;(FastButton, FastButton);
+bool HasFlag(FastButton set, FastButton flag);      // bit test
+
+class MessageBox : public Window {
+    enum class Icon { None, Info, Warning, Error, Question };
+    enum class Lang { English, Chinese };
+
+    // Quick call: creates the window in the ctor; blocking=true runs the modal loop inside the ctor
+    MessageBox(Window* parent, const std::wstring&amp; title, const std::wstring&amp; content,
+               Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true);
+    MessageBox(HWND parent, const std::wstring&amp; title, const std::wstring&amp; content, ...);
+    MessageBox(const std::wstring&amp; title, const std::wstring&amp; content, ...);   // no parent
+    // content can also be a control (Label / TextBox / GridLayout ...)
+    MessageBox(Window* parent, const std::wstring&amp; title, std::shared_ptr&lt;UIElement&gt; content, ...);
+
+    static void SetLanguage(Lang);                          // preset EN/ZH button text, default English
+    static Lang GetLanguage();
+    static std::wstring ButtonLabel(FastButton);
+    void SetButtonText(FastButton, const std::wstring&amp;);    // override one button's text
+    void SetIconImage(std::shared_ptr&lt;Image&gt;);              // custom icon (default: built-in system icon)
+    void SetUserContent(std::shared_ptr&lt;UIElement&gt;);        // afterwards no preset buttons; fully user-controlled
+    void EndDialog(FastButton);                             // end manually with custom content
+
+    FastButton GetResult() const;
+    ZSignal&lt;FastButton&gt; ButtonClicked;
+};
+```
+
+```cpp
+ZufyUI::MessageBox box(owner, L"Title", L"Body", MessageBox::Icon::Info,
+                    FastButton::Yes | FastButton::No | FastButton::Cancel);
+if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }
+```
+
+- Button order (left to right): `Yes No OK Apply Cancel Close Help`; **Enter = leftmost button, ESC = Cancel/Close (leftmost if absent)**; buttons are right-aligned.
+- `parent` may be a `Window*` / `HWND` / omitted; it is an owned window (no taskbar button), not resizable, close button only.
+- Height auto-fits the content; a **truncated button shows its full text as a tooltip on hover** (a user `SetToolTip` wins).
+- Customize with `SetUserContent` (no preset buttons afterwards) or the `shared_ptr&lt;UIElement&gt;` ctor; for full flow control build with `blocking=false` and call `RunModal` yourself.
+- Note: `windows.h` defines `MessageBox` as a macro for `MessageBoxW`; this library `#undef`s it in `ZufyUIWindowTool.h`. Use `MessageBoxW/A` explicitly for Win32.
+
+## Window-level hooks (overridable)
+
+```cpp
+virtual bool OnWindowKeyDown(int vk);   // called before dispatching to the focused element; true = handled
+virtual bool OnWindowTimer(int id);     // WM_TIMER
+virtual void OnWindowSize();            // WM_SIZE (final layout that depends on client width)
+void SetInputBlocked(bool on);          // block mouse/keyboard input for this window
+```</pre></div></div>
+<div class="breadcrumb"><a href="API.en.html">ZufyUI API Reference</a><span class="sep">/</span><span>Chapter 14 · Window tools</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 14</span><h1>Window tools</h1><p class="chapter-summary">Custom title bar TitleBar / CaptionButton / DefaultTitleBar</p></header><p>Window-level controls live in <code>ZufyUIWindowTool.h</code> (a collection that will later also host a built-in MessageBox, etc.).</p>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-a6064c16', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-9a783893', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TitleBar</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UIElement</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span>
@@ -318,7 +377,7 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMinimizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetMaximizeVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetCloseVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-a6064c16" style="display: none;">class TitleBar : public UIElement {
+<pre id="code-9a783893" style="display: none;">class TitleBar : public UIElement {
     void SetTitle(const std::wstring&amp;);
     const std::wstring&amp; GetTitle() const;
     void SetIcon(std::shared_ptr&lt;Image&gt;);        // reuses the image system
@@ -367,14 +426,14 @@ class DefaultTitleBar : public TitleBar {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-0cebd658', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-d82d8ec4', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">auto</span><span class="w"> </span><span class="n">bar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">DefaultTitleBar</span><span class="o">&gt;</span><span class="p">();</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetTitle</span><span class="p">(</span><span class="sa">L</span><span class="s">"My Window"</span><span class="p">);</span>
 <span class="n">bar</span><span class="o">-&gt;</span><span class="n">SetIcon</span><span class="p">(</span><span class="n">myImage</span><span class="p">);</span><span class="w">                 </span><span class="c1">// optional</span>
 <span class="n">win</span><span class="p">.</span><span class="n">SetCustomTitleBar</span><span class="p">(</span><span class="n">bar</span><span class="p">);</span><span class="w">            </span><span class="c1">// install; win.SetCustomTitleBar(nullptr) restores the native one</span>
 </pre></div>
-<pre id="code-0cebd658" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
+<pre id="code-d82d8ec4" style="display: none;">auto bar = std::make_shared&lt;DefaultTitleBar&gt;();
 bar-&gt;SetTitle(L"My Window");
 bar-&gt;SetIcon(myImage);                 // optional
 win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr) restores the native one</pre>
@@ -388,6 +447,113 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 <li>The title bar's own rect (excluding buttons) is the window <strong>drag region</strong>; dragging / Aero Snap / double-click maximize are handled by the system.</li>
 <li>It is <strong>not recommended</strong> to <code>AddChild</code> the title bar into a layout (it does not participate); use <code>Window::SetCustomTitleBar</code>.</li>
 </ul>
+<h2 id="messagebox-fastbutton">MessageBox / FastButton</h2>
+<p>Preset message box built on <code>Window</code> / <code>DefaultTitleBar</code> / <code>Window::RunModal</code>. It <em>is</em> a <code>Window</code>, so you can add any controls to it.</p>
+<div class="code-container">
+<div class="code-header">
+<span class="code-language">cpp</span>
+<button class="copy-btn" onclick="copyCode('code-22ebfec2', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+</div>
+<div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">FastButton</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="p">{</span><span class="w">   </span><span class="c1">// bit flags, combine with |</span>
+<span class="w">    </span><span class="n">None</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">OK</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">Cancel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">Apply</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Close</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">Yes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">No</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">Help</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">6</span>
+<span class="p">};</span>
+<span class="n">FastButton</span><span class="w"> </span><span class="k">operator</span><span class="o">|</span><span class="p">(</span><span class="n">FastButton</span><span class="p">,</span><span class="w"> </span><span class="n">FastButton</span><span class="p">);</span>
+<span class="n">FastButton</span><span class="w"> </span><span class="k">operator</span><span class="o">&amp;</span><span class="p">(</span><span class="n">FastButton</span><span class="p">,</span><span class="w"> </span><span class="n">FastButton</span><span class="p">);</span>
+<span class="kt">bool</span><span class="w"> </span><span class="nf">HasFlag</span><span class="p">(</span><span class="n">FastButton</span><span class="w"> </span><span class="n">set</span><span class="p">,</span><span class="w"> </span><span class="n">FastButton</span><span class="w"> </span><span class="n">flag</span><span class="p">);</span><span class="w">      </span><span class="c1">// bit test</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MessageBox</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Window</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Icon</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">None</span><span class="p">,</span><span class="w"> </span><span class="n">Info</span><span class="p">,</span><span class="w"> </span><span class="n">Warning</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="p">,</span><span class="w"> </span><span class="n">Question</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Lang</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">English</span><span class="p">,</span><span class="w"> </span><span class="n">Chinese</span><span class="w"> </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// Quick call: creates the window in the ctor; blocking=true runs the modal loop inside the ctor</span>
+<span class="w">    </span><span class="n">MessageBox</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">content</span><span class="p">,</span>
+<span class="w">               </span><span class="n">Icon</span><span class="w"> </span><span class="n">icon</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Icon</span><span class="o">::</span><span class="n">None</span><span class="p">,</span><span class="w"> </span><span class="n">FastButton</span><span class="w"> </span><span class="n">buttons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FastButton</span><span class="o">::</span><span class="n">OK</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">blocking</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span>
+<span class="w">    </span><span class="n">MessageBox</span><span class="p">(</span><span class="n">HWND</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">content</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+<span class="w">    </span><span class="n">MessageBox</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">content</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span><span class="w">   </span><span class="c1">// no parent</span>
+<span class="w">    </span><span class="c1">// content can also be a control (Label / TextBox / GridLayout ...)</span>
+<span class="w">    </span><span class="n">MessageBox</span><span class="p">(</span><span class="n">Window</span><span class="o">*</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="w"> </span><span class="n">content</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetLanguage</span><span class="p">(</span><span class="n">Lang</span><span class="p">);</span><span class="w">                          </span><span class="c1">// preset EN/ZH button text, default English</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Lang</span><span class="w"> </span><span class="nf">GetLanguage</span><span class="p">();</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">ButtonLabel</span><span class="p">(</span><span class="n">FastButton</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetButtonText</span><span class="p">(</span><span class="n">FastButton</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="p">);</span><span class="w">    </span><span class="c1">// override one button's text</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIconImage</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Image</span><span class="o">&gt;</span><span class="p">);</span><span class="w">              </span><span class="c1">// custom icon (default: built-in system icon)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetUserContent</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">UIElement</span><span class="o">&gt;</span><span class="p">);</span><span class="w">        </span><span class="c1">// afterwards no preset buttons; fully user-controlled</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">EndDialog</span><span class="p">(</span><span class="n">FastButton</span><span class="p">);</span><span class="w">                             </span><span class="c1">// end manually with custom content</span>
+
+<span class="w">    </span><span class="n">FastButton</span><span class="w"> </span><span class="nf">GetResult</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZSignal</span><span class="o">&lt;</span><span class="n">FastButton</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ButtonClicked</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+<pre id="code-22ebfec2" style="display: none;">enum class FastButton : unsigned {   // bit flags, combine with |
+    None = 0, OK = 1 &lt;&lt; 0, Cancel = 1 &lt;&lt; 1, Apply = 1 &lt;&lt; 2,
+    Close = 1 &lt;&lt; 3, Yes = 1 &lt;&lt; 4, No = 1 &lt;&lt; 5, Help = 1 &lt;&lt; 6
+};
+FastButton operator|(FastButton, FastButton);
+FastButton operator&amp;(FastButton, FastButton);
+bool HasFlag(FastButton set, FastButton flag);      // bit test
+
+class MessageBox : public Window {
+    enum class Icon { None, Info, Warning, Error, Question };
+    enum class Lang { English, Chinese };
+
+    // Quick call: creates the window in the ctor; blocking=true runs the modal loop inside the ctor
+    MessageBox(Window* parent, const std::wstring&amp; title, const std::wstring&amp; content,
+               Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true);
+    MessageBox(HWND parent, const std::wstring&amp; title, const std::wstring&amp; content, ...);
+    MessageBox(const std::wstring&amp; title, const std::wstring&amp; content, ...);   // no parent
+    // content can also be a control (Label / TextBox / GridLayout ...)
+    MessageBox(Window* parent, const std::wstring&amp; title, std::shared_ptr&lt;UIElement&gt; content, ...);
+
+    static void SetLanguage(Lang);                          // preset EN/ZH button text, default English
+    static Lang GetLanguage();
+    static std::wstring ButtonLabel(FastButton);
+    void SetButtonText(FastButton, const std::wstring&amp;);    // override one button's text
+    void SetIconImage(std::shared_ptr&lt;Image&gt;);              // custom icon (default: built-in system icon)
+    void SetUserContent(std::shared_ptr&lt;UIElement&gt;);        // afterwards no preset buttons; fully user-controlled
+    void EndDialog(FastButton);                             // end manually with custom content
+
+    FastButton GetResult() const;
+    ZSignal&lt;FastButton&gt; ButtonClicked;
+};</pre>
+</div>
+<div class="code-container">
+<div class="code-header">
+<span class="code-language">cpp</span>
+<button class="copy-btn" onclick="copyCode('code-3932311f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+</div>
+<div class="highlight"><pre><span></span><span class="n">ZufyUI</span><span class="o">::</span><span class="n">MessageBox</span><span class="w"> </span><span class="n">box</span><span class="p">(</span><span class="n">owner</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Title"</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Body"</span><span class="p">,</span><span class="w"> </span><span class="n">MessageBox</span><span class="o">::</span><span class="n">Icon</span><span class="o">::</span><span class="n">Info</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">FastButton</span><span class="o">::</span><span class="n">Yes</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">FastButton</span><span class="o">::</span><span class="n">No</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">FastButton</span><span class="o">::</span><span class="n">Cancel</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">HasFlag</span><span class="p">(</span><span class="n">box</span><span class="p">.</span><span class="n">GetResult</span><span class="p">(),</span><span class="w"> </span><span class="n">FastButton</span><span class="o">::</span><span class="n">Yes</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+<pre id="code-3932311f" style="display: none;">ZufyUI::MessageBox box(owner, L"Title", L"Body", MessageBox::Icon::Info,
+                    FastButton::Yes | FastButton::No | FastButton::Cancel);
+if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }</pre>
+</div>
+<ul>
+<li>Button order (left to right): <code>Yes No OK Apply Cancel Close Help</code>; <strong>Enter = leftmost button, ESC = Cancel/Close (leftmost if absent)</strong>; buttons are right-aligned.</li>
+<li><code>parent</code> may be a <code>Window*</code> / <code>HWND</code> / omitted; it is an owned window (no taskbar button), not resizable, close button only.</li>
+<li>Height auto-fits the content; a <strong>truncated button shows its full text as a tooltip on hover</strong> (a user <code>SetToolTip</code> wins).</li>
+<li>Customize with <code>SetUserContent</code> (no preset buttons afterwards) or the <code>shared_ptr&lt;UIElement&gt;</code> ctor; for full flow control build with <code>blocking=false</code> and call <code>RunModal</code> yourself.</li>
+<li>Note: <code>windows.h</code> defines <code>MessageBox</code> as a macro for <code>MessageBoxW</code>; this library <code>#undef</code>s it in <code>ZufyUIWindowTool.h</code>. Use <code>MessageBoxW/A</code> explicitly for Win32.</li>
+</ul>
+<h2 id="window-level-hooks-overridable">Window-level hooks (overridable)</h2>
+<div class="code-container">
+<div class="code-header">
+<span class="code-language">cpp</span>
+<button class="copy-btn" onclick="copyCode('code-2d1e2085', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+</div>
+<div class="highlight"><pre><span></span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">OnWindowKeyDown</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">vk</span><span class="p">);</span><span class="w">   </span><span class="c1">// called before dispatching to the focused element; true = handled</span>
+<span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">OnWindowTimer</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">id</span><span class="p">);</span><span class="w">     </span><span class="c1">// WM_TIMER</span>
+<span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">OnWindowSize</span><span class="p">();</span><span class="w">            </span><span class="c1">// WM_SIZE (final layout that depends on client width)</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">SetInputBlocked</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span><span class="w">          </span><span class="c1">// block mouse/keyboard input for this window</span>
+</pre></div>
+<pre id="code-2d1e2085" style="display: none;">virtual bool OnWindowKeyDown(int vk);   // called before dispatching to the focused element; true = handled
+virtual bool OnWindowTimer(int id);     // WM_TIMER
+virtual void OnWindowSize();            // WM_SIZE (final layout that depends on client width)
+void SetInputBlocked(bool on);          // block mouse/keyboard input for this window</pre>
+</div>
 <nav class="chapter-nav"><a class="prev" href="API.en.13.html"><span class="nav-label">&#8592; Previous</span><span class="nav-title">Images</span><span class="nav-desc">Image, ImageManager, ImageDeviceCache</span></a><a class="next" href="API.en.15.html"><span class="nav-label">Next &#8594;</span><span class="nav-title">Appendix</span><span class="nav-desc">Signal list, default values, and common pitfalls</span></a></nav>
         </main>
     </div>

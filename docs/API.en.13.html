@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Images · ZUI API Reference</title>
+    <title>Images · ZufyUI API Reference</title>
     <style>
 
 :root {
@@ -197,10 +197,10 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class="active"><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="imagemanager-imagedevicecache"><div class="toc-row"><a href="#imagemanager-imagedevicecache" data-target="imagemanager-imagedevicecache">ImageManager / ImageDeviceCache</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="image"><div class="toc-row"><a href="#image" data-target="image">Image</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZufyUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class="active"><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="imagemanager-imagedevicecache"><div class="toc-row"><a href="#imagemanager-imagedevicecache" data-target="imagemanager-imagedevicecache">ImageManager / ImageDeviceCache</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="image"><div class="toc-row"><a href="#image" data-target="image">Image</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
-<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>The image system lives in `ZUIImages.h`: WIC decoding plus Direct2D (GPU) drawing and transforms.
+<div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>The image system lives in `ZufyUIImages.h`: WIC decoding plus Direct2D (GPU) drawing and transforms.
 
 ## ImageManager / ImageDeviceCache
 
@@ -273,13 +273,13 @@ class Image {
 - **Encoding**: `Encode` uses `CreateStreamOnHGlobal` (a growable memory stream, **no temp files**) and returns the encoded bytes; `Save` writes a file directly.
 - **With `Label`**: use `Label::SetImage` + `SetIconSize` to show an icon (see "Basic controls -&gt; Label").
 - **Transform matrix (root cause)**: `Rotated/Mirrored` pivot around the destination rect center. D2D matrix multiplication applies the **left operand first**, so the `Rotation/Scale` overloads that take a `center` must be used; otherwise the image is pushed out of the target rect (rotated/mirrored images appear missing).</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 13 · Images</span></div>
-<header class="chapter-header"><span class="chapter-eyebrow">Chapter 13</span><h1>Images</h1><p class="chapter-summary">Image, ImageManager, ImageDeviceCache</p></header><p>The image system lives in <code>ZUIImages.h</code>: WIC decoding plus Direct2D (GPU) drawing and transforms.</p>
+<div class="breadcrumb"><a href="API.en.html">ZufyUI API Reference</a><span class="sep">/</span><span>Chapter 13 · Images</span></div>
+<header class="chapter-header"><span class="chapter-eyebrow">Chapter 13</span><h1>Images</h1><p class="chapter-summary">Image, ImageManager, ImageDeviceCache</p></header><p>The image system lives in <code>ZufyUIImages.h</code>: WIC decoding plus Direct2D (GPU) drawing and transforms.</p>
 <h2 id="imagemanager-imagedevicecache">ImageManager / ImageDeviceCache</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-0c5f6e8c', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-3749943b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">ImageManager</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">ImageManager</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">Instance</span><span class="p">();</span>
@@ -294,7 +294,7 @@ class Image {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Clear</span><span class="p">(</span><span class="n">ID2D1RenderTarget</span><span class="o">*</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-0c5f6e8c" style="display: none;">class ImageManager {
+<pre id="code-3749943b" style="display: none;">class ImageManager {
     static ImageManager&amp; Instance();
     IWICImagingFactory* Factory();                        // shared WIC factory
     void RegisterCache(const std::shared_ptr&lt;ImageDeviceCache&gt;&amp;);
@@ -315,7 +315,7 @@ class ImageDeviceCache {                                  // per-render-target I
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-772e0308', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-c70badfd', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Image</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Format</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Png</span><span class="p">,</span><span class="w"> </span><span class="n">Jpeg</span><span class="p">,</span><span class="w"> </span><span class="n">Bmp</span><span class="p">,</span><span class="w"> </span><span class="n">Gif</span><span class="p">,</span><span class="w"> </span><span class="n">Tiff</span><span class="w"> </span><span class="p">};</span>
@@ -355,7 +355,7 @@ class ImageDeviceCache {                                  // per-render-target I
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Encode</span><span class="p">(</span><span class="n">Format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Format</span><span class="o">::</span><span class="n">Png</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">quality</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.9f</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-772e0308" style="display: none;">class Image {
+<pre id="code-c70badfd" style="display: none;">class Image {
     enum class Format { Png, Jpeg, Bmp, Gif, Tiff };
     enum class Interpolation { Nearest, Linear };
     struct DrawOptions { float opacity = 1.0f; Interpolation interpolation = Interpolation::Linear; };

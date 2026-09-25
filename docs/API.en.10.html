@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Application and multiple windows · ZUI API Reference</title>
+    <title>Application and multiple windows · ZufyUI API Reference</title>
     <style>
 
 :root {
@@ -197,7 +197,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class="active"><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="application"><div class="toc-row"><a href="#application" data-target="application">Application</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="independence-and-compatibility"><div class="toc-row"><a href="#independence-and-compatibility" data-target="independence-and-compatibility">Independence and compatibility</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="multi-window-pitfalls"><div class="toc-row"><a href="#multi-window-pitfalls" data-target="multi-window-pitfalls">Multi-window pitfalls</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZufyUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class="active"><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="application"><div class="toc-row"><a href="#application" data-target="application">Application</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="independence-and-compatibility"><div class="toc-row"><a href="#independence-and-compatibility" data-target="independence-and-compatibility">Independence and compatibility</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="multi-window-pitfalls"><div class="toc-row"><a href="#multi-window-pitfalls" data-target="multi-window-pitfalls">Multi-window pitfalls</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>## Application
@@ -221,7 +221,7 @@ class Application {
 
 ```cpp
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    ZUI::Application app;
+    ZufyUI::Application app;
     auto w1 = app.CreateWindow(1000, 700, L"Main");
     auto w2 = app.CreateWindow(640, 480, L"Tool");
     // build each UI: w1-&gt;GetRootColumnBox()-&gt;AddChild(...)
@@ -242,7 +242,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **Per-window repaint/layout**: each element records its owning window (`UIElement::GetWindow()`); `RequestRepaint()` / `InvalidateLayout()` only affect that window — windows do not repaint each other.
 - **Per-window DPI**: the current DPI scale is **thread-local** and set per window before drawing, so mixed-DPI windows snap correctly.
 - **Per-window activation**: `Window` exposes instance signals `Activated` / `Deactivated` / `Closed`; global `UIZSignals::WindowDeactivated` now carries a `Window*`, and `GlobalMouseDown` carries a `Window*`. Controls such as ComboBox only react to their own window's events.
-- **Per-window overlay drawing**: global `UIZSignals::DrawOverlay` now carries a `Window*` (plus the render target); subscribers **must** filter with `GetWindow()`, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZUI's own controls already do this.
+- **Per-window overlay drawing**: global `UIZSignals::DrawOverlay` now carries a `Window*` (plus the render target); subscribers **must** filter with `GetWindow()`, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZufyUI's own controls already do this.
 - **Mouse capture**: Win32 `SetCapture` is used only while the mouse button is held (dragging) and is released on mouse-up (element-level logical capture is unaffected). This fixes ComboBoxes holding the thread-wide capture after expanding, which made other windows unusable.
 - **Modal / owned windows**: `Window::SetOwner(owner)` creates an owned child (stays above and minimizes with the owner); `Window::RunModal(owner)` runs a window modally (disables the owner, nested loop, restores on close). While modal, clicking the disabled owner **flashes** the modal window.
 - **Window handle &amp; dangling**: elements store the owning window as an **id** (not a raw pointer); after the window is destroyed `GetWindow()` returns `nullptr`, eliminating crashes from elements holding a dangling window pointer.
@@ -254,13 +254,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - Keep the `shared_ptr` returned by `CreateWindow` alive (e.g. store it in a container).
 - Window-scoped global signals (`GlobalMouseDown`, `WindowDeactivated`) carry a `Window*`; filter with `GetWindow()`.
 - Create and run all windows on the same UI thread.</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 10 · Application and multiple windows</span></div>
+<div class="breadcrumb"><a href="API.en.html">ZufyUI API Reference</a><span class="sep">/</span><span>Chapter 10 · Application and multiple windows</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 10</span><h1>Application and multiple windows</h1><p class="chapter-summary">Application and multi-window</p></header><h2 id="application">Application</h2>
 <p><code>Application</code> is the process / UI-thread-level object that manages one shared message loop and all top-level windows. It is decoupled from window lifetime: <code>Application</code> is just a handle to an internal singleton, so constructing/destroying it does <strong>not</strong> destroy existing windows (no "app destroyed, windows dangling" pitfalls).</p>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-db1ba4ec', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-fb1be276', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Application</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Window</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CreateWindow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">width</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">height</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span>
@@ -273,7 +273,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Application</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">Instance</span><span class="p">();</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-db1ba4ec" style="display: none;">class Application {
+<pre id="code-fb1be276" style="display: none;">class Application {
     std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title);
     std::shared_ptr&lt;Window&gt; CreateWindow(int width, int height, const std::wstring&amp; title, Window* owner); // owned child
     void AddWindow(const std::shared_ptr&lt;Window&gt;&amp; w);
@@ -288,18 +288,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-6b48c56f', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-afb61b77', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="kt">int</span><span class="w"> </span><span class="n">WINAPI</span><span class="w"> </span><span class="nf">WinMain</span><span class="p">(</span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">HINSTANCE</span><span class="p">,</span><span class="w"> </span><span class="n">LPSTR</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">ZUI</span><span class="o">::</span><span class="n">Application</span><span class="w"> </span><span class="n">app</span><span class="p">;</span>
+<span class="w">    </span><span class="n">ZufyUI</span><span class="o">::</span><span class="n">Application</span><span class="w"> </span><span class="n">app</span><span class="p">;</span>
 <span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">w1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">CreateWindow</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Main"</span><span class="p">);</span>
 <span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">w2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">CreateWindow</span><span class="p">(</span><span class="mi">640</span><span class="p">,</span><span class="w"> </span><span class="mi">480</span><span class="p">,</span><span class="w"> </span><span class="sa">L</span><span class="s">"Tool"</span><span class="p">);</span>
 <span class="w">    </span><span class="c1">// build each UI: w1-&gt;GetRootColumnBox()-&gt;AddChild(...)</span>
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span><span class="w">                    </span><span class="c1">// one shared message loop</span>
 <span class="p">}</span>
 </pre></div>
-<pre id="code-6b48c56f" style="display: none;">int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    ZUI::Application app;
+<pre id="code-afb61b77" style="display: none;">int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    ZufyUI::Application app;
     auto w1 = app.CreateWindow(1000, 700, L"Main");
     auto w2 = app.CreateWindow(640, 480, L"Tool");
     // build each UI: w1-&gt;GetRootColumnBox()-&gt;AddChild(...)
@@ -319,7 +319,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 <li><strong>Per-window repaint/layout</strong>: each element records its owning window (<code>UIElement::GetWindow()</code>); <code>RequestRepaint()</code> / <code>InvalidateLayout()</code> only affect that window — windows do not repaint each other.</li>
 <li><strong>Per-window DPI</strong>: the current DPI scale is <strong>thread-local</strong> and set per window before drawing, so mixed-DPI windows snap correctly.</li>
 <li><strong>Per-window activation</strong>: <code>Window</code> exposes instance signals <code>Activated</code> / <code>Deactivated</code> / <code>Closed</code>; global <code>UIZSignals::WindowDeactivated</code> now carries a <code>Window*</code>, and <code>GlobalMouseDown</code> carries a <code>Window*</code>. Controls such as ComboBox only react to their own window's events.</li>
-<li><strong>Per-window overlay drawing</strong>: global <code>UIZSignals::DrawOverlay</code> now carries a <code>Window*</code> (plus the render target); subscribers <strong>must</strong> filter with <code>GetWindow()</code>, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZUI's own controls already do this.</li>
+<li><strong>Per-window overlay drawing</strong>: global <code>UIZSignals::DrawOverlay</code> now carries a <code>Window*</code> (plus the render target); subscribers <strong>must</strong> filter with <code>GetWindow()</code>, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZufyUI's own controls already do this.</li>
 <li><strong>Mouse capture</strong>: Win32 <code>SetCapture</code> is used only while the mouse button is held (dragging) and is released on mouse-up (element-level logical capture is unaffected). This fixes ComboBoxes holding the thread-wide capture after expanding, which made other windows unusable.</li>
 <li><strong>Modal / owned windows</strong>: <code>Window::SetOwner(owner)</code> creates an owned child (stays above and minimizes with the owner); <code>Window::RunModal(owner)</code> runs a window modally (disables the owner, nested loop, restores on close). While modal, clicking the disabled owner <strong>flashes</strong> the modal window.</li>
 <li><strong>Window handle &amp; dangling</strong>: elements store the owning window as an <strong>id</strong> (not a raw pointer); after the window is destroyed <code>GetWindow()</code> returns <code>nullptr</code>, eliminating crashes from elements holding a dangling window pointer.</li>

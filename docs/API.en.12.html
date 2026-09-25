@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data views · ZUI API Reference</title>
+    <title>Data views · ZufyUI API Reference</title>
     <style>
 
 :root {
@@ -197,7 +197,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class="active"><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="listview"><div class="toc-row"><a href="#listview" data-target="listview">ListView</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="tableview"><div class="toc-row"><a href="#tableview" data-target="tableview">TableView</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="treenode"><div class="toc-row"><a href="#treenode" data-target="treenode">TreeNode</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="treeview"><div class="toc-row"><a href="#treeview" data-target="treeview">TreeView</a><span class="toc-caret-space"></span></div></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZufyUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class=""><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class="active"><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div><div class="sidebar-section"><div class="sidebar-heading">On this page</div><ul class="toc-list"><li class="toc-item" data-toc="listview"><div class="toc-row"><a href="#listview" data-target="listview">ListView</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="tableview"><div class="toc-row"><a href="#tableview" data-target="tableview">TableView</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="treenode"><div class="toc-row"><a href="#treenode" data-target="treenode">TreeNode</a><span class="toc-caret-space"></span></div></li><li class="toc-item" data-toc="treeview"><div class="toc-row"><a href="#treeview" data-target="treeview">TreeView</a><span class="toc-caret-space"></span></div></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>&gt; Data views have many details around **selection, checking, sorting and disabling**, and the framework treats per-item/per-row metadata specially. Read the "Key points" of each section.
@@ -357,7 +357,7 @@ class TableView : public UIElement {
 
 ```cpp
 struct TreeNode {
-    std::vector&lt;std::wstring&gt; columns;                 // column 0 is the node text
+    std::vector&lt;std::shared_ptr&lt;Label&gt;&gt; columns;       // Label-ized: one real Label per column (col 0 = node text)
     TreeNode* parent = nullptr;                        // non-owning
     std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; children;
     bool expanded = false;
@@ -378,6 +378,7 @@ struct TreeNode {
 
 - `parent` is a **non-owning** raw pointer (ownership is via `children`); `depth` is maintained by the framework.
 - `icon` is a single leading char/emoji; `tooltip` uses the base-class tooltip.
+- `columns` holds **real Labels** (Label-ized): read text via `node-&gt;columns[c]-&gt;GetText()`; you can also set per-cell font/color/embedded content directly. Position and clipping are owned by `TreeView::GetChildren` (column 0 starts after indent, expander, selection indicator, checkbox and icon).
 
 ## TreeView
 
@@ -446,7 +447,7 @@ class TreeView : public UIElement {
 - `SetDefaultExpandDepth` affects **newly inserted** nodes only; use `ExpandToDepth` for existing ones.
 - `SortChildren` sorts only the given node's children; `recursive=true` sorts the whole subtree.
 - Node `tooltip` uses the shared tooltip; `enabled=false` greys the node and makes it unselectable.</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 12 · Data views</span></div>
+<div class="breadcrumb"><a href="API.en.html">ZufyUI API Reference</a><span class="sep">/</span><span>Chapter 12 · Data views</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 12</span><h1>Data views</h1><p class="chapter-summary">ListView, TableView, TreeNode, TreeView</p></header><blockquote>
 <p>Data views have many details around <strong>selection, checking, sorting and disabling</strong>, and the framework treats per-item/per-row metadata specially. Read the "Key points" of each section.</p>
 </blockquote>
@@ -454,7 +455,7 @@ class TreeView : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-5406b840', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-2a617f52', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Single</span><span class="p">,</span><span class="w"> </span><span class="n">Extended</span><span class="p">,</span><span class="w"> </span><span class="n">Multi</span><span class="p">,</span><span class="w"> </span><span class="n">None</span><span class="w"> </span><span class="p">};</span>
 
@@ -519,7 +520,7 @@ class TreeView : public UIElement {
 <span class="w">    </span><span class="c1">//   SetAlternatingRowColor / SetMarqueeEnabled / SetButtonMode / SetButtonSpacing ...</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-5406b840" style="display: none;">enum class SelectionMode { Single, Extended, Multi, None };
+<pre id="code-2a617f52" style="display: none;">enum class SelectionMode { Single, Extended, Multi, None };
 
 class ListView : public UIElement {
     ZSignal&lt;int&gt; SelectionChanged;
@@ -595,7 +596,7 @@ class ListView : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-5a2783e0', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-166ddfea', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Cell</span><span class="p">,</span><span class="w"> </span><span class="n">Row</span><span class="p">,</span><span class="w"> </span><span class="n">Column</span><span class="p">,</span><span class="w"> </span><span class="n">None</span><span class="w"> </span><span class="p">};</span>
 
@@ -658,7 +659,7 @@ class ListView : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetShowSortIndicator</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetSortIndicatorColor</span><span class="p">(</span><span class="n">Color</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-5a2783e0" style="display: none;">enum class SelectionMode { Cell, Row, Column, None };
+<pre id="code-166ddfea" style="display: none;">enum class SelectionMode { Cell, Row, Column, None };
 
 class TableView : public UIElement {
     ZSignal&lt;int,int&gt; CellClicked;
@@ -733,10 +734,10 @@ class TableView : public UIElement {
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-c9da763e', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-2abc23a0', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">TreeNode</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;</span><span class="w"> </span><span class="n">columns</span><span class="p">;</span><span class="w">                 </span><span class="c1">// column 0 is the node text</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Label</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">columns</span><span class="p">;</span><span class="w">       </span><span class="c1">// Label-ized: one real Label per column (col 0 = node text)</span>
 <span class="w">    </span><span class="n">TreeNode</span><span class="o">*</span><span class="w"> </span><span class="n">parent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">;</span><span class="w">                        </span><span class="c1">// non-owning</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TreeNode</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">children</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">expanded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
@@ -754,8 +755,8 @@ class TableView : public UIElement {
 <span class="w">    </span><span class="n">TreeNode</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">cols</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-c9da763e" style="display: none;">struct TreeNode {
-    std::vector&lt;std::wstring&gt; columns;                 // column 0 is the node text
+<pre id="code-2abc23a0" style="display: none;">struct TreeNode {
+    std::vector&lt;std::shared_ptr&lt;Label&gt;&gt; columns;       // Label-ized: one real Label per column (col 0 = node text)
     TreeNode* parent = nullptr;                        // non-owning
     std::vector&lt;std::shared_ptr&lt;TreeNode&gt;&gt; children;
     bool expanded = false;
@@ -776,12 +777,13 @@ class TableView : public UIElement {
 <ul>
 <li><code>parent</code> is a <strong>non-owning</strong> raw pointer (ownership is via <code>children</code>); <code>depth</code> is maintained by the framework.</li>
 <li><code>icon</code> is a single leading char/emoji; <code>tooltip</code> uses the base-class tooltip.</li>
+<li><code>columns</code> holds <strong>real Labels</strong> (Label-ized): read text via <code>node-&gt;columns[c]-&gt;GetText()</code>; you can also set per-cell font/color/embedded content directly. Position and clipping are owned by <code>TreeView::GetChildren</code> (column 0 starts after indent, expander, selection indicator, checkbox and icon).</li>
 </ul>
 <h2 id="treeview">TreeView</h2>
 <div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-2d9c9bd3', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-98fa2297', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">SelectionMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Single</span><span class="p">,</span><span class="w"> </span><span class="n">Extended</span><span class="p">,</span><span class="w"> </span><span class="n">Multi</span><span class="w"> </span><span class="p">};</span>
 <span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CheckMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Linked</span><span class="p">,</span><span class="w"> </span><span class="n">Independent</span><span class="w"> </span><span class="p">};</span>
@@ -837,7 +839,7 @@ class TableView : public UIElement {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetAlternatingRowColors</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetGridVisible</span><span class="p">(</span><span class="kt">bool</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-2d9c9bd3" style="display: none;">enum class SelectionMode { Single, Extended, Multi };
+<pre id="code-98fa2297" style="display: none;">enum class SelectionMode { Single, Extended, Multi };
 enum class CheckMode { Linked, Independent };
 
 class TreeView : public UIElement {

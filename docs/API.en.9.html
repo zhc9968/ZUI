@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Window · ZUI API Reference</title>
+    <title>Window · ZufyUI API Reference</title>
     <style>
 
 :root {
@@ -197,7 +197,7 @@ For AI agents: the "Reading aid" section on this page contains the raw Markdown 
     <div class="layout">
         <aside class="toc-sidebar" id="tocSidebar">
             <div class="sidebar-head"><span>Contents</span><button class="toc-collapse" id="tocCollapse" title="Collapse contents">&laquo;</button></div>
-<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class="active"><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div>
+<div class="sidebar-section"><div class="sidebar-heading">Chapters</div><ul class="chapter-list"><li class=""><a href="API.en.html"><span class="chapter-index">&#8962;</span>ZufyUI API Reference</a></li><li class=""><a href="API.en.1.html"><span class="chapter-index">1</span>Conventions</a></li><li class=""><a href="API.en.2.html"><span class="chapter-index">2</span>Basic types</a></li><li class=""><a href="API.en.3.html"><span class="chapter-index">3</span>Global functions and DPI</a></li><li class=""><a href="API.en.4.html"><span class="chapter-index">4</span>Signals and connections</a></li><li class=""><a href="API.en.5.html"><span class="chapter-index">5</span>Fonts</a></li><li class=""><a href="API.en.6.html"><span class="chapter-index">6</span>Core element UIElement</a></li><li class=""><a href="API.en.7.html"><span class="chapter-index">7</span>Layout</a></li><li class=""><a href="API.en.8.html"><span class="chapter-index">8</span>Menus</a></li><li class="active"><a href="API.en.9.html"><span class="chapter-index">9</span>Window</a></li><li class=""><a href="API.en.10.html"><span class="chapter-index">10</span>Application and multiple windows</a></li><li class=""><a href="API.en.11.html"><span class="chapter-index">11</span>Basic controls</a></li><li class=""><a href="API.en.12.html"><span class="chapter-index">12</span>Data views</a></li><li class=""><a href="API.en.13.html"><span class="chapter-index">13</span>Images</a></li><li class=""><a href="API.en.14.html"><span class="chapter-index">14</span>Window tools</a></li><li class=""><a href="API.en.15.html"><span class="chapter-index">15</span>Appendix</a></li></ul></div>
         </aside>
         <main class="content">
 <div class="reading-aid"><button class="reading-aid-toggle" id="readingAidToggle"><span class="ra-icon">&#9656;</span> Reading aid · View raw Markdown</button><div class="reading-aid-body"><pre>```cpp
@@ -294,6 +294,8 @@ class Window {
     void SetTitleBarVisible(bool on);
     bool IsTitleBarVisible() const;
     void SetTitle(const std::wstring&amp; title);                 // native title text (use TitleBar::SetTitle with a custom title bar)
+    std::wstring GetTitle() const;                            // current window title (GetWindowTextW)
+    HWND GetHwnd() const;                                     // native window handle
     void SetIcon(HICON bigIcon, HICON smallIcon);             // native title-bar icons (WM_SETICON)
 
     // Border / resizing
@@ -318,7 +320,7 @@ class Window {
 };
 ```
 
-`Backdrop` (**backdrop layer**, only three options): `None` (fully transparent), `Acrylic`, `Mica`. The second argument of `SetBackdrop` is the **overlay**: an ARGB colour composited on top of the layer (`A` = how much is revealed/covered, `RGB` = the colour). **`BackdropMode` no longer exists** — backdrops are always rendered by ZUI itself (no system material), so Win10 and Win11 look the same.
+`Backdrop` (**backdrop layer**, only three options): `None` (fully transparent), `Acrylic`, `Mica`. The second argument of `SetBackdrop` is the **overlay**: an ARGB colour composited on top of the layer (`A` = how much is revealed/covered, `RGB` = the colour). **`BackdropMode` no longer exists** — backdrops are always rendered by ZufyUI itself (no system material), so Win10 and Win11 look the same.
 
 **Behavior and pitfalls:**
 
@@ -333,18 +335,18 @@ class Window {
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
 - **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
 - **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
-- **Backdrop (`Backdrop` is a 3-way layer + overlay colour)**: the layer is only `None / Acrylic / Mica`, and it is **always rendered by ZUI itself** — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).
+- **Backdrop (`Backdrop` is a 3-way layer + overlay colour)**: the layer is only `None / Acrylic / Mica`, and it is **always rendered by ZufyUI itself** — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).
   - `Acrylic`: our own DirectComposition implementation of the official acrylic recipe (Border noise tiling → Opacity → Gaussian blur → Luminosity/Color blends → noise multiply, plus a Saturation step and a `CompositeStep` for the tint so its alpha takes effect); source = **host backdrop** (the content behind the window).
   - `Mica`: reads the desktop wallpaper (`SPI_GETDESKWALLPAPER` + WIC) → blur / desaturate / white veil / noise, baked once into a bitmap placed on a **separate compositor layer** (below the content layer); moving the window only changes that layer's `Offset` (a pure translation, no resampling).
   - Parameters follow the "**4-layer model**" (Blur / Luminosity / Tint / Noise): `SetBackgroundParams(layer, BackgroundParams)` to set all of them, or `SetBackgroundParams(layer, AcrylicPreset)` for an official preset (`Legacy / Luminosity / Base / Thin`). `AcrylicParams` / `MicaParams` hold the defaults (the latter is a tuned look).
   - If the requested effect cannot be realized on the current system, `BackdropUnsupported` fires and it does **not** substitute another effect.
 - **Rendering (1.8.0)**: Direct2D 1.1 + DXGI flip SwapChain + DirectComposition (`WS_EX_NOREDIRECTIONBITMAP`), per-pixel transparent; a process-wide shared D3D11/D2D device and WinRT `ICompositor`. `Create` **no longer shows the window**; call `Show()` explicitly.
 - **Border / resize / corners**: `SetResizable` controls edge resizing; when snapped, the DWM border/shadow is preserved (`WM_NCCALCSIZE` only insets the snapped edges), and maximizing does not inset. `SetWindowCorner` maps to `DWMWA_WINDOW_CORNER_PREFERENCE`.</pre></div></div>
-<div class="breadcrumb"><a href="API.en.html">ZUI API Reference</a><span class="sep">/</span><span>Chapter 9 · Window</span></div>
+<div class="breadcrumb"><a href="API.en.html">ZufyUI API Reference</a><span class="sep">/</span><span>Chapter 9 · Window</span></div>
 <header class="chapter-header"><span class="chapter-eyebrow">Chapter 9</span><h1>Window</h1><p class="chapter-summary">Creation, backdrop, title bar, and root layout</p></header><div class="code-container">
 <div class="code-header">
 <span class="code-language">cpp</span>
-<button class="copy-btn" onclick="copyCode('code-3aa33c5b', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
+<button class="copy-btn" onclick="copyCode('code-4e430646', this)" onmouseenter="animateButton(this)" onmouseleave="resetButton(this)">Copy</button>
 </div>
 <div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Window</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">Backdrop</span><span class="w"> </span><span class="n">DefaultBackdrop</span><span class="p">;</span><span class="w">              </span><span class="c1">// None</span>
@@ -439,6 +441,8 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitleBarVisible</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">on</span><span class="p">);</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsTitleBarVisible</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetTitle</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="o">&amp;</span><span class="w"> </span><span class="n">title</span><span class="p">);</span><span class="w">                 </span><span class="c1">// native title text (use TitleBar::SetTitle with a custom title bar)</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">wstring</span><span class="w"> </span><span class="nf">GetTitle</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">                            </span><span class="c1">// current window title (GetWindowTextW)</span>
+<span class="w">    </span><span class="n">HWND</span><span class="w"> </span><span class="nf">GetHwnd</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span><span class="w">                                     </span><span class="c1">// native window handle</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetIcon</span><span class="p">(</span><span class="n">HICON</span><span class="w"> </span><span class="n">bigIcon</span><span class="p">,</span><span class="w"> </span><span class="n">HICON</span><span class="w"> </span><span class="n">smallIcon</span><span class="p">);</span><span class="w">             </span><span class="c1">// native title-bar icons (WM_SETICON)</span>
 
 <span class="w">    </span><span class="c1">// Border / resizing</span>
@@ -462,7 +466,7 @@ class Window {
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">ReleaseMouseCapture</span><span class="p">(</span><span class="n">UIElement</span><span class="o">*</span><span class="w"> </span><span class="n">elem</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
-<pre id="code-3aa33c5b" style="display: none;">class Window {
+<pre id="code-4e430646" style="display: none;">class Window {
     static Backdrop DefaultBackdrop;              // None
     static DWORD DefaultBackdropColor;            // 0
     static Color DefaultBackgroundColor;          // transparent
@@ -555,6 +559,8 @@ class Window {
     void SetTitleBarVisible(bool on);
     bool IsTitleBarVisible() const;
     void SetTitle(const std::wstring&amp; title);                 // native title text (use TitleBar::SetTitle with a custom title bar)
+    std::wstring GetTitle() const;                            // current window title (GetWindowTextW)
+    HWND GetHwnd() const;                                     // native window handle
     void SetIcon(HICON bigIcon, HICON smallIcon);             // native title-bar icons (WM_SETICON)
 
     // Border / resizing
@@ -578,7 +584,7 @@ class Window {
     void ReleaseMouseCapture(UIElement* elem);
 };</pre>
 </div>
-<p><code>Backdrop</code> (<strong>backdrop layer</strong>, only three options): <code>None</code> (fully transparent), <code>Acrylic</code>, <code>Mica</code>. The second argument of <code>SetBackdrop</code> is the <strong>overlay</strong>: an ARGB colour composited on top of the layer (<code>A</code> = how much is revealed/covered, <code>RGB</code> = the colour). <strong><code>BackdropMode</code> no longer exists</strong> — backdrops are always rendered by ZUI itself (no system material), so Win10 and Win11 look the same.</p>
+<p><code>Backdrop</code> (<strong>backdrop layer</strong>, only three options): <code>None</code> (fully transparent), <code>Acrylic</code>, <code>Mica</code>. The second argument of <code>SetBackdrop</code> is the <strong>overlay</strong>: an ARGB colour composited on top of the layer (<code>A</code> = how much is revealed/covered, <code>RGB</code> = the colour). <strong><code>BackdropMode</code> no longer exists</strong> — backdrops are always rendered by ZufyUI itself (no system material), so Win10 and Win11 look the same.</p>
 <p><strong>Behavior and pitfalls:</strong></p>
 <ul>
 <li><code>Create</code> creates the window, initializes Direct2D, applies the backdrop, and builds a default root layout: a <code>ColumnBox</code> with <code>margin 20</code> and <code>spacing 10</code>. <code>GetRootColumnBox()</code> returns it.</li>
@@ -592,7 +598,7 @@ class Window {
 <li><strong><code>OwnedMinimizePolicy</code></strong>: how an owned child handles being minimized on its own. <code>None</code> does nothing; <code>Hide</code> intercepts minimize and hides, restoring when the owner restores/activates; <code>DisableMinimize</code> grays out the minimize button and ignores minimize-related messages.</li>
 <li><strong>Dangling cleanup</strong>: on destroy a window clears every reference other windows hold to it (<code>owner_</code> and hidden lists), so address reuse can never affect unrelated windows.</li>
 <li><strong>Custom title bar</strong>: <code>SetCustomTitleBar(bar)</code> installs a non-layout title bar control (see "Window tools"); the window places it at <code>(0,0)</code> and shifts the root layout down by its height. Pass <code>nullptr</code> to restore the native title bar (sends <code>SWP_FRAMECHANGED</code>). <code>SetTitleBarVisible(false)</code> hides it while keeping the custom frame.</li>
-<li><strong>Backdrop (<code>Backdrop</code> is a 3-way layer + overlay colour)</strong>: the layer is only <code>None / Acrylic / Mica</code>, and it is <strong>always rendered by ZUI itself</strong> — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).</li>
+<li><strong>Backdrop (<code>Backdrop</code> is a 3-way layer + overlay colour)</strong>: the layer is only <code>None / Acrylic / Mica</code>, and it is <strong>always rendered by ZufyUI itself</strong> — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).</li>
 <li><code>Acrylic</code>: our own DirectComposition implementation of the official acrylic recipe (Border noise tiling → Opacity → Gaussian blur → Luminosity/Color blends → noise multiply, plus a Saturation step and a <code>CompositeStep</code> for the tint so its alpha takes effect); source = <strong>host backdrop</strong> (the content behind the window).</li>
 <li><code>Mica</code>: reads the desktop wallpaper (<code>SPI_GETDESKWALLPAPER</code> + WIC) → blur / desaturate / white veil / noise, baked once into a bitmap placed on a <strong>separate compositor layer</strong> (below the content layer); moving the window only changes that layer's <code>Offset</code> (a pure translation, no resampling).</li>
 <li>Parameters follow the "<strong>4-layer model</strong>" (Blur / Luminosity / Tint / Noise): <code>SetBackgroundParams(layer, BackgroundParams)</code> to set all of them, or <code>SetBackgroundParams(layer, AcrylicPreset)</code> for an official preset (<code>Legacy / Luminosity / Base / Thin</code>). <code>AcrylicParams</code> / <code>MicaParams</code> hold the defaults (the latter is a tuned look).</li>
