@@ -1,4 +1,4 @@
-# AGENTS / 开发原则
+﻿# AGENTS / 开发原则
 
 ## 协作流程规则（必须遵守）
 
@@ -26,6 +26,6 @@
 ## 构建
 
 ```powershell
-  & "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" "C:\project\ZUI\ZufyUI.vcxproj" /p:Configuration=Release /p:Platform=x64 /m /nologo /v:minimal
+  & "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" "C:\project\ZufyUI\ZufyUI.vcxproj" /p:Configuration=Release /p:Platform=x64 /m /nologo /v:minimal
 ```
 （构建前先 `Stop-Process -Name ZufyUI -Force`，否则会因文件占用链接失败。）
