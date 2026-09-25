@@ -1366,7 +1366,7 @@ class TableView : public UIElement {
 
 ```cpp
 struct TreeNode {
-    std::vector<std::wstring> columns;                 // 第 0 列为节点文本
+    std::vector<std::shared_ptr<Label>> columns;       // Label 化：每列一个真 Label（第 0 列为节点文本）
     TreeNode* parent = nullptr;                        // 非拥有
     std::vector<std::shared_ptr<TreeNode>> children;
     bool expanded = false;
@@ -1387,6 +1387,7 @@ struct TreeNode {
 
 - `parent` 是**非拥有**裸指针（由 `children` 的所有权决定生命周期）；`depth` 由框架维护。
 - `icon` 是绘制在第一列文本前的单个字符/emoji；`tooltip` 交给基础类统一显示。
+- `columns` 是**真 Label**（Label 化）：读文本用 `node->columns[c]->GetText()`；也可直接对该单元格 Label 设字体/颜色/内嵌内容。位置与裁剪由 TreeView 的 `GetChildren` 统一接管（第一列会在缩进、展开箭头、选中指示条、勾选框、图标之后起排）。
 
 ## TreeView
 

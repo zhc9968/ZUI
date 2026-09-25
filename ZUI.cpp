@@ -668,7 +668,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         auto lblTreeInfo = std::make_shared<Label>(L"点击节点查看信息");
         treeView->Connect(treeView->SelectionChanged, [lblTreeInfo](std::shared_ptr<TreeNode> node) {
             if (node) {
-                std::wstring text = node->columns.size() > 0 ? node->columns[0] : L"";
+                std::wstring text = (!node->columns.empty() && node->columns[0]) ? node->columns[0]->GetText() : L"";
                 lblTreeInfo->SetText(L"选中节点：" + text);
             }
             else {
@@ -756,11 +756,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             info->SetText(L"选中 " + std::to_wstring(nodes.size()) + L" 个节点");
             });
         tree->Connect(tree->ItemCheckStateChanged, [info](std::shared_ptr<TreeNode> node, TreeNode::CheckState st) {
-            info->SetText(node->columns[0] + (st == TreeNode::CheckState::Checked ? L" 已勾选" :
+            info->SetText((node->columns.empty() || !node->columns[0] ? std::wstring() : node->columns[0]->GetText()) + (st == TreeNode::CheckState::Checked ? L" 已勾选" :
                 (st == TreeNode::CheckState::PartiallyChecked ? L" 部分勾选" : L" 取消勾选")));
             });
         tree->Connect(tree->ItemDoubleClicked, [](std::shared_ptr<TreeNode> node) {
-            MessageBoxW(nullptr, node->columns[0].c_str(), L"双击节点", MB_OK);
+            MessageBoxW(nullptr, (node->columns.empty() || !node->columns[0] ? std::wstring() : node->columns[0]->GetText()).c_str(), L"双击节点", MB_OK);
             });
 
         grid7->AddChild(tree, 1, 0);

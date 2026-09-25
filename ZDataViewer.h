@@ -2587,7 +2587,7 @@ namespace ZUI {
         // 勾选状态（三态，参考 Qt::CheckState）
         enum class CheckState { Unchecked, PartiallyChecked, Checked };
 
-        std::vector<std::wstring> columns;
+        std::vector<std::shared_ptr<Label>> columns;        // Label 化：每列一个真 Label（文本/图标/内嵌控件由它自己画）
         TreeNode* parent = nullptr;
         std::vector<std::shared_ptr<TreeNode>> children;
         bool expanded = false;
@@ -2602,8 +2602,14 @@ namespace ZUI {
         bool enabled = true;                                // 是否可用（置灰显示）
         std::wstring tooltip;                               // 悬停提示（可选，供上层使用）
 
-        TreeNode(const std::wstring& text) : columns(1, text) {}
-        TreeNode(const std::vector<std::wstring>& cols) : columns(cols) {}
+        static std::vector<std::shared_ptr<Label>> MakeColumns(const std::vector<std::wstring>& cols) {
+            std::vector<std::shared_ptr<Label>> v;
+            v.reserve(cols.size());
+            for (auto& s : cols) v.push_back(std::make_shared<Label>(s));
+            return v;
+        }
+        TreeNode(const std::wstring& text) : columns(MakeColumns({ text })) {}
+        TreeNode(const std::vector<std::wstring>& cols) : columns(MakeColumns(cols)) {}
     };
 
     class TreeView : public UIElement {
@@ -3123,7 +3129,7 @@ namespace ZUI {
             if (keyword.empty()) { ClearFilter(); return; }
             SetFilter([keyword](const std::shared_ptr<TreeNode>& n) {
                 if (!n) return false;
-                for (auto& c : n->columns) if (c.find(keyword) != std::wstring::npos) return true;
+                for (auto& c : n->columns) if (c && c->GetText().find(keyword) != std::wstring::npos) return true;
                 return false;
                 });
         }
@@ -3134,7 +3140,7 @@ namespace ZUI {
         std::wstring GetNodePath(const std::shared_ptr<TreeNode>& node, const std::wstring& separator = L" / ") const {
             std::vector<std::wstring> parts;
             TreeNode* cur = node.get();
-            while (cur) { parts.push_back(cur->columns.empty() ? L"" : cur->columns[0]); cur = cur->parent; }
+            while (cur) { parts.push_back((cur->columns.empty() || !cur->columns[0]) ? L"" : cur->columns[0]->GetText()); cur = cur->parent; }
             std::reverse(parts.begin(), parts.end());
             std::wstring out;
             for (size_t i = 0; i < parts.size(); ++i) { if (i) out += separator; out += parts[i]; }
@@ -3239,7 +3245,95 @@ namespace ZUI {
             UIElement::ArrangeOverride(finalRect);
             UpdateScrollInfo();
             UpdateIndicatorTarget();
+            childrenDirty_ = true;              // 重排过 → 可见节点 Label 列表必须重建
         }
+
+        // Label 化：节点单元格 Label 的统一初始化（字体 / 每节点文本色 / 内边距，关自身缓存）
+        void PrepareNodeCellLabel(const std::shared_ptr<Label>& lb, const std::shared_ptr<TreeNode>& node) const {
+            if (!lb) return;
+            lb->SetUseCache(false);
+            FontSpec spec = GetEffectiveFontSpec();
+            if (!(lb->GetEffectiveFontSpec() == spec)) lb->SetFont(spec);
+            if (lb->GetHorizontalAlignment() != Label::HAlign::Left ||
+                lb->GetVerticalAlignment() != Label::VAlign::Center)
+                lb->SetAlignment(Label::HAlign::Left, Label::VAlign::Center);
+            lb->SetPadding(0.0f);
+            Color cur = lb->GetTextColor();
+            Color want = Color(textColor_.r, textColor_.g, textColor_.b, textColor_.a);
+            if (node && !node->enabled) want = Color(0.6f, 0.6f, 0.6f, textColor_.a);
+            if (cur.r != want.r || cur.g != want.g || cur.b != want.b || cur.a != want.a) lb->SetTextColor(want);
+        }
+
+        // Label 化：可见节点的单元格 Label 作为子元素进入 Window 合成/事件/裁剪流程（就地摆到滚动后的位置）
+        const std::vector<UIElement*>& GetChildren() const override {
+            // 命中缓存要覆盖所有影响单元格布局的几何（滚动量/列宽和/行高/缩进/列数/可见节点数/控件矩形）；
+            // SetColumnWidth/SetRowHeight/SetIndent/BuildVisibleList 等不一定触发 ArrangeOverride。
+            float sumW = 0.0f;
+            for (int c = 0; c < columnCount_; ++c) sumW += GetEffectiveColumnWidth(c);
+            float sx = Snap(scrollOffsetX_), sy = Snap(scrollOffsetY_);
+            if (!childrenDirty_ &&
+                sx == lastScrollX_ && sy == lastScrollY_ && sumW == lastSumW_ &&
+                rowHeight_ == lastRowHeight_ && columnCount_ == lastColCount_ && indent_ == lastIndent_ &&
+                (int)visibleNodes_.size() == lastVisibleCount_ &&
+                arrangedRect_.x == lastArrX_ && arrangedRect_.y == lastArrY_ &&
+                arrangedRect_.width == lastArrW_ && arrangedRect_.height == lastArrH_)
+                return childrenView_;
+            childrenDirty_ = false;
+            lastScrollX_ = sx; lastScrollY_ = sy; lastSumW_ = sumW;
+            lastRowHeight_ = rowHeight_; lastColCount_ = columnCount_; lastIndent_ = indent_;
+            lastVisibleCount_ = (int)visibleNodes_.size();
+            lastArrX_ = arrangedRect_.x; lastArrY_ = arrangedRect_.y;
+            lastArrW_ = arrangedRect_.width; lastArrH_ = arrangedRect_.height;
+            childrenView_.clear();
+            if (visibleNodes_.empty() || columnCount_ <= 0 || rowHeight_ <= 0.0f) return childrenView_;
+            float headerOffset = headerVisible_ ? headerHeight_ : 0.0f;
+            float viewportWidth = arrangedRect_.width - (showVerticalScrollBar_ ? scrollBarWidth_ : 0);
+            float viewportHeight = arrangedRect_.height - (showHorizontalScrollBar_ ? scrollBarWidth_ : 0);
+            Rect contentClip(arrangedRect_.x, arrangedRect_.y + headerOffset, viewportWidth, viewportHeight - headerOffset);
+            int firstVisible = (int)(sy / rowHeight_);
+            int lastVisible = (int)((sy + viewportHeight - headerOffset) / rowHeight_);
+            if (firstVisible < 0) firstVisible = 0;
+            if (lastVisible > (int)visibleNodes_.size() - 1) lastVisible = (int)visibleNodes_.size() - 1;
+            const float bleedY = 3.0f;
+            float colX = arrangedRect_.x - sx;
+            for (int c = 0; c < columnCount_; ++c) {
+                float colWidth = GetEffectiveColumnWidth(c);
+                if (colWidth <= 0.0f) { colX += colWidth; continue; }
+                bool colVisible = (colX + colWidth >= arrangedRect_.x) && (colX <= arrangedRect_.x + viewportWidth);
+                if (colVisible) {
+                    for (int i = firstVisible; i <= lastVisible; ++i) {
+                        auto node = visibleNodes_[i];
+                        if (!node || c >= (int)node->columns.size()) continue;
+                        auto lb = node->columns[c];
+                        if (!lb) continue;
+                        PrepareNodeCellLabel(lb, node);
+                        float itemY = arrangedRect_.y + headerOffset + i * rowHeight_ - sy;
+                        // 第一列文字左起点必须与 Draw 里 xCursor 完全一致：缩进 + 指示条 + 勾选框 + 图标
+                        float textLeft = colX + 8.0f;
+                        if (c == 0) {
+                            textLeft = GetNodeTextStartX(node) + 2.0f + indicatorWidth_ + 4.0f;
+                            if (node->checkable) textLeft += 15.0f + 6.0f;
+                            if (!node->icon.empty()) textLeft += 20.0f;
+                        }
+                        float availW = (colX + colWidth - 8.0f) - textLeft;
+                        if (availW < 0.0f) availW = 0.0f;
+                        lb->Arrange(Rect(textLeft, itemY - bleedY, availW, rowHeight_ + bleedY * 2.0f));
+                        // 裁到内容视口：不压表头 / 不画到横向滚动条 / 横向拖动不漫出左右边界
+                        lb->SetClipRect(contentClip);
+                        childrenView_.push_back(lb.get());
+                    }
+                }
+                colX += colWidth;
+            }
+            return childrenView_;
+        }
+        std::optional<D2D1_RECT_F> GetClipRect() const override {
+            return D2D1::RectF(arrangedRect_.x - 2.0f, arrangedRect_.y - 2.0f,
+                arrangedRect_.x + arrangedRect_.width + 2.0f, arrangedRect_.y + arrangedRect_.height + 2.0f);
+        }
+        mutable float lastScrollX_ = -1e30f, lastScrollY_ = -1e30f, lastSumW_ = -1e30f, lastRowHeight_ = -1e30f, lastIndent_ = -1e30f;
+        mutable float lastArrX_ = -1e30f, lastArrY_ = -1e30f, lastArrW_ = -1e30f, lastArrH_ = -1e30f;
+        mutable int lastColCount_ = -1, lastVisibleCount_ = -1;
 
         void Draw(ID2D1RenderTarget* rt) override {
             if (!visible_) return;
@@ -3351,21 +3445,10 @@ namespace ZUI {
                             xCursor += 20.0f;
                         }
 
-                        if (c < (int)node->columns.size() && !node->columns[c].empty()) {
-                            if (!textBrush_) rt->CreateSolidColorBrush(effTextColor, textBrush_.GetAddressOf());
-                            else textBrush_->SetColor(effTextColor);
-                            D2D1_RECT_F textRect = D2D1::RectF(xCursor, cellRect.top, cellRect.right - 4.0f, cellRect.bottom);
-                            DrawTextWithEllipsis(rt, node->columns[c], textRect, effTextColor, spec, textBrush_, fmt);
-                        }
+                        // Label 化：第一列文本由 node->columns[0] 自己画（对齐/位置见 GetChildren）
                     }
                     else {
-                        if (c < (int)node->columns.size() && !node->columns[c].empty()) {
-                            if (!textBrush_) rt->CreateSolidColorBrush(effTextColor, textBrush_.GetAddressOf());
-                            else textBrush_->SetColor(effTextColor);
-                            D2D1_RECT_F textRect = D2D1::RectF(cellRect.left + 4.0f, cellRect.top,
-                                cellRect.right - 4.0f, cellRect.bottom);
-                            DrawTextWithEllipsis(rt, node->columns[c], textRect, effTextColor, spec, textBrush_, fmt);
-                        }
+                        // Label 化：其它列文本由 node->columns[c] 自己画（对齐/位置见 GetChildren）
                     }
                 }
 
@@ -3976,7 +4059,8 @@ namespace ZUI {
             EmitMultiSelection();
         }
         void BuildVisibleList() {
-            visibleIndexDirty_ = true;   // P3：可见列表变了，索引映射作废
+            visibleIndexDirty_ = true;   // P3：可见列表变了，索引映射必须重建
+            childrenDirty_ = true;       // Label 化：可见节点集合可能变了，单元格 Label 列表必须重建
             float oldScrollX = scrollOffsetX_;
             float oldScrollY = scrollOffsetY_;
             visibleNodes_.clear();

@@ -1312,7 +1312,7 @@ class TableView : public UIElement {
 
 ```cpp
 struct TreeNode {
-    std::vector<std::wstring> columns;                 // column 0 is the node text
+    std::vector<std::shared_ptr<Label>> columns;       // Label-ized: one real Label per column (col 0 = node text)
     TreeNode* parent = nullptr;                        // non-owning
     std::vector<std::shared_ptr<TreeNode>> children;
     bool expanded = false;
@@ -1333,6 +1333,7 @@ struct TreeNode {
 
 - `parent` is a **non-owning** raw pointer (ownership is via `children`); `depth` is maintained by the framework.
 - `icon` is a single leading char/emoji; `tooltip` uses the base-class tooltip.
+- `columns` holds **real Labels** (Label-ized): read text via `node->columns[c]->GetText()`; you can also set per-cell font/color/embedded content directly. Position and clipping are owned by `TreeView::GetChildren` (column 0 starts after indent, expander, selection indicator, checkbox and icon).
 
 ## TreeView
 
