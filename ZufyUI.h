@@ -2534,23 +2534,23 @@ namespace ZufyUI {
             for (int i = 0; i < (int)menu_->items.size(); ++i) {
                 auto& item = menu_->items[i];
                 if (item->type == MenuItem::Type::Separator) {
-                    D2D1_POINT_2F p1 = D2D1::Point2F(paddingDip_ + 10, y + separatorHeightDip_ / 2);
-                    D2D1_POINT_2F p2 = D2D1::Point2F(windowWidthDip_ - paddingDip_ - 10, y + separatorHeightDip_ / 2);
+                    D2D1_POINT_2F p1 = D2D1::Point2F((float)(paddingDip_ + 10), y + separatorHeightDip_ * 0.5f);
+                    D2D1_POINT_2F p2 = D2D1::Point2F((float)(windowWidthDip_ - paddingDip_ - 10), y + separatorHeightDip_ * 0.5f);
                     renderTarget_->DrawLine(p1, p2, separatorBrush_, 1.0f);
                     y += separatorHeightDip_;
                     continue;
                 }
 
                 D2D1_RECT_F itemRect = D2D1::RectF(
-                    paddingDip_ + 2, y,
-                    windowWidthDip_ - paddingDip_ - 2, y + itemHeightDip_);
+                    (float)(paddingDip_ + 2), y,
+                    (float)(windowWidthDip_ - paddingDip_ - 2), y + (float)itemHeightDip_);
                 if (i == hoveredIndex_ || i == pressedIndex_) {
                     renderTarget_->FillRoundedRectangle(
                         D2D1::RoundedRect(itemRect, cornerRadiusDip_ * 0.6f, cornerRadiusDip_ * 0.6f),
                         hoverBrush_);
                 }
 
-                float textX = paddingDip_ + 14;
+                float textX = (float)paddingDip_ + 14.0f;
                 if (item->icon) textX += 20;
                 float textRight = itemRect.right - 4;
                 if (item->type == MenuItem::Type::Submenu) {

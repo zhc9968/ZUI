@@ -27,6 +27,12 @@
     <ClInclude Include="ZufyUIImages.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ZufyUIAcrylic.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ZufyUIWindowTool.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ZufyUI.cpp">
