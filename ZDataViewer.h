@@ -453,8 +453,9 @@ namespace ZUI {
             UIElement::ArrangeOverride(finalRect);
             UpdateScrollInfo();
             UpdateIndicatorTarget();
-            childrenDirty_ = true;              // 重排过 → 可见子元素列表必须重建（含滚动后的坐标）
+            childrenDirty_ = true;              // 重排过 → 可见子元素列表必须重建（含滚动后坐标）
         }
+
 
         // Label 化：可见项 Label 作为子元素进入 Window 合成/事件/动画流程
         // 注意：必须在"滚动后"的坐标上 Arrange —— 因为 ComposeImpl 的裁剪剔除读 arrangedRect_，
@@ -469,12 +470,16 @@ namespace ZUI {
             if (last > (int)items_.size() - 1) last = (int)items_.size() - 1;
         }
         const std::vector<UIElement*>& GetChildren() const override {
-            float snapped = Snap(scrollOffsetY_);
-            if (!childrenDirty_ && snapped == lastChildrenSnap_) return childrenView_;
-            childrenDirty_ = false;
-            lastChildrenSnap_ = snapped;
-            childrenView_.clear();
             float eff = buttonMode_ ? (itemHeight_ + buttonSpacing_) : itemHeight_;
+            float snapped = Snap(scrollOffsetY_);
+            // 命中缓存要覆盖影响布局的几何：滚动量、项数、行高、勾选框（只有滚动量时会漏掉“滚动中增删项”）
+            float key = snapped
+                      + (float)items_.size() * 1000000.0f + eff * 100000.0f
+                      + (itemsCheckable_ ? 10000.0f : 0.0f);
+            if (!childrenDirty_ && key == lastChildrenSnap_) return childrenView_;
+            childrenDirty_ = false;
+            lastChildrenSnap_ = key;
+            childrenView_.clear();
             if (eff <= 0.0f) return childrenView_;
             float left = arrangedRect_.x + (buttonMode_ ? 4.0f : 0.0f) + 8.0f;   // 按钮模式 itemRect 左移 4（与原绘制一致）
             if (itemsCheckable_) left += 15.0f + 6.0f;
@@ -1310,6 +1315,7 @@ namespace ZUI {
         void SetRowDisabled(int row, bool disabled = true) {
             if (row < 0 || row >= rowCount_) return;
             if (disabled) disabledRows_.insert(row); else disabledRows_.erase(row);
+            if (row < (int)data_.size()) for (auto& lb : data_[row]) if (lb) lb->SetEnabled(!disabled);   // Label 化：禁用态由 Label 画
             RequestRepaint();
         }
         bool IsRowDisabled(int row) const { return disabledRows_.count(row) > 0; }
@@ -1356,6 +1362,7 @@ namespace ZUI {
         void SetCellTextColor(int row, int col, Color color) {
             if (row < 0 || row >= rowCount_ || col < 0 || col >= colCount_) return;
             cellTextColors_[CellKey(row, col)] = color.ToD2D();
+            if (row < (int)data_.size() && col < (int)data_[row].size() && data_[row][col]) data_[row][col]->SetTextColor(color);   // Label 化
             RequestRepaint();
         }
         void ClearCellTextColor(int row, int col) { cellTextColors_.erase(CellKey(row, col)); RequestRepaint(); }
@@ -1590,7 +1597,86 @@ namespace ZUI {
             UIElement::ArrangeOverride(finalRect);
             UpdateScrollInfo();
             UpdateIndicatorTarget();
+            childrenDirty_ = true;              // 重排过 → 可见单元格列表必须重建
         }
+
+        // Label 化：单元格 Label 的统一初始化（套 TableView 字体 / 列对齐 / 内边距，关自身缓存）
+        void PrepareCellLabel(const std::shared_ptr<Label>& lb, int col) const {
+            if (!lb) return;
+            lb->SetUseCache(false);
+            FontSpec spec = GetEffectiveFontSpec();
+            if (!(lb->GetEffectiveFontSpec() == spec)) lb->SetFont(spec);
+            Label::HAlign ha = Label::HAlign::Left;
+            TextHAlign a = GetColumnAlignment(col);
+            if (a == TextHAlign::Center) ha = Label::HAlign::Center;
+            else if (a == TextHAlign::Right) ha = Label::HAlign::Right;
+            if (lb->GetHorizontalAlignment() != ha) lb->SetAlignment(ha, Label::VAlign::Center);
+            lb->SetPadding(0.0f);
+        }
+
+        // Label 化：可见单元格 Label 作为子元素进入 Window 合成流程（就地摆到滚动后的位置）
+        const std::vector<UIElement*>& GetChildren() const override {
+            // 命中缓存必须覆盖“所有影响单元格布局的几何”：滚动量、列宽和、行高总和、行列数、控件矩形。
+            // SetColumnHidden/SetColumnWidth 等不一定会触发 ArrangeOverride，只比滚动量会在改列后留下旧布局。
+            float sumW = 0.0f;
+            for (int c = 0; c < colCount_; ++c) sumW += GetEffectiveColumnWidth(c);
+            float totalH = TotalRowsHeight();
+            float sx = Snap(scrollOffsetX_), sy = Snap(scrollOffsetY_);
+            if (!childrenDirty_ &&
+                sx == lastScrollX_ && sy == lastScrollY_ && sumW == lastSumW_ && totalH == lastTotalH_ &&
+                rowCount_ == lastRowCount_ && colCount_ == lastColCount_ &&
+                arrangedRect_.x == lastArrX_ && arrangedRect_.y == lastArrY_ &&
+                arrangedRect_.width == lastArrW_ && arrangedRect_.height == lastArrH_)
+                return childrenView_;
+            childrenDirty_ = false;
+            lastScrollX_ = sx; lastScrollY_ = sy; lastSumW_ = sumW; lastTotalH_ = totalH;
+            lastRowCount_ = rowCount_; lastColCount_ = colCount_;
+            lastArrX_ = arrangedRect_.x; lastArrY_ = arrangedRect_.y;
+            lastArrW_ = arrangedRect_.width; lastArrH_ = arrangedRect_.height;
+            childrenView_.clear();
+            if (rowCount_ <= 0 || colCount_ <= 0) return childrenView_;
+            float headerOffset = headerVisible_ ? headerHeight_ : 0.0f;
+            float viewportWidth = arrangedRect_.width - (showVerticalScrollBar_ ? scrollBarWidth_ : 0);
+            float viewportHeight = arrangedRect_.height - (showHorizontalScrollBar_ ? scrollBarWidth_ : 0);
+            Rect contentClip(arrangedRect_.x, arrangedRect_.y + headerOffset, viewportWidth, viewportHeight - headerOffset);
+            int firstRow = RowAtY(scrollOffsetY_); if (firstRow < 0) firstRow = 0;
+            int lastRow = RowAtY(scrollOffsetY_ + viewportHeight - headerOffset);
+            if (lastRow < 0) lastRow = rowCount_ - 1;
+            if (lastRow > rowCount_ - 1) lastRow = rowCount_ - 1;
+            const float bleedY = 3.0f;
+            float colX = arrangedRect_.x - Snap(scrollOffsetX_);
+            for (int col = 0; col < colCount_; ++col) {
+                float colWidth = GetEffectiveColumnWidth(col);
+                if (colWidth <= 0.0f) { colX += colWidth; continue; }
+                bool colVisible = (colX + colWidth >= arrangedRect_.x) && (colX <= arrangedRect_.x + viewportWidth);
+                if (colVisible) {
+                    for (int row = firstRow; row <= lastRow && row < rowCount_; ++row) {
+                        auto lb = GetItemLabel(row, col);
+                        if (!lb) continue;
+                        PrepareCellLabel(lb, col);
+                        float rowY = arrangedRect_.y + headerOffset + RowTop(row) - Snap(scrollOffsetY_);
+                        // 第一列要让出“指示条 + 勾选框”（与 Draw 里勾选框定位一致），其它列左右各留 8px，别贴边
+                        float textLeft = colX + 8.0f;
+                        if (col == 0) textLeft += indicatorWidth_ + (itemsCheckable_ ? 21.0f : 0.0f);
+                        float availW = (colX + colWidth - 8.0f) - textLeft;
+                        if (availW < 0.0f) availW = 0.0f;
+                        lb->Arrange(Rect(textLeft, rowY - bleedY, availW, RowHeightAt(row) + bleedY * 2.0f));
+                        // 裁到“表头以下、滚动条以内”的内容视口（否则会压到表头/横向滚动条/漫出左右边界）
+                        lb->SetClipRect(contentClip);
+                        childrenView_.push_back(lb.get());
+                    }
+                }
+                colX += colWidth;
+            }
+            return childrenView_;
+        }
+        std::optional<D2D1_RECT_F> GetClipRect() const override {
+            return D2D1::RectF(arrangedRect_.x - 2.0f, arrangedRect_.y - 2.0f,
+                arrangedRect_.x + arrangedRect_.width + 2.0f, arrangedRect_.y + arrangedRect_.height + 2.0f);
+        }
+        mutable float lastScrollX_ = -1e30f, lastScrollY_ = -1e30f, lastSumW_ = -1e30f, lastTotalH_ = -1e30f;
+        mutable float lastArrX_ = -1e30f, lastArrY_ = -1e30f, lastArrW_ = -1e30f, lastArrH_ = -1e30f;
+        mutable int lastRowCount_ = -1, lastColCount_ = -1;
 
         void Draw(ID2D1RenderTarget* rt) override {
             if (!visible_) return;
@@ -1656,7 +1742,6 @@ namespace ZUI {
                             rt->FillRectangle(cellRect, alternateBrush_.Get());
                         }
 
-                        auto label = GetItemLabel(row, col);
                         float cellTextLeft = cellRect.left + 4.0f;
                         if (col == 0) {
                             cellTextLeft += indicatorWidth_ + 4.0f;
@@ -1671,16 +1756,7 @@ namespace ZUI {
                                 cellTextLeft = cbRect.right + 6.0f;
                             }
                         }
-                        if (label && !label->GetText().empty()) {
-                            D2D1_RECT_F textRect = cellRect;
-                            textRect.left = cellTextLeft;
-                            textRect.right -= 4.0f;
-                            D2D1_COLOR_F tcol = textColor_;
-                            auto ctc = cellTextColors_.find(CellKey(row, col));
-                            if (ctc != cellTextColors_.end()) tcol = ctc->second;
-                            if (IsRowDisabled(row)) tcol = D2D1::ColorF(0.65f, 0.65f, 0.65f, 1.0f);
-                            DrawTextWithEllipsis(rt, label->GetText(), textRect, tcol, spec, textBrush_, fmt, false, GetColumnAlignment(col));
-                        }
+                        // Label 化：单元格文本由该格 Label 自己画（走 Window 合成递归，见 GetChildren）
                     }
                     if (showGrid_) {
                         if (!gridLineBrush_) rt->CreateSolidColorBrush(gridLineColor_, gridLineBrush_.GetAddressOf());
@@ -1869,7 +1945,7 @@ namespace ZUI {
                         isResizingColumn_ = true;
                         resizeColumnIndex_ = col;
                         resizeStartMouseX_ = x;
-                        resizeStartColumnWidth_ = colWidth;
+                        resizeStartColumnWidth_ = GetColumnWidth(col);   // 用基准宽度：SetColumnWidth 存的也是基准值，否则首帧会跳掉第一列的“指示条+勾选框”预留
                         return;
                     }
                     colX += colWidth;
@@ -2084,7 +2160,10 @@ namespace ZUI {
         float GetEffectiveColumnWidth(int col) const {
             if (col < 0 || col >= (int)columnWidths_.size()) return DefaultMinColumnWidth;
             if (hiddenColumns_.count(col)) return 0.0f;
-            return columnWidths_[col];
+            float w = columnWidths_[col];
+            // 第一列左侧要容纳“选中指示条 + 勾选框”（即单元格文字右移的那段），不补回来会把文字挤窄
+            if (col == 0) { w += indicatorWidth_; if (itemsCheckable_) w += 21.0f; }
+            return w;
         }
 
         bool IsCellSelected(int row, int col) const { return cellSel_.count(CellKey(row, col)) > 0; }
@@ -2310,8 +2389,8 @@ namespace ZUI {
                 if (colX + colWidth >= arrangedRect_.x && colX <= arrangedRect_.x + viewportWidth) {
                     std::wstring headerText = (col < (int)headers_.size()) ? headers_[col] : L"";
                     if (!headerText.empty()) {
-                        D2D1_RECT_F textRect = D2D1::RectF(colX + 4, arrangedRect_.y,
-                            colX + colWidth - 4, arrangedRect_.y + headerHeight_);
+                        D2D1_RECT_F textRect = D2D1::RectF(colX + 8, arrangedRect_.y,
+                            colX + colWidth - 8, arrangedRect_.y + headerHeight_);
                         DrawTextWithEllipsis(rt, headerText, textRect, headerTextColor_, spec, headerTextBrush_, fmt);
                     }
                     if (!gridLineBrush_) rt->CreateSolidColorBrush(gridLineColor_, gridLineBrush_.GetAddressOf());
