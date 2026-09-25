@@ -727,6 +727,8 @@ class Window {
     void SetTitleBarVisible(bool on);
     bool IsTitleBarVisible() const;
     void SetTitle(const std::wstring& title);                 // native title text (use TitleBar::SetTitle with a custom title bar)
+    std::wstring GetTitle() const;                            // current window title (GetWindowTextW)
+    HWND GetHwnd() const;                                     // native window handle
     void SetIcon(HICON bigIcon, HICON smallIcon);             // native title-bar icons (WM_SETICON)
 
     // Border / resizing
@@ -858,6 +860,7 @@ class Label : public UIElement {
     void SetText(const std::wstring& text);
     std::wstring GetText() const;
     void SetTextColor(Color color);
+    Color GetTextColor() const;
     void SetTextOverflow(TextOverflow mode);
     TextOverflow GetTextOverflow() const;
     void SetAlignment(HAlign hAlign, VAlign vAlign);
@@ -908,6 +911,11 @@ class Button : public UIElement {
     void SetColors(Color normal, Color hover, Color pressed);
     void SetTextColor(Color color);
     void SetCornerRadius(float radius);
+    Color GetTextColor() const;
+    Color GetNormalColor() const;
+    Color GetHoverColor() const;
+    Color GetPressedColor() const;
+    float GetCornerRadius() const;
     void SetHoverAnimationSpeed(float speed);
 
     void SetCheckable(bool);

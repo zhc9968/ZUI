@@ -736,6 +736,8 @@ class Window {
     void SetTitleBarVisible(bool on);                         // 隐藏/显示（保留自定义边框）
     bool IsTitleBarVisible() const;
     void SetTitle(const std::wstring& title);                 // 原生标题栏文字（自定义标题栏用 TitleBar::SetTitle）
+    std::wstring GetTitle() const;                            // 取当前窗口标题（GetWindowTextW）
+    HWND GetHwnd() const;                                     // 原生窗口句柄
     void SetIcon(HICON bigIcon, HICON smallIcon);             // 原生标题栏图标（WM_SETICON）
 
     // 边框 / 调整
@@ -868,6 +870,7 @@ class Label : public UIElement {
     void SetText(const std::wstring& text);
     std::wstring GetText() const;
     void SetTextColor(Color color);
+    Color GetTextColor() const;
     void SetTextOverflow(TextOverflow mode);
     TextOverflow GetTextOverflow() const;
     void SetAlignment(HAlign hAlign, VAlign vAlign);   // HAlign/VAlign 见下
@@ -918,6 +921,11 @@ class Button : public UIElement {
     void SetColors(Color normal, Color hover, Color pressed);
     void SetTextColor(Color color);
     void SetCornerRadius(float radius);
+    Color GetTextColor() const;
+    Color GetNormalColor() const;
+    Color GetHoverColor() const;
+    Color GetPressedColor() const;
+    float GetCornerRadius() const;
     void SetHoverAnimationSpeed(float speed);
 
     void SetCheckable(bool);             // 可切换按钮
