@@ -679,6 +679,7 @@ namespace ZUI {
 
         // 窗口失去激活（失活或最小化），参数为失活的窗口
         inline ZSignal<Window*> WindowDeactivated;
+    inline ZSignal<Window*> WindowActivated;   // 任一窗口被激活（弹窗据此在 owner 激活时改挂为子窗口）
 
         // 控件请求/释放鼠标捕获（参数：所属窗口, 控件）。已挂载控件走 Window 直接路由，这里是无窗口时的兜底。
         inline ZSignal<Window*, UIElement*> ElementCaptureRequest;
@@ -1002,7 +1003,7 @@ namespace ZUI {
 
         // ---------- 悬停提示 ----------
         void SetToolTip(const std::wstring& text) { tooltip_ = text; }
-        std::wstring GetToolTip() const { return tooltip_; }
+        virtual std::wstring GetToolTip() const { return tooltip_; }
 
         // ---------- 阴影（默认关闭；元素设置，Window 合成进缓存）----------
         void SetShadow(bool enable) { shadowEnabled_ = enable; cacheValid_ = false; RequestRepaint(); }
@@ -1163,6 +1164,11 @@ namespace ZUI {
             child->SetParent(this);
             InvalidateLayout();
         }
+        void ClearChildren() {
+            for (auto& c : children_) if (c) c->SetParent(nullptr);
+            children_.clear();
+            InvalidateLayout();
+        }
         void SetSpacing(float spacing) { spacing_ = spacing; InvalidateLayout(); }
         float GetSpacing() const { return spacing_; }
 
@@ -1260,6 +1266,11 @@ namespace ZUI {
         void AddChild(std::shared_ptr<UIElement> child) {
             children_.push_back(child);
             child->SetParent(this);
+            InvalidateLayout();
+        }
+        void ClearChildren() {
+            for (auto& c : children_) if (c) c->SetParent(nullptr);
+            children_.clear();
             InvalidateLayout();
         }
         void SetSpacing(float spacing) { spacing_ = spacing; InvalidateLayout(); }
@@ -2948,7 +2959,7 @@ namespace ZUI {
             animationTimerActive_(false),
             layoutInvalidated_(false) {}
 
-        ~Window() {
+        virtual ~Window() {
             acrylicReloadConn_.disconnect();
             if (rootElement_) rootElement_->AttachWindowRecursive(nullptr);
             if (customTitleBar_) customTitleBar_->AttachWindowRecursive(nullptr);   // 析构路径同样清归属
@@ -2961,6 +2972,19 @@ namespace ZUI {
         void ReleaseMouseCapture(UIElement* elem) {
             if (mouseCaptureElement_ == elem) mouseCaptureElement_ = nullptr;
         }
+
+        // 窗口级按键钩子（在派发给焦点元素之前调用；返回 true 表示已处理）。供弹窗 ESC/Enter 等使用。
+        virtual bool OnWindowKeyDown(int vk) { (void)vk; return false; }
+
+        // 窗口级定时器钩子（WM_TIMER；返回 true 表示已处理）。id 为 SetTimer 传入的 id。
+        virtual bool OnWindowTimer(int id) { (void)id; return false; }
+
+        // 窗口尺寸变化钩子（WM_SIZE）；用于依赖客户区宽度的收尾布局（如弹窗按钮靠右）
+        virtual void OnWindowSize() {}
+
+        // 屏蔽本窗口输入（模态弹窗作为本窗口子窗口时用；不 disable HWND，避免连带影响子弹窗）
+        void SetInputBlocked(bool on) { inputBlocked_ = on; }
+        bool IsInputBlocked() const { return inputBlocked_; }
 
         // 背景效果：Backdrop=要什么（亚克力/云母/普通/毛玻璃…），tint=ARGB 着色（不需要可省略）
         void SetBackdrop(Backdrop backdrop, DWORD tint = 0x00000000) {
@@ -3340,7 +3364,9 @@ namespace ZUI {
             HWND ownerHwnd = ow ? ow->hwnd_ : nullptr;
             if (!ownerHwnd) ownerHwnd = GetActiveWindow();
             if (ownerHwnd == hwnd_) ownerHwnd = nullptr;   // 不要禁用自己
-            if (ownerHwnd) EnableWindow(ownerHwnd, FALSE);
+            // 记录原使能状态：支持模态嵌套（内层不要再“恢复”外层禁用的 owner，否则鼠标会在外层模态期间复活/卡死）
+            bool ownerWasEnabled = ownerHwnd && IsWindowEnabled(ownerHwnd) != FALSE;
+            if (ownerWasEnabled) EnableWindow(ownerHwnd, FALSE);
 
             SetActiveWindow(hwnd_);
             SetForegroundWindow(hwnd_);
@@ -3349,12 +3375,13 @@ namespace ZUI {
             MSG msg;
             while (IsWindow(hwnd_) && GetMessage(&msg, nullptr, 0, 0)) {
                 if (msg.message == WM_QUIT) { PostQuitMessage((int)msg.wParam); break; }
-                if (IsWindow(hwnd_) && IsDialogMessage(hwnd_, &msg)) continue;   // Tab/方向键等对话框导航
+                // 不用 IsDialogMessage：它会把键盘消息当对话框导航吞掉（不派发），导致弹窗里
+                // 英文/数字/Tab 全按不动（只有 IME 的 WM_IME_* 能穿透）。ZUI 自己处理 Tab 焦点导航。
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
 
-            if (ownerHwnd && IsWindow(ownerHwnd)) {
+            if (ownerHwnd && ownerWasEnabled && IsWindow(ownerHwnd)) {
                 EnableWindow(ownerHwnd, TRUE);
                 SetForegroundWindow(ownerHwnd);
             }
@@ -3500,6 +3527,19 @@ namespace ZUI {
 #endif
 
         LRESULT HandleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
+            // 模态弹窗（子窗口形态）时屏蔽本窗口鼠标/键盘输入
+            if (inputBlocked_) {
+                switch (message) {
+                case WM_MOUSEMOVE: case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
+                case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
+                case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
+                case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
+                case WM_NCMOUSEMOVE: case WM_NCLBUTTONDOWN: case WM_NCLBUTTONUP: case WM_NCLBUTTONDBLCLK:
+                case WM_KEYDOWN: case WM_KEYUP: case WM_CHAR:
+                    return 0;
+                default: break;
+                }
+            }
             switch (message) {
             case WM_IME_SETCONTEXT:
             {
@@ -3675,6 +3715,7 @@ namespace ZUI {
                 return 0;
             case WM_SIZE:
                 UpdateTimerState();
+                OnWindowSize();
                 if (wParam == SIZE_MINIMIZED) {
                     // 方案4：禁用最小化的 owned 子窗口，最小化相关消息一律不处理
                     if (owner_ && ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize) return 0;
@@ -3715,6 +3756,7 @@ namespace ZUI {
                 }
                 else {
                     Activated();
+                    UIZSignals::WindowActivated(this);
                     ShowOwnedWindows();   // 本窗口重新获得焦点/置顶 → 恢复被隐藏的 owned 子窗口
                     // 激活时（窗口已就绪）再应用一次背景，确保 Mica/Acrylic 稳定生效
                     if (wParam != WA_INACTIVE && backdrop_ != Backdrop::None) ApplyBackdrop();
@@ -3730,6 +3772,7 @@ namespace ZUI {
                 return 0;
             case WM_DISPLAYCHANGE: InvalidateRect(hwnd_, nullptr, FALSE); UpdateTimerState(); return 0;
             case WM_TIMER:
+                if (OnWindowTimer((int)wParam)) return 0;
                 if (wParam == 1) {
 #ifdef ZUI_DEBUG
                     // ---- 调试输出开始 ----
@@ -3792,6 +3835,7 @@ namespace ZUI {
                 ImmAssociateContext(hwnd_, NULL);
                 return 0;
             case WM_KEYDOWN:
+                if (OnWindowKeyDown((int)wParam)) return 0;
                 if (wParam == VK_TAB) { MoveFocusByTab((GetKeyState(VK_SHIFT) & 0x8000) != 0); return 0; }
                 if (focusedElement_ && focusedElement_->IsEffectivelyEnabled()) focusedElement_->OnKeyDown(wParam, lParam);
                 return 0;
@@ -3904,22 +3948,30 @@ namespace ZUI {
             return DefWindowProc(hwnd_, message, wParam, lParam);
         }
 
+        // 沿父链找第一个带 tooltip 的元素（子控件没设时用父控件的，如 Button 里的 Label）
+        UIElement* ResolveTooltipOwner() const {
+            for (UIElement* e = currentHovered_; e; e = e->GetParent()) {
+                if (e->IsEffectivelyEnabled() && e->IsVisible() && !e->GetToolTip().empty()) return e;
+            }
+            return nullptr;
+        }
+
         void UpdateTooltip() {
-            bool candidate = currentHovered_ && currentHovered_->IsEffectivelyEnabled()
-                && currentHovered_->IsVisible() && !currentHovered_->GetToolTip().empty();
+            UIElement* owner = ResolveTooltipOwner();
+            bool candidate = (owner != nullptr);
             if (!candidate) {
                 if (tooltipTarget_) { tooltipTarget_ = nullptr; tooltipProgress_ = 0.0f; }
                 return;
             }
             if (!tooltipTarget_) {
                 if (GetTickCount() - hoverStartTick_ >= 500) {
-                    tooltipTarget_ = currentHovered_;
+                    tooltipTarget_ = owner;
                     tooltipAnchorPt_ = D2D1::Point2F(mouseX_, mouseY_);
                     tooltipProgress_ = 0.0f;
                 }
                 return;
             }
-            if (tooltipTarget_ != currentHovered_) {
+            if (tooltipTarget_ != owner) {
                 tooltipTarget_ = nullptr;
                 tooltipProgress_ = 0.0f;
                 return;
@@ -5166,6 +5218,7 @@ namespace ZUI {
         std::vector<Rect> dragRegions_;     // 收集到的可拖动区域（客户坐标 DIP）
         std::vector<UIElement*> npBefore_, npAfter_;   // 不参与布局的元素（仅重排后重建，避免每帧全树收集）
         OwnedMinimizePolicy ownedMinimizePolicy_ = OwnedMinimizePolicy::Hide;   // 见 OwnedMinimizePolicy
+        bool inputBlocked_ = false;   // 模态弹窗（子窗口形态）时屏蔽本窗口输入
         bool wasMinimized_ = false;         // 上一状态是否最小化（只有“最小化→还原”才恢复 owned 子窗口）
         bool inSizeMove_ = false;           // 正在拖动/缩放循环：WM_NCHITTEST 直接返回 HTCAPTION，避免每次全树命中检测
         bool imePosUpdating_ = false;

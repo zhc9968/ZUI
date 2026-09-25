@@ -933,6 +933,78 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             });
         grid9->AddChild(tmodalBtn, 3, 1);
 
+        // 弹窗结果会显示在这里
+        auto mbResult = std::make_shared<Label>(L"（弹窗结果会显示在这里）");
+        grid9->AddChild(mbResult, 7, 0, 1, 2);
+
+        // 按钮文本库默认英文；这里切成中文演示（SetLanguage / SetButtonText）
+        MessageBox::SetLanguage(MessageBox::Lang::Chinese);
+
+        auto tmsgBtn = std::make_shared<Button>(L"消息框 (预设 FastButton)");
+        tmsgBtn->Connect(tmsgBtn->Clicked, [w = &win, mbResult]() {
+            MessageBox box(w, L"提示",
+                L"这是一个 ZUI 消息框：图标 + 文字 + 按钮。\n按钮用 FastButton 位标志组合，结果可按位判定。",
+                MessageBox::Icon::Info, FastButton::Yes | FastButton::No | FastButton::Cancel);
+            FastButton r = box.GetResult();
+            if (mbResult) mbResult->SetText(L"预设弹窗：你点了「" + MessageBox::ButtonLabel(r) + L"」" +
+                (HasFlag(r, FastButton::Yes) ? L"（Yes 位命中）" : L""));
+            });
+        grid9->AddChild(tmsgBtn, 5, 0, 1, 2);
+
+        // 自定义样式①：输入框（内容直接传控件；按钮仍由 MessageBox 提供）
+        auto tinputBtn = std::make_shared<Button>(L"弹窗：输入框");
+        tinputBtn->Connect(tinputBtn->Clicked, [w = &win, mbResult]() {
+            auto edit = std::make_shared<TextBox>();
+            edit->SetPlaceholder(L"请输入名称…");
+            MessageBox box(w, L"输入", edit, MessageBox::Icon::None, FastButton::OK | FastButton::Cancel);
+            if (mbResult) mbResult->SetText(L"输入框弹窗：你点了「" + MessageBox::ButtonLabel(box.GetResult()) +
+                L"」，输入内容「" + edit->GetText() + L"」");
+            });
+        grid9->AddChild(tinputBtn, 8, 0);
+
+        // 自定义样式②：三个开关
+        auto tswitchBtn = std::make_shared<Button>(L"弹窗：三个开关");
+        tswitchBtn->Connect(tswitchBtn->Clicked, [w = &win, mbResult]() {
+            auto col = std::make_shared<ColumnBox>();
+            col->SetSpacing(8.0f);
+            auto s1 = std::make_shared<ToggleSwitch>(true);
+            auto s2 = std::make_shared<ToggleSwitch>(false);
+            auto s3 = std::make_shared<ToggleSwitch>(true);
+            col->AddChild(s1); col->AddChild(s2); col->AddChild(s3);
+            MessageBox box(w, L"三个开关", col, MessageBox::Icon::None, FastButton::OK | FastButton::Cancel);
+            if (mbResult) mbResult->SetText(std::wstring(L"开关弹窗：") + (s1->IsOn() ? L"开" : L"关") + L"/" +
+                (s2->IsOn() ? L"开" : L"关") + L"/" + (s3->IsOn() ? L"开" : L"关") +
+                L"，你点了「" + MessageBox::ButtonLabel(box.GetResult()) + L"」");
+            });
+        grid9->AddChild(tswitchBtn, 8, 1);
+
+        // 自定义样式③：密集交叉测试（把嵌套页那段布局直接塞进弹窗）
+        auto tdenseBtn = std::make_shared<Button>(L"弹窗：密集交叉测试");
+        tdenseBtn->Connect(tdenseBtn->Clicked, [w = &win, mbResult]() {
+            auto grid = std::make_shared<GridLayout>();
+            grid->SetSpacing(6, 6);
+            auto l1 = std::make_shared<Label>(L"密集交叉测试：多个下拉框与控件混合");
+            grid->AddChild(l1, 0, 0, 1, 4);
+            auto c1 = std::make_shared<ComboBox>();
+            c1->AddItem(L"选项1-A"); c1->AddItem(L"选项1-B"); c1->AddItem(L"选项1-C");
+            grid->AddChild(c1, 1, 0);
+            auto bA = std::make_shared<Button>(L"按钮A"); grid->AddChild(bA, 1, 1);
+            auto c2 = std::make_shared<ComboBox>();
+            c2->AddItem(L"选项2-A"); c2->AddItem(L"选项2-B");
+            grid->AddChild(c2, 1, 2);
+            auto st1 = std::make_shared<Label>(L"状态1"); grid->AddChild(st1, 1, 3);
+            auto l2 = std::make_shared<Label>(L"固定文本"); grid->AddChild(l2, 2, 0);
+            auto c3 = std::make_shared<ComboBox>();
+            c3->AddItem(L"选项3-A"); c3->AddItem(L"选项3-B");
+            grid->AddChild(c3, 2, 1);
+            auto sl = std::make_shared<Slider>(); grid->AddChild(sl, 2, 2);
+            auto bB = std::make_shared<Button>(L"按钮B"); grid->AddChild(bB, 2, 3);
+            MessageBox box(w, L"密集交叉测试", grid, MessageBox::Icon::None, FastButton::OK | FastButton::Cancel);
+            if (mbResult) mbResult->SetText(L"密集弹窗：你点了「" + MessageBox::ButtonLabel(box.GetResult()) + L"」");
+            });
+        grid9->AddChild(tdenseBtn, 9, 0, 1, 2);
+
+
         auto tclose = std::make_shared<Button>(L"关闭主窗口");
         tclose->Connect(tclose->Clicked, [w = &win]() { w->Close(); });
         grid9->AddChild(tclose, 4, 0, 1, 2);

@@ -1628,6 +1628,65 @@ win.SetCustomTitleBar(bar);            // 安装；win.SetCustomTitleBar(nullptr
 - 标题栏自身矩形（按钮以外）是窗口的**拖动区域**，拖动 / Aero Snap / 双击最大化都交给系统。
 - **不建议**把标题栏手动 `AddChild` 进布局（它不参与布局，由 `Window::SetCustomTitleBar` 统一管理）；文档不禁止，但行为由使用者自负。
 
+## MessageBox / FastButton
+
+预设消息框，复用 `Window` / `DefaultTitleBar` / `Window::RunModal`。本体就是 `Window`，可直接往里加控件。
+
+```cpp
+enum class FastButton : unsigned {   // 位标志，可 | 组合
+    None = 0, OK = 1 << 0, Cancel = 1 << 1, Apply = 1 << 2,
+    Close = 1 << 3, Yes = 1 << 4, No = 1 << 5, Help = 1 << 6
+};
+FastButton operator|(FastButton, FastButton);
+FastButton operator&(FastButton, FastButton);
+bool HasFlag(FastButton set, FastButton flag);      // 按位判定
+
+class MessageBox : public Window {
+    enum class Icon { None, Info, Warning, Error, Question };
+    enum class Lang { English, Chinese };
+
+    // 快速调用：构造即建窗；blocking=true 时构造内直接跑完模态循环
+    MessageBox(Window* parent, const std::wstring& title, const std::wstring& content,
+               Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true);
+    MessageBox(HWND parent, const std::wstring& title, const std::wstring& content, ...);
+    MessageBox(const std::wstring& title, const std::wstring& content, ...);   // 无父
+    // content 也可直接传控件（Label / TextBox / GridLayout …）
+    MessageBox(Window* parent, const std::wstring& title, std::shared_ptr<UIElement> content, ...);
+
+    static void SetLanguage(Lang);                          // 按钮文本预置中英，默认 English
+    static Lang GetLanguage();
+    static std::wstring ButtonLabel(FastButton);
+    void SetButtonText(FastButton, const std::wstring&);    // 单独改某个按钮文本
+    void SetIconImage(std::shared_ptr<Image>);              // 自定义图标（默认内置系统图标）
+    void SetUserContent(std::shared_ptr<UIElement>);        // 调用后不放任何按钮，全交给用户
+    void EndDialog(FastButton);                             // 自定义内容时用户主动结束
+
+    FastButton GetResult() const;
+    ZSignal<FastButton> ButtonClicked;
+};
+```
+
+```cpp
+ZUI::MessageBox box(owner, L"标题", L"正文", MessageBox::Icon::Info,
+                    FastButton::Yes | FastButton::No | FastButton::Cancel);
+if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }
+```
+
+- 按钮显示顺序（左→右）：`Yes No OK Apply Cancel Close Help`；**Enter = 最左侧按钮，ESC = Cancel/Close（没有则最左）**；按钮整体靠右。
+- `parent` 可为 `Window*` / `HWND` / 省略（不继承、无父）；是 owned 窗口（不进任务栏）、不可调整大小、只留关闭按钮。
+- 按内容自适应高度；文本被截断的按钮**悬停会自动浮出完整文本**（`SetToolTip` 设置过的优先）。
+- 自定义：`SetUserContent`（之后没有预设按钮）或直接用带 `shared_ptr<UIElement>` 的构造；需要自己控制流程时用 `blocking=false` 建窗后自行 `RunModal`。
+- 注意：`windows.h` 里 `MessageBox` 是 `MessageBoxW` 的宏，本库在 `ZUIWindowTool.h` 中 `#undef` 掉它；要用 Win32 的请显式写 `MessageBoxW/A`。
+
+## 窗口级钩子（可重写）
+
+```cpp
+virtual bool OnWindowKeyDown(int vk);   // 在派发给焦点元素前调用，返回 true 表示已处理
+virtual bool OnWindowTimer(int id);     // WM_TIMER
+virtual void OnWindowSize();            // WM_SIZE（依赖客户区宽度的收尾布局）
+void SetInputBlocked(bool on);          // 屏蔽本窗口鼠标/键盘输入
+```
+
 ###chapter: 附录 | 信号一览、默认值速查与常见坑
 
 ## 信号一览（更新后）

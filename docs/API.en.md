@@ -1556,6 +1556,65 @@ win.SetCustomTitleBar(bar);            // install; win.SetCustomTitleBar(nullptr
 - The title bar's own rect (excluding buttons) is the window **drag region**; dragging / Aero Snap / double-click maximize are handled by the system.
 - It is **not recommended** to `AddChild` the title bar into a layout (it does not participate); use `Window::SetCustomTitleBar`.
 
+## MessageBox / FastButton
+
+Preset message box built on `Window` / `DefaultTitleBar` / `Window::RunModal`. It *is* a `Window`, so you can add any controls to it.
+
+```cpp
+enum class FastButton : unsigned {   // bit flags, combine with |
+    None = 0, OK = 1 << 0, Cancel = 1 << 1, Apply = 1 << 2,
+    Close = 1 << 3, Yes = 1 << 4, No = 1 << 5, Help = 1 << 6
+};
+FastButton operator|(FastButton, FastButton);
+FastButton operator&(FastButton, FastButton);
+bool HasFlag(FastButton set, FastButton flag);      // bit test
+
+class MessageBox : public Window {
+    enum class Icon { None, Info, Warning, Error, Question };
+    enum class Lang { English, Chinese };
+
+    // Quick call: creates the window in the ctor; blocking=true runs the modal loop inside the ctor
+    MessageBox(Window* parent, const std::wstring& title, const std::wstring& content,
+               Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true);
+    MessageBox(HWND parent, const std::wstring& title, const std::wstring& content, ...);
+    MessageBox(const std::wstring& title, const std::wstring& content, ...);   // no parent
+    // content can also be a control (Label / TextBox / GridLayout ...)
+    MessageBox(Window* parent, const std::wstring& title, std::shared_ptr<UIElement> content, ...);
+
+    static void SetLanguage(Lang);                          // preset EN/ZH button text, default English
+    static Lang GetLanguage();
+    static std::wstring ButtonLabel(FastButton);
+    void SetButtonText(FastButton, const std::wstring&);    // override one button's text
+    void SetIconImage(std::shared_ptr<Image>);              // custom icon (default: built-in system icon)
+    void SetUserContent(std::shared_ptr<UIElement>);        // afterwards no preset buttons; fully user-controlled
+    void EndDialog(FastButton);                             // end manually with custom content
+
+    FastButton GetResult() const;
+    ZSignal<FastButton> ButtonClicked;
+};
+```
+
+```cpp
+ZUI::MessageBox box(owner, L"Title", L"Body", MessageBox::Icon::Info,
+                    FastButton::Yes | FastButton::No | FastButton::Cancel);
+if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }
+```
+
+- Button order (left to right): `Yes No OK Apply Cancel Close Help`; **Enter = leftmost button, ESC = Cancel/Close (leftmost if absent)**; buttons are right-aligned.
+- `parent` may be a `Window*` / `HWND` / omitted; it is an owned window (no taskbar button), not resizable, close button only.
+- Height auto-fits the content; a **truncated button shows its full text as a tooltip on hover** (a user `SetToolTip` wins).
+- Customize with `SetUserContent` (no preset buttons afterwards) or the `shared_ptr<UIElement>` ctor; for full flow control build with `blocking=false` and call `RunModal` yourself.
+- Note: `windows.h` defines `MessageBox` as a macro for `MessageBoxW`; this library `#undef`s it in `ZUIWindowTool.h`. Use `MessageBoxW/A` explicitly for Win32.
+
+## Window-level hooks (overridable)
+
+```cpp
+virtual bool OnWindowKeyDown(int vk);   // called before dispatching to the focused element; true = handled
+virtual bool OnWindowTimer(int id);     // WM_TIMER
+virtual void OnWindowSize();            // WM_SIZE (final layout that depends on client width)
+void SetInputBlocked(bool on);          // block mouse/keyboard input for this window
+```
+
 ###chapter: Appendix | Signal list, default values, and common pitfalls
 
 ## Signal list (updated)

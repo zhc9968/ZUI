@@ -11,6 +11,16 @@
 #include "ZUIImages.h"
 #include <vector>
 #include <memory>
+#include <unordered_map>
+#include <shellapi.h>
+#include <shlobj.h>
+#pragma comment(lib, "shell32.lib")
+
+// windows.h 里 MessageBox 是 MessageBoxW 的宏，会和 ZUI::MessageBox 撞；这里撤掉宏。
+// 之后要用 Win32 的请显式写 MessageBoxW / MessageBoxA。
+#ifdef MessageBox
+#undef MessageBox
+#endif
 
 namespace ZUI {
 
@@ -452,5 +462,281 @@ namespace ZUI {
     private:
         std::shared_ptr<CaptionButton> minBtn_, maxBtn_, closeBtn_;
     };
+
+    // ============================================================================
+    // FastButton —— 预设按钮标识符（每个占一个二进制位，用 | 组合）
+    //   MessageBox box(parent, title, content, icon, FastButton::Yes | FastButton::No | FastButton::Cancel);
+    //   if (HasFlag(box.GetResult(), FastButton::Yes)) { ... }
+    // ============================================================================
+    enum class FastButton : unsigned {
+        None   = 0u,
+        OK     = 1u << 0,
+        Cancel = 1u << 1,
+        Apply  = 1u << 2,
+        Close  = 1u << 3,
+        Yes    = 1u << 4,
+        No     = 1u << 5,
+        Help   = 1u << 6,
+    };
+    inline FastButton operator|(FastButton a, FastButton b) { return (FastButton)((unsigned)a | (unsigned)b); }
+    inline FastButton operator&(FastButton a, FastButton b) { return (FastButton)((unsigned)a & (unsigned)b); }
+    inline FastButton& operator|=(FastButton& a, FastButton b) { a = a | b; return a; }
+    inline bool HasFlag(FastButton set, FastButton flag) { return ((unsigned)set & (unsigned)flag) != 0u; }
+
+    // ============================================================================
+    // MessageBox —— 预设消息框（快速调用）+ 完全自定义。复用 Window / RunModal，不另起机制。
+    //
+    // 快速调用（构造即建窗；blocking=true 时构造内直接跑模态循环）：
+    //   ZUI::MessageBox box(parent, L"标题", L"正文", MessageBox::Icon::Info,
+    //                       FastButton::Yes | FastButton::No | FastButton::Cancel);
+    //   FastButton r = box.GetResult();
+    //
+    //   * parent 可为 ZUI::Window* / HWND / 省略（不继承、无父）
+    //   * content 可为文字，也可直接传控件（Label/TextBox/GridLayout…）
+    //   * icon 为内置图标标识符；也可 SetIconImage(图片对象)
+    //   * 按钮文本预置中文+英文，默认英文；SetLanguage 切换；SetButtonText 单独改
+    //   * Enter 选最左侧按钮；ESC 选 Cancel/Close（没有则最左）
+    //   * SetUserContent 后不再放任何按钮，全部交给用户（自己加按钮 / 自己 EndDialog）
+    // ============================================================================
+    class MessageBox : public Window {
+    public:
+        enum class Icon { None, Info, Warning, Error, Question };
+        enum class Lang { English, Chinese };
+
+        // ---------- 快速调用 ----------
+        MessageBox(Window* parent, const std::wstring& title, const std::wstring& content,
+                   Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true)
+            : blocking_(blocking) { Init(parent ? parent->GetHwnd() : nullptr, parent, title, content, icon, buttons); }
+        MessageBox(HWND parent, const std::wstring& title, const std::wstring& content,
+                   Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true)
+            : blocking_(blocking) { Init(parent, nullptr, title, content, icon, buttons); }
+        MessageBox(const std::wstring& title, const std::wstring& content,
+                   Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true)
+            : blocking_(blocking) { Init(nullptr, nullptr, title, content, icon, buttons); }
+        // content 直接传控件
+        MessageBox(Window* parent, const std::wstring& title, std::shared_ptr<UIElement> content,
+                   Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true)
+            : blocking_(blocking) { contentEl_ = content; Init(parent ? parent->GetHwnd() : nullptr, parent, title, L"", icon, buttons); }
+        MessageBox(HWND parent, const std::wstring& title, std::shared_ptr<UIElement> content,
+                   Icon icon = Icon::None, FastButton buttons = FastButton::OK, bool blocking = true)
+            : blocking_(blocking) { contentEl_ = content; Init(parent, nullptr, title, L"", icon, buttons); }
+
+        // ---------- 语言 / 文本 ----------
+        static void SetLanguage(Lang l) { s_lang_ = l; }
+        static Lang GetLanguage() { return s_lang_; }
+        // 预设按钮的显示文本（按当前语言）
+        static std::wstring ButtonLabel(FastButton b) { return TextOf(b, s_lang_); }
+        // 单独改某个按钮的文本
+        void SetButtonText(FastButton which, const std::wstring& text) { customText_[KeyOf(which)] = text; }
+
+        // ---------- 完全自定义：调用后不放任何按钮，一切交给用户 ----------
+        void SetUserContent(std::shared_ptr<UIElement> content) {
+            userContent_ = content;
+            if (!built_) return;
+            auto root = GetRootColumnBox();
+            if (!root) return;
+            root->ClearChildren();
+            if (content) root->AddChild(content);
+            buttonsView_.clear();
+            buttonRow_.reset();
+            textLabel_.reset();
+        }
+        void SetIconImage(std::shared_ptr<Image> img) {
+            iconImage_ = img;
+            if (textLabel_) { textLabel_->SetImage(img); if (img) textLabel_->SetIconSize(32.0f, 32.0f); }
+        }
+
+        FastButton GetResult() const { return result_; }
+        ZSignal<FastButton> ButtonClicked;   // 点了哪个按钮
+        void EndDialog(FastButton r) {        // 自定义内容时用户主动结束
+            if (done_) return;
+            done_ = true;
+            result_ = r;
+            ButtonClicked.Fire(r);
+            Close();
+        }
+
+    protected:
+        bool OnWindowKeyDown(int vk) override {
+            if (vk == VK_RETURN) { if ((unsigned)defaultButton_) EndDialog(defaultButton_); return true; }
+            if (vk == VK_ESCAPE) { EndDialog((unsigned)cancelButton_ ? cancelButton_ : defaultButton_); return true; }
+            return false;
+        }
+        // 窗口尺寸变化后，按最终客户区宽重摆按钮（靠右）
+        void OnWindowSize() override {
+            if (built_ && buttonRow_) RightAlignButtons();
+        }
+
+    private:
+        static int KeyOf(FastButton b) {
+            for (int i = 0; i < 7; ++i) if (((unsigned)b >> i) & 1u) return i;
+            return -1;
+        }
+        static std::wstring TextOf(FastButton b, Lang lang) {
+            switch (b) {
+            case FastButton::OK:     return lang == Lang::Chinese ? L"确定" : L"OK";
+            case FastButton::Cancel: return lang == Lang::Chinese ? L"取消" : L"Cancel";
+            case FastButton::Apply:  return lang == Lang::Chinese ? L"应用" : L"Apply";
+            case FastButton::Close:  return lang == Lang::Chinese ? L"关闭" : L"Close";
+            case FastButton::Yes:    return lang == Lang::Chinese ? L"是" : L"Yes";
+            case FastButton::No:     return lang == Lang::Chinese ? L"否" : L"No";
+            case FastButton::Help:   return lang == Lang::Chinese ? L"帮助" : L"Help";
+            default: return L"?";
+            }
+        }
+        static std::shared_ptr<Image> StockIcon(Icon icon) {
+            SHSTOCKICONID sid = (SHSTOCKICONID)0;
+            switch (icon) {
+            case Icon::Info:     sid = SIID_INFO;    break;
+            case Icon::Warning:  sid = SIID_WARNING; break;
+            case Icon::Error:    sid = SIID_ERROR;   break;
+            case Icon::Question: sid = SIID_HELP;    break;
+            default: return nullptr;
+            }
+            SHSTOCKICONINFO sii = {};
+            sii.cbSize = sizeof(sii);
+            if (SUCCEEDED(SHGetStockIconInfo(sid, SHGSI_ICON | SHGSI_LARGEICON, &sii)) && sii.hIcon) {
+                auto img = Image::FromHICON(sii.hIcon);
+                DestroyIcon(sii.hIcon);
+                return img;
+            }
+            return nullptr;
+        }
+
+        void Init(HWND parentHwnd, Window* parentWin, const std::wstring& title, const std::wstring& content,
+                  Icon icon, FastButton buttons);
+        void ApplyButtons();
+        void RightAlignButtons();   // 靠右（按真实客户区宽；须在最终窗口尺寸之后调用）
+
+        std::wstring title_, content_;
+        Icon iconKind_ = Icon::None;
+        FastButton buttons_ = FastButton::OK;
+        std::shared_ptr<Label> textLabel_;
+        std::shared_ptr<RowBox> buttonRow_;
+        std::shared_ptr<UIElement> contentEl_;    // 构造时传入的控件
+        std::shared_ptr<UIElement> userContent_;  // SetUserContent
+        std::shared_ptr<Image> iconImage_;
+        std::vector<std::shared_ptr<Button>> buttonsView_;
+        std::unordered_map<int, std::wstring> customText_;
+        FastButton result_ = FastButton::None;
+        FastButton defaultButton_ = FastButton::None;
+        FastButton cancelButton_ = FastButton::None;
+        int builtWidth_ = 460;
+        bool blocking_ = true;
+        bool done_ = false;
+        bool built_ = false;
+
+        static inline Lang s_lang_ = Lang::English;
+    };
+
+    inline void MessageBox::Init(HWND parentHwnd, Window* parentWin, const std::wstring& title,
+                                 const std::wstring& content, Icon icon, FastButton buttons) {
+        title_ = title.empty() ? L"Message" : title;
+        content_ = content;
+        iconKind_ = icon;
+        buttons_ = buttons;
+
+        if (parentWin) SetOwner(parentWin);
+        if (!Create(builtWidth_, 180, title_)) return;
+        SetResizable(false);
+        SetWindowStyleFlag(WS_MINIMIZEBOX, false);
+        SetWindowStyleFlag(WS_MAXIMIZEBOX, false);
+        if (parentHwnd && !parentWin) SetWindowLongPtr(GetHwnd(), GWLP_HWNDPARENT, (LONG_PTR)parentHwnd);
+
+        auto root = GetRootColumnBox();
+        if (root) {
+            if (userContent_) {
+                root->AddChild(userContent_);   // 全交给用户：不放按钮
+            }
+            else {
+                if (contentEl_) {
+                    root->AddChild(contentEl_);
+                }
+                else {
+                    auto lbl = std::make_shared<Label>(content_);
+                    lbl->SetTextOverflow(Label::TextOverflow::Wrap);
+                    auto img = iconImage_ ? iconImage_ : StockIcon(iconKind_);
+                    if (img) { lbl->SetImage(img); lbl->SetIconSize(32.0f, 32.0f); }
+                    textLabel_ = lbl;
+                    root->AddChild(lbl);
+                }
+                buttonRow_ = std::make_shared<RowBox>();
+                buttonRow_->SetSpacing(8.0f);
+                root->AddChild(buttonRow_);
+                ApplyButtons();
+
+                // 自适应高度：root->Measure() 不含其自身 margin，需手补；宽度用真实客户区
+                Thickness rm = root->GetMargin();
+                RECT wr0, cr0; GetWindowRect(GetHwnd(), &wr0); GetClientRect(GetHwnd(), &cr0);
+                int dpi = (int)GetDpiForWindow(GetHwnd()); if (dpi <= 0) dpi = 96;
+                int frameW = (wr0.right - wr0.left) - (cr0.right - cr0.left);
+                int frameH = (wr0.bottom - wr0.top) - (cr0.bottom - cr0.top);
+                float clientW = (float)(builtWidth_ - MulDiv(frameW, 96, dpi));
+                if (clientW < 60.0f) clientW = 60.0f;
+                Size want = root->Measure(Size(clientW, 0.0f));
+                int clientH = (int)ceil(want.height + rm.top + rm.bottom);
+                if (clientH < 90) clientH = 90;
+                SetSize(builtWidth_, clientH + MulDiv(frameH, 96, dpi));
+                RightAlignButtons();   // 最终尺寸定下来后再摆一次按钮（时机：必须在 SetSize 之后）
+            }
+        }
+        built_ = true;
+        Show();
+        if (blocking_) RunModal(parentWin);   // 阻塞：构造内跑完模态循环
+    }
+
+    inline void MessageBox::ApplyButtons() {
+        defaultButton_ = FastButton::None;
+        cancelButton_ = FastButton::None;
+        buttonsView_.clear();
+        if (!buttonRow_) return;
+        buttonRow_->ClearChildren();
+        // 显示顺序（左→右）：Yes No OK Apply Cancel Close Help —— Enter 选最左侧存在的那个
+        static const FastButton kOrder[] = { FastButton::Yes, FastButton::No, FastButton::OK, FastButton::Apply,
+                                             FastButton::Cancel, FastButton::Close, FastButton::Help };
+        for (FastButton b : kOrder) {
+            if (!HasFlag(buttons_, b)) continue;
+            int key = KeyOf(b);
+            std::wstring text = (customText_.count(key) ? customText_[key] : TextOf(b, s_lang_));
+            auto btn = std::make_shared<Button>(text);
+            btn->Connect(btn->Clicked, [this, b]() { EndDialog(b); });   // 尺寸用 Button 自己的（默认/用户设置），不写死
+            buttonRow_->AddChild(btn);
+            buttonsView_.push_back(btn);
+            if ((unsigned)defaultButton_ == 0u) defaultButton_ = b;                        // 最左 = Enter 默认
+            if (b == FastButton::Cancel || b == FastButton::Close) cancelButton_ = b;      // ESC 默认
+        }
+        RightAlignButtons();
+    }
+
+    // 按钮靠右：RowBox 不分配剩余空间，用左外边距把整排推到右边（按真实客户区宽）
+    inline void MessageBox::RightAlignButtons() {
+        if (!buttonRow_) return;
+        int n = (int)buttonsView_.size();
+        if (n <= 0) { buttonRow_->SetMargin(Thickness(0, 0, 0, 0)); return; }
+        // 按每个按钮“实际宽度”求和（不写死宽度）：优先已布局宽度，其次期望宽度，最后显式宽度
+        float total = 0.0f;
+        for (auto& b : buttonsView_) {
+            float w = b->GetArrangedRect().width;
+            if (w <= 0.0f) w = b->GetDesiredSize().width;
+            if (w <= 0.0f) w = b->GetWidth();
+            if (w <= 0.0f) w = 100.0f;
+            total += w;
+        }
+        if (n > 1) total += (n - 1) * buttonRow_->GetSpacing();
+        float clientW = (float)builtWidth_;
+        if (GetHwnd()) {
+            RECT cr; GetClientRect(GetHwnd(), &cr);
+            int dpi = (int)GetDpiForWindow(GetHwnd()); if (dpi <= 0) dpi = 96;
+            if (cr.right > cr.left) clientW = (float)(cr.right - cr.left) * 96.0f / (float)dpi;
+        }
+        float contentW = clientW;
+        if (auto root = GetRootColumnBox()) {
+            Thickness m = root->GetMargin();
+            contentW = clientW - m.left - m.right;
+        }
+        float left = contentW - total;
+        if (left < 0.0f) left = 0.0f;
+        buttonRow_->SetMargin(Thickness(left, 0, 0, 0));
+    }
 
 } // namespace ZUI

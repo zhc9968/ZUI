@@ -451,6 +451,19 @@ namespace ZUI {
             RequestRepaint();
         }
         std::wstring GetText() const { return text_; }
+        // 悬停时：若文本被截断，自动用完整文本当 tooltip；用户设置过的 tooltip 优先
+        std::wstring GetToolTip() const override {
+            std::wstring custom = UIElement::GetToolTip();
+            if (!custom.empty()) return custom;
+            if (text_.empty()) return L"";
+            float availW = GetArrangedRect().width - padding_ * 2.0f;
+            if (availW <= 0.0f) return L"";
+            IDWriteTextFormat* fmt = FontManager::Instance().GetFormat(GetEffectiveFontSpec());
+            if (!fmt) return L"";
+            // GetDisplayLayout 非空 = 需要截断显示（即文本放不下）
+            IDWriteTextLayout* layout = FontManager::Instance().GetDisplayLayout(text_, fmt, availW, 1.0e6f, true);
+            return layout ? text_ : L"";
+        }
         void SetColors(Color normal, Color hover, Color pressed) {
             normalColor_ = normal; hoverColor_ = hover; pressedColor_ = pressed; bgBrush_.Reset(); RequestRepaint();
         }
