@@ -30,6 +30,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         MessageBoxW(nullptr, L"这是全局右键菜单", L"提示", MB_OK);
         });
     globalMenu->AddSeparator();
+
     auto subMenu = std::make_shared<Menu>();
     subMenu->AddItem(L"子项1", []() { MessageBoxW(nullptr, L"点击了子项1", L"提示", MB_OK); });
     subMenu->AddItem(L"子项2", []() { MessageBoxW(nullptr, L"点击了子项2", L"提示", MB_OK); });
