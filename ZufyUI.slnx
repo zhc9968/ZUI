@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="ZUI.vcxproj" Id="4830f903-064f-4537-8726-f3bcc395416c" />
+  <Project Path="ZufyUI.vcxproj" Id="4830f903-064f-4537-8726-f3bcc395416c" />
 </Solution>

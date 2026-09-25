@@ -15,21 +15,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ZUI.h">
+    <ClInclude Include="ZufyUI.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="ZDataViewer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ZUIWidgets.h">
+    <ClInclude Include="ZufyUIWidgets.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ZUIImages.h">
+    <ClInclude Include="ZufyUIImages.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ZUI.cpp">
+    <ClCompile Include="ZufyUI.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -37,7 +37,7 @@
     <Image Include="small.ico">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="ZUI.ico">
+    <Image Include="ZufyUI.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

@@ -1,15 +1,15 @@
-﻿// main.cpp - ZUI 综合自动化布局测试（使用 Connect 自动管理连接）
-#define ZUI_DEBUG
+﻿// main.cpp - ZufyUI 综合自动化布局测试（使用 Connect 自动管理连接）
+#define ZufyUI_DEBUG
 #include "ZDataViewer.h"
-#include "ZUIWindowTool.h"
+#include "ZufyUIWindowTool.h"
 
-using namespace ZUI;
+using namespace ZufyUI;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     // 演示程序自己的默认背景：亚克力 + 半透明白色着色。
     // 库的默认是 Backdrop::None（不替应用决定），所以不透明/着色都由应用这里指定。
     Window::SetDefaultBackdrop(Backdrop::Acrylic, 0x80FFFFFF);
-    const wchar_t* kTitle = L"ZUI 自动化布局综合测试 " ZUI_VERSION_STRING;
+    const wchar_t* kTitle = L"ZufyUI 自动化布局综合测试 " ZufyUI_VERSION_STRING;
     Window win;
     if (!win.Create(1000, 700, kTitle)) {
         MessageBoxW(nullptr, L"窗口创建失败", L"错误", MB_ICONERROR);
@@ -36,7 +36,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     globalMenu->AddSubmenu(L"更多操作", subMenu);
     globalMenu->AddSeparator();
     globalMenu->AddItem(L"关于", []() {
-        MessageBoxW(nullptr, L"ZUI 综合测试程序 v1.0", L"关于", MB_OK);
+        MessageBoxW(nullptr, L"ZufyUI 综合测试程序 v1.0", L"关于", MB_OK);
         });
     win.SetContextMenu(globalMenu);
 
@@ -747,7 +747,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         tree->AddChild(docs, std::vector<std::wstring>{ L"API.md", L"20 KB", L"文本" })->icon = L"\u2022";
         auto buildDir = tree->AddRoot(std::vector<std::wstring>{ L"build", L"", L"文件夹" });
         buildDir->icon = L"\u25A0";
-        tree->AddChild(buildDir, std::vector<std::wstring>{ L"ZUI.exe", L"600 KB", L"程序" })->icon = L"\u2022";
+        tree->AddChild(buildDir, std::vector<std::wstring>{ L"ZufyUI.exe", L"600 KB", L"程序" })->icon = L"\u2022";
         tree->ExpandAll();
         tree->SetSelectedNode(proj);
 
@@ -943,7 +943,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         auto tmsgBtn = std::make_shared<Button>(L"消息框 (预设 FastButton)");
         tmsgBtn->Connect(tmsgBtn->Clicked, [w = &win, mbResult]() {
             MessageBox box(w, L"提示",
-                L"这是一个 ZUI 消息框：图标 + 文字 + 按钮。\n按钮用 FastButton 位标志组合，结果可按位判定。",
+                L"这是一个 ZufyUI 消息框：图标 + 文字 + 按钮。\n按钮用 FastButton 位标志组合，结果可按位判定。",
                 MessageBox::Icon::Info, FastButton::Yes | FastButton::No | FastButton::Cancel);
             FastButton r = box.GetResult();
             if (mbResult) mbResult->SetText(L"预设弹窗：你点了「" + MessageBox::ButtonLabel(r) + L"」" +

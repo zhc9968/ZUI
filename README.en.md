@@ -1,15 +1,17 @@
-﻿# ZUI
+﻿# ZufyUI
+
+> **Renamed: `ZUI` → `ZufyUI`** (to avoid clashes with other projects of the same name). Old repository URLs are redirected by the platform to the new address (see links below).
 
 > A C++ native Win32 custom-drawn UI framework based on Direct2D, with layout, controls, signals/slots, and high-DPI adaptation.
 
 > Language: **English** · [简体中文](README.md)
 
-ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D / DirectWrite / DWM. It does not depend on Qt, MFC, or any third-party library; it packs controls, layout, animation, fonts, data views, and signals/slots into a handful of `.h` files, making it suitable for native C++ applications that want a lightweight, controllable, modern look.
+ZufyUI is a **header-only** Windows desktop UI framework built directly on Direct2D / DirectWrite / DWM. It does not depend on Qt, MFC, or any third-party library; it packs controls, layout, animation, fonts, data views, and signals/slots into a handful of `.h` files, making it suitable for native C++ applications that want a lightweight, controllable, modern look.
 
-- Repository: GitHub <https://github.com/zhc9968/ZUI> · Gitee <https://gitee.com/zhc9968/zui>
+- Repository: GitHub <https://github.com/zhc9968/ZufyUI> · Gitee <https://gitee.com/zhc9968/ZufyUI>
 - License: MIT
-- Online docs: <https://zhc9968.github.io/ZUI/>
-- API Reference (English): <https://zhc9968.github.io/ZUI/docs/API.en.html>
+- Online docs: <https://zhc9968.github.io/ZufyUI/>
+- API Reference (English): <https://zhc9968.github.io/ZufyUI/docs/API.en.html>
 
 ## Features
 
@@ -35,29 +37,29 @@ ZUI is a **header-only** Windows desktop UI framework built directly on Direct2D
 
 ## Build
 
-1. Open the solution `ZUI.slnx` with Visual Studio;
+1. Open the solution `ZufyUI.slnx` with Visual Studio;
 2. Select the **Release | x64** configuration;
 3. Build the solution (Build Solution);
-4. The output is located at `x64\Release\ZUI.exe`; run it directly.
+4. The output is located at `x64\Release\ZufyUI.exe`; run it directly.
 
 Command-line build (requires MSBuild on PATH):
 
 ```bash
-msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
+msbuild ZufyUI.slnx /p:Configuration=Release /p:Platform=x64
 ```
 
-> `ZUI.cpp` is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own `WinMain`.
+> `ZufyUI.cpp` is a comprehensive demo program (left-side navigation + multiple test pages) that also serves as the framework's "smoke test". When building your own application, you only need to include the headers and write your own `WinMain`.
 
 ## Project structure
 
 ```text
-ZUI/
-├── ZUI.h              # Core: types / signals & slots / fonts / elements / layout / menus / window
-├── ZUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
+ZufyUI/
+├── ZufyUI.h              # Core: types / signals & slots / fonts / elements / layout / menus / window
+├── ZufyUIWidgets.h       # Basic controls: Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # Data views: ListView / TableView / TreeView
-├── ZUI.cpp            # Demo program entry point (WinMain)
-├── ZUI.slnx           # Solution
-├── ZUI.vcxproj        # Project file
+├── ZufyUI.cpp            # Demo program entry point (WinMain)
+├── ZufyUI.slnx           # Solution
+├── ZufyUI.vcxproj        # Project file
 ├── AGENTS.md          # Development principles (incl. "find the root cause before fixing any bug")
 └── docs/
     └── API.en.md      # Full API documentation
@@ -66,12 +68,12 @@ ZUI/
 ## Quick start
 
 ```cpp
-#include "ZUIWidgets.h"
-using namespace ZUI;
+#include "ZufyUIWidgets.h"
+using namespace ZufyUI;
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     Window win;
-    if (!win.Create(1000, 700, L"ZUI Demo"))
+    if (!win.Create(1000, 700, L"ZufyUI Demo"))
         return 1;
 
     auto root = win.GetRootColumnBox();
@@ -82,7 +84,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     auto btn = std::make_shared<Button>(L"Click me");
     btn->Connect(btn->Clicked, []() {
-        MessageBoxW(nullptr, L"Hello ZUI!", L"Info", MB_OK);
+        MessageBoxW(nullptr, L"Hello ZufyUI!", L"Info", MB_OK);
     });
 
     auto toggle = std::make_shared<ToggleSwitch>(false);
@@ -125,7 +127,7 @@ win.SetBackdrop(Backdrop::Mica, 0x00000000);   // Mica + fully transparent tint
 **Step 3: a custom title bar.**
 
 ```cpp
-#include "ZUIWindowTool.h"   // DefaultTitleBar lives here
+#include "ZufyUIWindowTool.h"   // DefaultTitleBar lives here
 
 auto bar = std::make_shared<DefaultTitleBar>();
 win.SetCustomTitleBar(bar);
@@ -135,14 +137,14 @@ win.SetCustomTitleBar(bar);
 
 A tour of the widgets (first page of the demo):
 
-![ZUI demo](docs/images/demo-main.png)
+![ZufyUI demo](docs/images/demo-main.png)
 
 ## Changelog
 
 ### 2026-09-20 — Performance work + backdrop API consolidation (v1.9.6)
 
 - **Performance**: page-switch peak memory 300–400MB → **capped at ~30MB**; layout rework (DesiredSize cache + two-level dirty flags; no more "clear all caches on any layout invalidation"; page switches no longer trigger a full relayout); no per-frame full-tree hit-testing while dragging/resizing; **global cross-widget text-layout cache** + binary-search ellipsis for `Label`; no per-element `GetDpi()`.
-- **Backdrop API consolidated to "a 3-way layer + an overlay colour"**: `Backdrop` is only `None / Acrylic / Mica`; **`BackdropMode` removed**; `ReloadAcrylic/ReloadMica` removed; new `SetBackgroundParams(layer, BackgroundParams/AcrylicPreset)` plus `AcrylicParams`/`MicaParams`. Acrylic/Mica are rendered by ZUI itself, **identical on Win10 and Win11**.
+- **Backdrop API consolidated to "a 3-way layer + an overlay colour"**: `Backdrop` is only `None / Acrylic / Mica`; **`BackdropMode` removed**; `ReloadAcrylic/ReloadMica` removed; new `SetBackgroundParams(layer, BackgroundParams/AcrylicPreset)` plus `AcrylicParams`/`MicaParams`. Acrylic/Mica are rendered by ZufyUI itself, **identical on Win10 and Win11**.
 - **Data views**: `ListView` gains `BeginUpdate/EndUpdate` for batched add/remove.
 - **Fixes**: sort now emits `SelectionChanged`; `ComboBox` filtering keeps the selection; `TextBox` undo stack; `CaptionButton` press behaviour; scrollbar divide-by-zero guards; image cache device epoch.
 
@@ -213,15 +215,15 @@ A tour of the widgets (first page of the demo):
 - `MenuWindow` positioning now uses `MonitorFromPoint` + `GetMonitorInfo`.
 - Removed several fallback/temporary bits (debug-only `PageHost` special case, unused `animationIdleFrames_`, etc.).
 
-**Demo (`ZUI.cpp`)**
+**Demo (`ZufyUI.cpp`)**
 
 - The main window now uses a **custom title bar**.
 - The separate small tool window was removed; the multi-window / owned / modal demos moved into a new **"Multi-window" page** of the main window.
-- Version bumped to **1.8.0** (new `ZUI_VERSION_STRING` etc. macros, referenced by the demo title).
+- Version bumped to **1.8.0** (new `ZufyUI_VERSION_STRING` etc. macros, referenced by the demo title).
 
-### 2026-09-16 — Custom title bar (ZUIWindowTool) and backdrop modes
+### 2026-09-16 — Custom title bar (ZufyUIWindowTool) and backdrop modes
 
-**New: custom title bar (new file `ZUIWindowTool.h`)**
+**New: custom title bar (new file `ZufyUIWindowTool.h`)**
 
 - `TitleBar` / `CaptionButton` / `DefaultTitleBar`: window-level controls installed as a non-layout overlay via `Window::SetCustomTitleBar`; pass `nullptr` to restore the native title bar.
 - The three caption buttons are drawn with the system icon font (`Segoe Fluent Icons` / `Segoe MDL2 Assets`, glyphs `E921/E922/E923/E8BB`), with **hover/press gradients** and red close hover `#C42B1C`; buttons report `HTMINBUTTON/HTMAXBUTTON/HTCLOSE` from `WM_NCHITTEST`, enabling the system **Snap Layouts**; clicks are handled in `WM_NCLBUTTONUP`; the title bar area is the **drag region** (drag / Aero Snap / double-click maximize handled by the system).
@@ -243,16 +245,16 @@ A tour of the widgets (first page of the demo):
 - Snapped windows keep the DWM border and shadow: `WM_NCCALCSIZE` insets only the edges snapped to the work area (using the actual `DWMWA_VISIBLE_FRAME_BORDER_THICKNESS`), and maximizing does not inset; `SWP_FRAMECHANGED` is sent when the maximize/snap state changes.
 - From maximized, dragging down from the top edge restores the window; the close button aligns with the native position.
 
-**Demo**: `ZUI.cpp` gained a "custom title bar window".
+**Demo**: `ZufyUI.cpp` gained a "custom title bar window".
 
 **Known limitations (important)**
 
-- ZUI currently renders through `ID2D1HwndRenderTarget` (an opaque redirection surface) and **cannot display DWM system materials**: `BackdropMode::Auto` uses AccentState on both Win10 and Win11, and `SystemBackdrop` is **not visible** until the render target is migrated to **DirectComposition** (it looks gray/black).
+- ZufyUI currently renders through `ID2D1HwndRenderTarget` (an opaque redirection surface) and **cannot display DWM system materials**: `BackdropMode::Auto` uses AccentState on both Win10 and Win11, and `SystemBackdrop` is **not visible** until the render target is migrated to **DirectComposition** (it looks gray/black).
 - AccentState acrylic is an undocumented API and makes DWM **skip window transition animations** (minimize/maximize) on both Win10 and Win11. Getting "acrylic + native animations + Mica" together requires migrating rendering to DirectComposition (SwapChain / CompositionSurface), which is planned.
 
 ### 2026-09-15 — Image system, window mechanisms, and root-cause fixes
 
-**Images (new `ZUIImages.h`)**
+**Images (new `ZufyUIImages.h`)**
 
 - New `Image`: WIC decoding + Direct2D (GPU) drawing/transforms. Loading: `FromFile / FromMemory / FromBase64 / FromResource(HMODULE,name,type) / FromResource(id,type) / FromHBITMAP / FromHICON`; transforms: `Scaled / ScaledToWidth / ScaledToHeight / Rotated / Mirrored / Cropped` (lightweight descriptors applied by the GPU at draw time); drawing: `Draw` (opacity / interpolation), `Bake`; encoding: `Save / Encode` (`CreateStreamOnHGlobal` memory stream, **no temp files**).
 - `ImageManager`: shared `IWICImagingFactory` and device-cache registry; `ImageDeviceCache`: one `ID2D1Bitmap` per render target, rebuilt on device loss. The same image is uploaded to the GPU once per window.
@@ -288,7 +290,7 @@ A tour of the widgets (first page of the demo):
 - Frame-time clamping: `deltaTime` in `OnPaint` is capped at `0.033s`, fixing animations that jumped straight to their end after an idle period or a restore from minimize.
 - `PageHost`: fixed a bug where, during a page transition, the same page was updated twice per frame, doubling the speed of animations nested inside it.
 - Timer precision: `timeBeginPeriod(1)` on window creation and `timeEndPeriod(1)` on destruction reduce animation jitter.
-- Debug output is now controlled by the `ZUI_DEBUG` macro (off by default; define it to enable); Release hot paths no longer build debug strings.
+- Debug output is now controlled by the `ZufyUI_DEBUG` macro (off by default; define it to enable); Release hot paths no longer build debug strings.
 - Performance / memory: `GetChildren()` now returns `const&` (reused buffer, no per-frame allocation); `ZSignal::Fire` uses a thread-local snapshot; `Compose` culls subtrees entirely outside the clip; the active-animation set reuses a buffer; `DrawSoftShadow` uses fixed-size arrays to avoid per-frame heap allocation.
 
 **Basic controls**
@@ -315,7 +317,7 @@ A tour of the widgets (first page of the demo):
 
 ### 2026-09-13 (cont.) — Multi-window support (`Application`)
 
-- New `ZUI::Application`: `app.CreateWindow(...)` to create windows and `app.Run()` for a single shared message loop, Qt style; windows are truly independent.
+- New `ZufyUI::Application`: `app.CreateWindow(...)` to create windows and `app.Run()` for a single shared message loop, Qt style; windows are truly independent.
 - Repaint/layout are routed per owning window (`UIElement::GetWindow()`); the DPI scale is now **thread-local** (set per window before drawing); `Window` gained instance signals `Activated` / `Deactivated` / `Closed`, and `UIZSignals::WindowDeactivated` / `GlobalMouseDown` now carry a `Window*`.
 - Closing one window no longer quits the app; it quits when the **last** window closes. The `ID2D1Factory` and `timeBeginPeriod` are shared by the app core.
 - All window-related global signals now carry a `Window*` (`DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated`, plus capture and repaint fallbacks); subscribers filter with `GetWindow()`. This fixes the cross-talk where window A's popup was drawn onto window B or clicking B wrongly collapsed A. Added `Window::SetPosition/SetSize/IsValid`.
@@ -329,9 +331,9 @@ A tour of the widgets (first page of the demo):
 
 ## Documentation
 
-- Online documentation: <https://zhc9968.github.io/ZUI/>
-- API Reference (English, 15 chapters): <https://zhc9968.github.io/ZUI/docs/API.en.html>
-- API 参考（中文）: <https://zhc9968.github.io/ZUI/docs/API.html>
+- Online documentation: <https://zhc9968.github.io/ZufyUI/>
+- API Reference (English, 15 chapters): <https://zhc9968.github.io/ZufyUI/docs/API.en.html>
+- API 参考（中文）: <https://zhc9968.github.io/ZufyUI/docs/API.html>
 
 ## License
 

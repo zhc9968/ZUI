@@ -1,6 +1,6 @@
-# ZUI API Reference
+# ZufyUI API Reference
 
-> This document covers the entire public API of the ZUI framework: core types, signals/slots, fonts, elements, layout, windows, basic controls, and data views.
+> This document covers the entire public API of the ZufyUI framework: core types, signals/slots, fonts, elements, layout, windows, basic controls, and data views.
 > Companion reading: [Project overview and build](../README.en.md).
 
 > **How to read this**: this is not a list of signatures. Each class is described as "what it is → what the framework does internally → what you must watch out for". Behavior, side effects, defaults, and pitfalls are spelled out so that you can use the API **correctly without ever having read the source code**.
@@ -9,8 +9,8 @@
 
 ## Namespace and headers
 
-- Everything lives in `namespace ZUI`.
-- Files: `ZUI.h` (core: types / signals / fonts / elements / layout / menus / window), `ZUIWidgets.h` (basic controls), `ZDataViewer.h` (data views). `ZUIWidgets.h` includes `ZUI.h`; `ZDataViewer.h` depends on both.
+- Everything lives in `namespace ZufyUI`.
+- Files: `ZufyUI.h` (core: types / signals / fonts / elements / layout / menus / window), `ZufyUIWidgets.h` (basic controls), `ZDataViewer.h` (data views). `ZufyUIWidgets.h` includes `ZufyUI.h`; `ZDataViewer.h` depends on both.
 - All three are header-only; `#pragma comment(lib, ...)` links `d2d1 / dwrite / dwmapi / imm32 / winmm` automatically.
 
 ## Units
@@ -124,7 +124,7 @@ inline float Snap(float dip);
 
 ## What this chapter solves
 
-ZUI's signals are not just "connect and forget" — they also handle **automatic disconnection on object destruction**. Understand the three actors to avoid dangling callbacks and leaks:
+ZufyUI's signals are not just "connect and forget" — they also handle **automatic disconnection on object destruction**. Understand the three actors to avoid dangling callbacks and leaks:
 
 - `ZSignal`: owns the slots (a list of `std::function`).
 - `Connection`: the handle of one connection; disconnects on destruction.
@@ -753,7 +753,7 @@ class Window {
 };
 ```
 
-`Backdrop` (**backdrop layer**, only three options): `None` (fully transparent), `Acrylic`, `Mica`. The second argument of `SetBackdrop` is the **overlay**: an ARGB colour composited on top of the layer (`A` = how much is revealed/covered, `RGB` = the colour). **`BackdropMode` no longer exists** — backdrops are always rendered by ZUI itself (no system material), so Win10 and Win11 look the same.
+`Backdrop` (**backdrop layer**, only three options): `None` (fully transparent), `Acrylic`, `Mica`. The second argument of `SetBackdrop` is the **overlay**: an ARGB colour composited on top of the layer (`A` = how much is revealed/covered, `RGB` = the colour). **`BackdropMode` no longer exists** — backdrops are always rendered by ZufyUI itself (no system material), so Win10 and Win11 look the same.
 
 **Behavior and pitfalls:**
 
@@ -768,7 +768,7 @@ class Window {
 - **`OwnedMinimizePolicy`**: how an owned child handles being minimized on its own. `None` does nothing; `Hide` intercepts minimize and hides, restoring when the owner restores/activates; `DisableMinimize` grays out the minimize button and ignores minimize-related messages.
 - **Dangling cleanup**: on destroy a window clears every reference other windows hold to it (`owner_` and hidden lists), so address reuse can never affect unrelated windows.
 - **Custom title bar**: `SetCustomTitleBar(bar)` installs a non-layout title bar control (see "Window tools"); the window places it at `(0,0)` and shifts the root layout down by its height. Pass `nullptr` to restore the native title bar (sends `SWP_FRAMECHANGED`). `SetTitleBarVisible(false)` hides it while keeping the custom frame.
-- **Backdrop (`Backdrop` is a 3-way layer + overlay colour)**: the layer is only `None / Acrylic / Mica`, and it is **always rendered by ZUI itself** — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).
+- **Backdrop (`Backdrop` is a 3-way layer + overlay colour)**: the layer is only `None / Acrylic / Mica`, and it is **always rendered by ZufyUI itself** — there is no "system vs manual" split and no system material (so Win10 and Win11 look the same).
   - `Acrylic`: our own DirectComposition implementation of the official acrylic recipe (Border noise tiling → Opacity → Gaussian blur → Luminosity/Color blends → noise multiply, plus a Saturation step and a `CompositeStep` for the tint so its alpha takes effect); source = **host backdrop** (the content behind the window).
   - `Mica`: reads the desktop wallpaper (`SPI_GETDESKWALLPAPER` + WIC) → blur / desaturate / white veil / noise, baked once into a bitmap placed on a **separate compositor layer** (below the content layer); moving the window only changes that layer's `Offset` (a pure translation, no resampling).
   - Parameters follow the "**4-layer model**" (Blur / Luminosity / Tint / Noise): `SetBackgroundParams(layer, BackgroundParams)` to set all of them, or `SetBackgroundParams(layer, AcrylicPreset)` for an official preset (`Legacy / Luminosity / Base / Thin`). `AcrylicParams` / `MicaParams` hold the defaults (the latter is a tuned look).
@@ -799,7 +799,7 @@ class Application {
 
 ```cpp
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    ZUI::Application app;
+    ZufyUI::Application app;
     auto w1 = app.CreateWindow(1000, 700, L"Main");
     auto w2 = app.CreateWindow(640, 480, L"Tool");
     // build each UI: w1->GetRootColumnBox()->AddChild(...)
@@ -820,7 +820,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **Per-window repaint/layout**: each element records its owning window (`UIElement::GetWindow()`); `RequestRepaint()` / `InvalidateLayout()` only affect that window — windows do not repaint each other.
 - **Per-window DPI**: the current DPI scale is **thread-local** and set per window before drawing, so mixed-DPI windows snap correctly.
 - **Per-window activation**: `Window` exposes instance signals `Activated` / `Deactivated` / `Closed`; global `UIZSignals::WindowDeactivated` now carries a `Window*`, and `GlobalMouseDown` carries a `Window*`. Controls such as ComboBox only react to their own window's events.
-- **Per-window overlay drawing**: global `UIZSignals::DrawOverlay` now carries a `Window*` (plus the render target); subscribers **must** filter with `GetWindow()`, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZUI's own controls already do this.
+- **Per-window overlay drawing**: global `UIZSignals::DrawOverlay` now carries a `Window*` (plus the render target); subscribers **must** filter with `GetWindow()`, otherwise window A's popup will be drawn onto window B — the classic multi-window cross-talk. ZufyUI's own controls already do this.
 - **Mouse capture**: Win32 `SetCapture` is used only while the mouse button is held (dragging) and is released on mouse-up (element-level logical capture is unaffected). This fixes ComboBoxes holding the thread-wide capture after expanding, which made other windows unusable.
 - **Modal / owned windows**: `Window::SetOwner(owner)` creates an owned child (stays above and minimizes with the owner); `Window::RunModal(owner)` runs a window modally (disables the owner, nested loop, restores on close). While modal, clicking the disabled owner **flashes** the modal window.
 - **Window handle & dangling**: elements store the owning window as an **id** (not a raw pointer); after the window is destroyed `GetWindow()` returns `nullptr`, eliminating crashes from elements holding a dangling window pointer.
@@ -1413,7 +1413,7 @@ class TreeView : public UIElement {
 
 ###chapter: Images | Image, ImageManager, ImageDeviceCache
 
-The image system lives in `ZUIImages.h`: WIC decoding plus Direct2D (GPU) drawing and transforms.
+The image system lives in `ZufyUIImages.h`: WIC decoding plus Direct2D (GPU) drawing and transforms.
 
 ## ImageManager / ImageDeviceCache
 
@@ -1489,7 +1489,7 @@ class Image {
 
 ###chapter: Window tools | Custom title bar TitleBar / CaptionButton / DefaultTitleBar
 
-Window-level controls live in `ZUIWindowTool.h` (a collection that will later also host a built-in MessageBox, etc.).
+Window-level controls live in `ZufyUIWindowTool.h` (a collection that will later also host a built-in MessageBox, etc.).
 
 ```cpp
 class TitleBar : public UIElement {
@@ -1595,7 +1595,7 @@ class MessageBox : public Window {
 ```
 
 ```cpp
-ZUI::MessageBox box(owner, L"Title", L"Body", MessageBox::Icon::Info,
+ZufyUI::MessageBox box(owner, L"Title", L"Body", MessageBox::Icon::Info,
                     FastButton::Yes | FastButton::No | FastButton::Cancel);
 if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }
 ```
@@ -1604,7 +1604,7 @@ if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }
 - `parent` may be a `Window*` / `HWND` / omitted; it is an owned window (no taskbar button), not resizable, close button only.
 - Height auto-fits the content; a **truncated button shows its full text as a tooltip on hover** (a user `SetToolTip` wins).
 - Customize with `SetUserContent` (no preset buttons afterwards) or the `shared_ptr<UIElement>` ctor; for full flow control build with `blocking=false` and call `RunModal` yourself.
-- Note: `windows.h` defines `MessageBox` as a macro for `MessageBoxW`; this library `#undef`s it in `ZUIWindowTool.h`. Use `MessageBoxW/A` explicitly for Win32.
+- Note: `windows.h` defines `MessageBox` as a macro for `MessageBoxW`; this library `#undef`s it in `ZufyUIWindowTool.h`. Use `MessageBoxW/A` explicitly for Win32.
 
 ## Window-level hooks (overridable)
 
@@ -1676,11 +1676,11 @@ void SetInputBlocked(bool on);          // block mouse/keyboard input for this w
 
 ```cpp
 #include "ZDataViewer.h"
-using namespace ZUI;
+using namespace ZufyUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Window win;
-    if (!win.Create(900, 600, L"ZUI Example")) return 1;
+    if (!win.Create(900, 600, L"ZufyUI Example")) return 1;
 
     auto root = win.GetRootColumnBox();
     root->SetSpacing(10);

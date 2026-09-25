@@ -1,8 +1,8 @@
 ﻿#pragma once
-#include "ZUI.h"
-#include "ZUIImages.h"
+#include "ZufyUI.h"
+#include "ZufyUIImages.h"
 
-namespace ZUI {
+namespace ZufyUI {
 
     enum class TextHAlign { Left, Center, Right };
 
@@ -3661,4 +3661,4 @@ namespace ZUI {
         ComPtr<ID2D1SolidColorBrush> labelBrush_;
     };
 
-} // namespace ZUI
+} // namespace ZufyUI

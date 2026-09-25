@@ -43,15 +43,15 @@
 #include <unordered_map>
 #include <deque>
 #include <array>
-#include "ZUIAcrylic.h"   // 手写 DComp 效果类 + 官方亚克力/云母配方（需放在 namespace ZUI 之前）
+#include "ZufyUIAcrylic.h"   // 手写 DComp 效果类 + 官方亚克力/云母配方（需放在 namespace ZufyUI 之前）
 
-// 调试输出宏：默认关闭，定义 ZUI_DEBUG 后启用（不删除调试代码）
-#ifdef ZUI_DEBUG
-#define ZUI_DEBUG_LOG_W(msg) OutputDebugStringW(msg)
-#define ZUI_DEBUG_LOG_A(msg) OutputDebugStringA(msg)
+// 调试输出宏：默认关闭，定义 ZufyUI_DEBUG 后启用（不删除调试代码）
+#ifdef ZufyUI_DEBUG
+#define ZufyUI_DEBUG_LOG_W(msg) OutputDebugStringW(msg)
+#define ZufyUI_DEBUG_LOG_A(msg) OutputDebugStringA(msg)
 #else
-#define ZUI_DEBUG_LOG_W(msg) ((void)0)
-#define ZUI_DEBUG_LOG_A(msg) ((void)0)
+#define ZufyUI_DEBUG_LOG_W(msg) ((void)0)
+#define ZufyUI_DEBUG_LOG_A(msg) ((void)0)
 #endif
 
 #pragma comment(lib, "imm32.lib")
@@ -70,11 +70,11 @@
 #undef CreateWindow
 #endif
 
-// ---------- ZUI 版本 ----------
-#define ZUI_VERSION_MAJOR 1
-#define ZUI_VERSION_MINOR 9
-#define ZUI_VERSION_PATCH 6
-#define ZUI_VERSION_STRING L"1.9.6"
+// ---------- ZufyUI 版本 ----------
+#define ZufyUI_VERSION_MAJOR 1
+#define ZufyUI_VERSION_MINOR 9
+#define ZufyUI_VERSION_PATCH 6
+#define ZufyUI_VERSION_STRING L"1.9.6"
 
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34
@@ -128,7 +128,7 @@
 #define DWMWCP_ROUNDSMALL 3
 #endif
 
-namespace ZUI {
+namespace ZufyUI {
 
     using Microsoft::WRL::ComPtr;
     using namespace ABI::Windows::UI::Composition;
@@ -269,11 +269,11 @@ namespace ZUI {
                         return DefWindowProc(hwnd, msg, wParam, lParam);
                         };
                     wc.hInstance = GetModuleHandle(nullptr);
-                    wc.lpszClassName = L"ZUI_DispatcherWindow";
+                    wc.lpszClassName = L"ZufyUI_DispatcherWindow";
                     RegisterClassExW(&wc);
                     classRegistered = true;
                 }
-                g_uiDispatcherWindow = CreateWindowExW(0, L"ZUI_DispatcherWindow", L"",
+                g_uiDispatcherWindow = CreateWindowExW(0, L"ZufyUI_DispatcherWindow", L"",
                     WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
             }
         }
@@ -2004,21 +2004,21 @@ namespace ZUI {
         }
 
         void UpdateAnimation(float deltaTime) override {
-#ifdef ZUI_DEBUG
+#ifdef ZufyUI_DEBUG
             // 如果动画已结束但仍有子元素在动画，打印子元素状态
             if (!animating_ && animProgress_ >= 1.0f) {
                 for (auto& page : pages_) {
                     if (page && page->HasActiveAnimation()) {
                         // 递归打印子元素动画状态（简化版，只打印一层）
                         wchar_t msg[256];
-                        swprintf(msg, 256, L"  Sub-page has animation: %s\n", typeid(*page).name());
-                        ZUI_DEBUG_LOG_W(msg);
+                        swprintf(msg, 256, L"  Sub-page has animation: %hs\n", typeid(*page).name());
+                        ZufyUI_DEBUG_LOG_W(msg);
                         // 如果有 layout，继续检查
                         if (auto* layout = dynamic_cast<LayoutHost*>(page.get())) {
                             if (auto* inner = layout->GetLayout().get()) {
                                 if (inner->HasActiveAnimation()) {
-                                    swprintf(msg, 256, L"    Layout has animation: %s\n", typeid(*inner).name());
-                                    ZUI_DEBUG_LOG_W(msg);
+                                    swprintf(msg, 256, L"    Layout has animation: %hs\n", typeid(*inner).name());
+                                    ZufyUI_DEBUG_LOG_W(msg);
                                 }
                             }
                         }
@@ -2385,7 +2385,7 @@ namespace ZUI {
                 wc.cbSize = sizeof(WNDCLASSEXW);
                 wc.lpfnWndProc = MenuWindow::WndProc;
                 wc.hInstance = GetModuleHandle(nullptr);
-                wc.lpszClassName = L"ZUI_MenuWindow";
+                wc.lpszClassName = L"ZufyUI_MenuWindow";
                 wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
                 wc.hbrBackground = nullptr;
                 wc.style = CS_DROPSHADOW;
@@ -2415,7 +2415,7 @@ namespace ZUI {
 
             hwnd_ = CreateWindowExW(
                 WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
-                L"ZUI_MenuWindow", L"",
+                L"ZufyUI_MenuWindow", L"",
                 WS_POPUP,
                 screenX_, screenY_, windowWidthPx_, windowHeightPx_,
                 owner_, nullptr, GetModuleHandle(nullptr), this);
@@ -2886,7 +2886,7 @@ namespace ZUI {
     }
 
     // ========== DComp 亚克力效果封装（移植自 ALTaleX531/Win32Acrylic，MIT） ==========
-    // detail_fx（手写 IGraphicsEffect 效果类 + 官方亚克力/云母配方）已移至 ZUIAcrylic.h
+    // detail_fx（手写 IGraphicsEffect 效果类 + 官方亚克力/云母配方）已移至 ZufyUIAcrylic.h
 
     // ---------- 窗口 ----------
     class Window {
@@ -3044,7 +3044,7 @@ namespace ZUI {
             wc.cbSize = sizeof(WNDCLASSEXW);
             wc.lpfnWndProc = Window::WndProc;
             wc.hInstance = GetModuleHandle(nullptr);
-            wc.lpszClassName = L"ZUIWindowClass";
+            wc.lpszClassName = L"ZufyUIWindowClass";
             wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
             wc.hbrBackground = nullptr;
             RegisterClassExW(&wc);
@@ -3056,7 +3056,7 @@ namespace ZUI {
             DWORD style = WS_OVERLAPPEDWINDOW;
             if (owner_ && ownedMinimizePolicy_ == OwnedMinimizePolicy::DisableMinimize)
                 style &= ~WS_MINIMIZEBOX;   // 方案4：创建时就置灰最小化按钮
-            hwnd_ = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP, L"ZUIWindowClass", title.c_str(), style,
+            hwnd_ = CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP, L"ZufyUIWindowClass", title.c_str(), style,
                 CW_USEDEFAULT, CW_USEDEFAULT, physicalWidth, physicalHeight,
                 hwndOwner, nullptr, GetModuleHandle(nullptr), this);
             if (!hwnd_) return false;
@@ -3172,7 +3172,7 @@ namespace ZUI {
         }
 
         // ================= 自定义标题栏 / 窗口外观 =================
-        // 安装自定义标题栏（参数一般是 ZUIWindowTool.h 里的 TitleBar；基类 UIElement 即可）。
+        // 安装自定义标题栏（参数一般是 ZufyUIWindowTool.h 里的 TitleBar；基类 UIElement 即可）。
         // 传 nullptr 取消，恢复原生标题栏。该控件“不参与布局”，由 Window 放到 (0,0)，
         // 并把根布局整体下移其高度；绘制时机由控件自身声明（默认 DrawAfterLayout）。
         void SetCustomTitleBar(std::shared_ptr<UIElement> bar) {
@@ -3376,7 +3376,7 @@ namespace ZUI {
             while (IsWindow(hwnd_) && GetMessage(&msg, nullptr, 0, 0)) {
                 if (msg.message == WM_QUIT) { PostQuitMessage((int)msg.wParam); break; }
                 // 不用 IsDialogMessage：它会把键盘消息当对话框导航吞掉（不派发），导致弹窗里
-                // 英文/数字/Tab 全按不动（只有 IME 的 WM_IME_* 能穿透）。ZUI 自己处理 Tab 焦点导航。
+                // 英文/数字/Tab 全按不动（只有 IME 的 WM_IME_* 能穿透）。ZufyUI 自己处理 Tab 焦点导航。
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
@@ -3508,7 +3508,7 @@ namespace ZUI {
             }
         }
 
-#ifdef ZUI_DEBUG
+#ifdef ZufyUI_DEBUG
         void PrintActiveAnimations(UIElement* elem, int depth) {
             if (!elem) return;
             if (elem->HasActiveAnimation()) {
@@ -3518,7 +3518,7 @@ namespace ZUI {
                 MultiByteToWideChar(CP_ACP, 0, typeName, -1, wtype, 128);
                 wchar_t buf[512];
                 swprintf(buf, 512, L"%s%s (0x%p)\n", indent.c_str(), wtype, (void*)elem);
-                ZUI_DEBUG_LOG_W(buf);
+                ZufyUI_DEBUG_LOG_W(buf);
             }
             for (auto* child : elem->GetChildren()) {
                 PrintActiveAnimations(child, depth + 1);
@@ -3774,7 +3774,7 @@ namespace ZUI {
             case WM_TIMER:
                 if (OnWindowTimer((int)wParam)) return 0;
                 if (wParam == 1) {
-#ifdef ZUI_DEBUG
+#ifdef ZufyUI_DEBUG
                     // ---- 调试输出开始 ----
                     bool hasLayout = layoutInvalidated_;
                     size_t pendingCount = pendingRepaint_.size();
@@ -3783,13 +3783,13 @@ namespace ZUI {
                     wchar_t buf[256];
                     swprintf(buf, 256, L"[Timer] layout=%d, pending=%zu, anim=%d\n",
                         hasLayout, pendingCount, hasAnim ? 1 : 0);
-                    ZUI_DEBUG_LOG_W(buf);
+                    ZufyUI_DEBUG_LOG_W(buf);
 
                     // 如果动画存在，打印详细元素树
                     if (hasAnim && rootElement_) {
-                        ZUI_DEBUG_LOG_W(L"--- Active Animation Elements ---\n");
+                        ZufyUI_DEBUG_LOG_W(L"--- Active Animation Elements ---\n");
                         PrintActiveAnimations(rootElement_.get(), 0);
-                        ZUI_DEBUG_LOG_W(L"--- End ---\n");
+                        ZufyUI_DEBUG_LOG_W(L"--- End ---\n");
                     }
                     // ---- 调试输出结束 ----
 #endif
@@ -4898,7 +4898,7 @@ namespace ZUI {
         void UpdateDCompBackdrop() {
             if (!rootVisual_ || !compositor_) return;
             rootVisual_->put_Brush(nullptr);              // 先清掉旧背景
-            // 云母：ZUI 自绘缓存壁纸图层
+            // 云母：ZufyUI 自绘缓存壁纸图层
             if (backdrop_ == Backdrop::Mica) {
                 if (!wallpaperVisual_) { DestroyWallpaperLayer(); BuildWallpaperLayer(); }
                 return;
@@ -5027,7 +5027,7 @@ namespace ZUI {
             // 实现方式（不互相近似）：
             // 背景全部走**手动实现**（不再区分系统/手动）：
             //   Acrylic : DWMWA_USE_HOSTBACKDROPBRUSH（让宿主背景可用=后面窗口内容）+ 我们自己的配方
-            //   Mica    : ZUI 自绘的缓存壁纸图层
+            //   Mica    : ZufyUI 自绘的缓存壁纸图层
             //   None    : 关闭
             int noneType = DWMSBT_NONE;
             DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &noneType, sizeof(noneType));
@@ -5289,4 +5289,4 @@ namespace ZUI {
         static Application& Instance() { static Application a; return a; }
     };
 
-} // namespace ZUI
+} // namespace ZufyUI

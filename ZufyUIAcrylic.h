@@ -1,6 +1,6 @@
 ﻿#pragma once
 // ============================================================================
-// ZUIAcrylic.h —— 亚克力/云母材质的 DComp 效果图实现（独立头）
+// ZufyUIAcrylic.h —— 亚克力/云母材质的 DComp 效果图实现（独立头）
 // ----------------------------------------------------------------------------
 // 配方移植自 ALTaleX531/Win32Acrylic（MIT），其内容又来自 microsoft-ui-xaml 的
 // AcrylicBrush.cpp。包含：手写 IGraphicsEffect 效果类 + 采集系统噪点纹理 +
@@ -40,7 +40,7 @@
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "dxguid.lib")
 
-namespace ZUI {
+namespace ZufyUI {
     namespace detail_fx {
         using Microsoft::WRL::ComPtr;
         using Microsoft::WRL::RuntimeClass;
@@ -436,4 +436,4 @@ namespace ZUI {
         }
 
     } // namespace detail_fx
-} // namespace ZUI
+} // namespace ZufyUI

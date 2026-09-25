@@ -1,15 +1,17 @@
-﻿# ZUI
+﻿# ZufyUI
+
+> **项目已更名：原名 `ZUI` → 现名 `ZufyUI`**（避免与其它同名项目冲突）。旧的仓库地址会由平台自动跳转到新地址（见下方链接）。
 
 > 基于 Direct2D 的 C++ 原生 Win32 自绘 UI 框架，含布局、控件、信号槽与高 DPI 适配。
 
 > 语言：**简体中文** · [English](README.en.md)
 
-ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Direct2D / DirectWrite / DWM 之上。它不依赖 Qt、MFC 或任何第三方库，把控件、布局、动画、字体、数据视图和信号槽都装进几个 `.h` 里，适合想要轻量、可控、现代观感的原生 C++ 应用。
+ZufyUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Direct2D / DirectWrite / DWM 之上。它不依赖 Qt、MFC 或任何第三方库，把控件、布局、动画、字体、数据视图和信号槽都装进几个 `.h` 里，适合想要轻量、可控、现代观感的原生 C++ 应用。
 
-- 仓库：GitHub <https://github.com/zhc9968/ZUI> · Gitee <https://gitee.com/zhc9968/zui>
+- 仓库：GitHub <https://github.com/zhc9968/ZufyUI> · Gitee <https://gitee.com/zhc9968/ZufyUI>
 - 许可证：MIT
-- 在线文档：<https://zhc9968.github.io/ZUI/>
-- API 参考：<https://zhc9968.github.io/ZUI/docs/API.html>
+- 在线文档：<https://zhc9968.github.io/ZufyUI/>
+- API 参考：<https://zhc9968.github.io/ZufyUI/docs/API.html>
 
 ## 特性
 
@@ -35,29 +37,29 @@ ZUI 是一个**纯头文件**的 Windows 桌面 UI 框架，直接建立在 Dire
 
 ## 构建
 
-1. 用 Visual Studio 打开解决方案 `ZUI.slnx`；
+1. 用 Visual Studio 打开解决方案 `ZufyUI.slnx`；
 2. 选择配置 **Release | x64**；
 3. 生成解决方案（Build Solution）；
-4. 产物位于 `x64\Release\ZUI.exe`，直接运行即可。
+4. 产物位于 `x64\Release\ZufyUI.exe`，直接运行即可。
 
 命令行构建（需要 MSBuild 在 PATH 中）：
 
 ```bash
-msbuild ZUI.slnx /p:Configuration=Release /p:Platform=x64
+msbuild ZufyUI.slnx /p:Configuration=Release /p:Platform=x64
 ```
 
-> `ZUI.cpp` 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 `WinMain`。
+> `ZufyUI.cpp` 是一个综合演示程序（左侧导航 + 多个测试页），同时也充当框架的“冒烟测试”。真正要做自己的应用时，只需要包含头文件并写自己的 `WinMain`。
 
 ## 项目结构
 
 ```text
-ZUI/
-├── ZUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
-├── ZUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
+ZufyUI/
+├── ZufyUI.h              # 核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口
+├── ZufyUIWidgets.h       # 基础控件：Label / Button / TextBox / ComboBox / ToggleSwitch / ScrollViewer / ProgressBar / Slider
 ├── ZDataViewer.h      # 数据视图：ListView / TableView / TreeView
-├── ZUI.cpp            # 综合演示程序入口（WinMain）
-├── ZUI.slnx           # 解决方案
-├── ZUI.vcxproj        # 工程文件
+├── ZufyUI.cpp            # 综合演示程序入口（WinMain）
+├── ZufyUI.slnx           # 解决方案
+├── ZufyUI.vcxproj        # 工程文件
 ├── AGENTS.md          # 开发原则（含“任何 bug 先找根源再修”的规则）
 └── docs/
     └── API.md         # 完整 API 文档
@@ -66,12 +68,12 @@ ZUI/
 ## 快速开始
 
 ```cpp
-#include "ZUIWidgets.h"
-using namespace ZUI;
+#include "ZufyUIWidgets.h"
+using namespace ZufyUI;
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     Window win;
-    if (!win.Create(1000, 700, L"ZUI Demo"))
+    if (!win.Create(1000, 700, L"ZufyUI Demo"))
         return 1;
 
     auto root = win.GetRootColumnBox();
@@ -82,7 +84,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     auto btn = std::make_shared<Button>(L"点我");
     btn->Connect(btn->Clicked, []() {
-        MessageBoxW(nullptr, L"Hello ZUI!", L"提示", MB_OK);
+        MessageBoxW(nullptr, L"Hello ZufyUI!", L"提示", MB_OK);
     });
 
     auto toggle = std::make_shared<ToggleSwitch>(false);
@@ -125,7 +127,7 @@ win.SetBackdrop(Backdrop::Mica, 0x00000000);   // 云母 + 全透明叠加色
 **第 3 步：自定义标题栏。** 换个标题栏，窗口立刻不一样：
 
 ```cpp
-#include "ZUIWindowTool.h"   // DefaultTitleBar 在这里
+#include "ZufyUIWindowTool.h"   // DefaultTitleBar 在这里
 
 auto bar = std::make_shared<DefaultTitleBar>();
 win.SetCustomTitleBar(bar);
@@ -135,14 +137,14 @@ win.SetCustomTitleBar(bar);
 
 更多控件的总览（主示例程序首屏）：
 
-![ZUI 示例程序](docs/images/demo-main.png)
+![ZufyUI 示例程序](docs/images/demo-main.png)
 
 ## 更新日志
 
 ### 2026-09-20 — 性能优化 + 背景 API 收敛（v1.9.6）
 
 - **性能**：切页内存峰值 300–400MB → **~30MB 封顶**；布局机制重构（DesiredSize 缓存 + 两级脏位，去掉"布局失效即全清缓存"、切页不再全量重排）；拖动/缩放期间不再每帧整树命中检测；**全局文本布局缓存**（跨控件共享）+ `Label` 省略号改二分；去每元素 `GetDpi()`。
-- **背景 API 收敛为"背景层三选一 + 叠加色"**：`Backdrop` 只有 `None / Acrylic / Mica`；**删除 `BackdropMode`**；删除 `ReloadAcrylic/ReloadMica`；新增 `SetBackgroundParams(层, BackgroundParams/AcrylicPreset)` 与 `AcrylicParams`/`MicaParams`。亚克力/云母一律由 ZUI 自己实现，**Win10 与 Win11 效果一致**。
+- **背景 API 收敛为"背景层三选一 + 叠加色"**：`Backdrop` 只有 `None / Acrylic / Mica`；**删除 `BackdropMode`**；删除 `ReloadAcrylic/ReloadMica`；新增 `SetBackgroundParams(层, BackgroundParams/AcrylicPreset)` 与 `AcrylicParams`/`MicaParams`。亚克力/云母一律由 ZufyUI 自己实现，**Win10 与 Win11 效果一致**。
 - **数据控件**：`ListView` 新增 `BeginUpdate/EndUpdate` 批量增删。
 - **一批修复**：排序补发 `SelectionChanged`、`ComboBox` 过滤保留选中、`TextBox` 撤销栈、`CaptionButton` 按下行为、滚动条除零守卫、图像缓存加设备代次等。
 
@@ -213,15 +215,15 @@ win.SetCustomTitleBar(bar);
 - `MenuWindow` 多显示器定位改用 `MonitorFromPoint` + `GetMonitorInfo`。
 - 清理多项兜底/临时逻辑（`PageHost` 调试特例、无用的 `animationIdleFrames_` 等）。
 
-**测试程序（`ZUI.cpp`）**
+**测试程序（`ZufyUI.cpp`）**
 
 - 主窗口改为**自定义标题栏**。
 - 移除独立的小工具窗口，多窗口 / owned / 模态演示移入主窗口的**“多窗口”页**。
-- 版本号提升到 **1.8.0**（新增 `ZUI_VERSION_STRING` 等宏，demo 标题引用）。
+- 版本号提升到 **1.8.0**（新增 `ZufyUI_VERSION_STRING` 等宏，demo 标题引用）。
 
-### 2026-09-16 — 自定义标题栏（ZUIWindowTool）与背景三模式
+### 2026-09-16 — 自定义标题栏（ZufyUIWindowTool）与背景三模式
 
-**新增：自定义标题栏（新文件 `ZUIWindowTool.h`）**
+**新增：自定义标题栏（新文件 `ZufyUIWindowTool.h`）**
 
 - `TitleBar` / `CaptionButton` / `DefaultTitleBar`：窗口级控件，作为“不参与布局”的覆盖控件由 `Window::SetCustomTitleBar` 安装；传 `nullptr` 恢复原生标题栏。
 - 三件套用系统图标字体绘制（`Segoe Fluent Icons` / `Segoe MDL2 Assets`，码位 `E921/E922/E923/E8BB`），带 **hover/pressed 渐变**，关闭悬停红 `#C42B1C`；按钮在 `WM_NCHITTEST` 报告为 `HTMINBUTTON/HTMAXBUTTON/HTCLOSE`，从而启用系统 **Snap Layouts**；点击在 `WM_NCLBUTTONUP` 处理；标题栏区域为**拖动区域**（拖动 / Aero Snap / 双击最大化交给系统）。
@@ -243,16 +245,16 @@ win.SetCustomTitleBar(bar);
 - 分屏（Snap）状态保留 DWM 边框与阴影：`WM_NCCALCSIZE` 只内缩**被吸附到工作区边缘**的那几条边（内缩量取 `DWMWA_VISIBLE_FRAME_BORDER_THICKNESS` 的实际厚度），最大化不内缩；最大化/还原/分屏状态变化时发 `SWP_FRAMECHANGED` 重算框架。
 - 最大化时贴顶下拖可还原窗口；关闭键位置与原生一致。
 
-**演示**：`ZUI.cpp` 新增“自定义标题栏窗口”。
+**演示**：`ZufyUI.cpp` 新增“自定义标题栏窗口”。
 
 **已知限制（重要）**
 
-- ZUI 当前渲染在 `ID2D1HwndRenderTarget`（不透明重定向表面）上，**无法显示 DWM 系统材质**：`BackdropMode::Auto` 目前在 Win10/Win11 都走 `AccentState`；`SystemBackdrop` 模式在渲染目标迁移到 **DirectComposition** 之前**不可见**（会发灰/发黑）。
+- ZufyUI 当前渲染在 `ID2D1HwndRenderTarget`（不透明重定向表面）上，**无法显示 DWM 系统材质**：`BackdropMode::Auto` 目前在 Win10/Win11 都走 `AccentState`；`SystemBackdrop` 模式在渲染目标迁移到 **DirectComposition** 之前**不可见**（会发灰/发黑）。
 - `AccentState` 亚克力是未公开 API，会让 DWM **跳过最小化/最大化等窗口过渡动画**（Win10/Win11 均如此）。要同时获得“亚克力 + 原生动画 + Mica”，需把渲染迁移到 DirectComposition（SwapChain / CompositionSurface），属后续规划。
 
 ### 2026-09-15 — 图像系统、窗口机制增强与多项根源修复
 
-**图像（新增 `ZUIImages.h`）**
+**图像（新增 `ZufyUIImages.h`）**
 
 - 新增 `Image`：WIC 解码 + Direct2D GPU 绘制/变换。加载：`FromFile / FromMemory / FromBase64 / FromResource(HMODULE,name,type) / FromResource(id,type) / FromHBITMAP / FromHICON`；变换：`Scaled / ScaledToWidth / ScaledToHeight / Rotated / Mirrored / Cropped`（轻量描述符，绘制时 GPU 施加）；绘制：`Draw`（opacity / 插值）、`Bake`；编码：`Save / Encode`（`CreateStreamOnHGlobal` 内存流，**无临时文件**）。
 - `ImageManager`：共享 `IWICImagingFactory` 并登记设备缓存；`ImageDeviceCache`：每个渲染目标一张 `ID2D1Bitmap` 缓存，设备丢失统一重建。同一图像同一窗口只上传一次 GPU 位图。
@@ -288,7 +290,7 @@ win.SetCustomTitleBar(bar);
 - 帧时间钳制：`OnPaint` 的 `deltaTime` 上限 `0.033s`，修复空闲 / 最小化恢复后“动画一帧跳到终点”的问题。
 - `PageHost` 修复切页动画期间同一页面每帧被 `UpdateAnimation` 两次、导致页面内嵌动画速度翻倍的问题。
 - 定时器精度：窗口创建 `timeBeginPeriod(1)`、销毁 `timeEndPeriod(1)`，降低动画抖动。
-- 调试输出统一由宏 `ZUI_DEBUG` 控制（默认关闭，定义后启用），Release 热路径不再有调试字符串构造。
+- 调试输出统一由宏 `ZufyUI_DEBUG` 控制（默认关闭，定义后启用），Release 热路径不再有调试字符串构造。
 - 性能 / 内存：`GetChildren()` 改为返回 `const&`（复用缓冲，消除每帧每节点分配）；`ZSignal::Fire` 用线程本地快照；`Compose` 增加裁剪剔除（完全在裁剪区外的子树直接跳过）；活跃动画集合复用缓冲；`DrawSoftShadow` 用定长数组避免每帧堆分配。
 
 **基础控件**
@@ -315,7 +317,7 @@ win.SetCustomTitleBar(bar);
 
 ### 2026-09-13（续）— 多窗口支持（Application）
 
-- 新增 `ZUI::Application`：`app.CreateWindow(...)` 创建窗口、`app.Run()` 运行单一共享消息循环，Qt 风格；窗口之间真正独立。
+- 新增 `ZufyUI::Application`：`app.CreateWindow(...)` 创建窗口、`app.Run()` 运行单一共享消息循环，Qt 风格；窗口之间真正独立。
 - 重绘 / 布局按所属窗口路由（`UIElement::GetWindow()`）；DPI 缩放改为**线程本地**（每个窗口渲染前设置自己的缩放）；`Window` 新增实例信号 `Activated` / `Deactivated` / `Closed`，全局 `UIZSignals::WindowDeactivated` 与 `GlobalMouseDown` 增加 `Window*` 参数。
 - 关闭单个窗口不再退出应用，**最后一个窗口关闭才退出**；`ID2D1Factory` 与 `timeBeginPeriod` 由应用核心共享。
 - 所有窗口相关全局信号统一带 `Window*`（含 `DrawOverlay` / `GlobalMouseDown` / `WindowDeactivated` 及捕获、重绘兜底），订阅者用 `GetWindow()` 过滤；修复“A 窗口的下拉弹层被画到 B 窗口 / 点击 B 导致 A 误收起”的串扰。新增 `Window::SetPosition/SetSize/IsValid`。
@@ -329,9 +331,9 @@ win.SetCustomTitleBar(bar);
 
 ## 文档
 
-- 在线文档站点：<https://zhc9968.github.io/ZUI/>
-- API 参考（中文，15 章）：<https://zhc9968.github.io/ZUI/docs/API.html>
-- API Reference (English)：<https://zhc9968.github.io/ZUI/docs/API.en.html>
+- 在线文档站点：<https://zhc9968.github.io/ZufyUI/>
+- API 参考（中文，15 章）：<https://zhc9968.github.io/ZufyUI/docs/API.html>
+- API Reference (English)：<https://zhc9968.github.io/ZufyUI/docs/API.en.html>
 
 ## 许可证
 

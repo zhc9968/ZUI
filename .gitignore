@@ -21,11 +21,11 @@ Release/
 *.VC.VC.opendb
 
 # ---- 旧版快照目录（已由 git 历史取代，仅保留在磁盘）----
-ZUI_release1.2/
-ZUI_1.3dirtyupdate/
-ZUI_beforePixelSnap/
-ZUI_Release_1.4_beforeFontUpdate/
-ZUI_Release_1.5_fontUpdate1/
+ZufyUI_release1.2/
+ZufyUI_1.3dirtyupdate/
+ZufyUI_beforePixelSnap/
+ZufyUI_Release_1.4_beforeFontUpdate/
+ZufyUI_Release_1.5_fontUpdate1/
 
 # 生成的文档（部署到 GitHub Pages，不纳入仓库）
 /README.html

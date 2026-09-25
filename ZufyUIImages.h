@@ -1,6 +1,6 @@
 ﻿#pragma once
 // ============================================================================
-// ZUIImages.h —— 图像系统（WIC 解码 + Direct2D GPU 绘制/变换）
+// ZufyUIImages.h —— 图像系统（WIC 解码 + Direct2D GPU 绘制/变换）
 // ----------------------------------------------------------------------------
 // 设计目标（对齐 Qt 语义、尽量走 GPU）：
 //   * 解码：WIC（文件 / 内存 / base64 / 程序资源(含 DLL) / HBITMAP / HICON）。
@@ -13,7 +13,7 @@
 //     在 Draw 时由 GPU 施加，靠近 Qt 的“图像对象”用法但避免 CPU 变换。
 // ============================================================================
 
-#include "ZUI.h"
+#include "ZufyUI.h"
 #include <wincodec.h>
 #include <objbase.h>
 #include <mutex>
@@ -24,7 +24,7 @@
 
 #pragma comment(lib, "windowscodecs.lib")
 
-namespace ZUI {
+namespace ZufyUI {
 
     // ------------------------------------------------------------------
     // ImageDeviceCache：某个 Image 在“每个渲染目标”上的 D2D 位图缓存
@@ -564,4 +564,4 @@ namespace ZUI {
         return SUCCEEDED(enc->Commit());
     }
 
-} // namespace ZUI
+} // namespace ZufyUI

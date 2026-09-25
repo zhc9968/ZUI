@@ -1,6 +1,6 @@
-# ZUI API 参考
+# ZufyUI API 参考
 
-> 本文档覆盖 ZUI 框架的全部公开 API：核心类型、信号槽、字体、元素、布局、窗口、基础控件与数据视图。
+> 本文档覆盖 ZufyUI 框架的全部公开 API：核心类型、信号槽、字体、元素、布局、窗口、基础控件与数据视图。
 > 配套阅读：[项目说明与构建](../README.md)。
 
 > **阅读方式**：本文不是“签名清单”，而是按“它是什么 → 框架内部怎么处理 → 你需要注意什么”来写。每个类都会先讲整体行为，再逐函数讲清楚副作用、默认值和易混点。**没有读过源码也能据此正确使用。**
@@ -9,8 +9,8 @@
 
 ## 命名空间与头文件
 
-- 所有内容位于 `namespace ZUI`。
-- 头文件分工：`ZUI.h`（核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口）、`ZUIWidgets.h`（基础控件）、`ZDataViewer.h`（数据视图）。`ZUIWidgets.h` 会包含 `ZUI.h`，`ZDataViewer.h` 依赖两者。
+- 所有内容位于 `namespace ZufyUI`。
+- 头文件分工：`ZufyUI.h`（核心：类型 / 信号槽 / 字体 / 元素 / 布局 / 菜单 / 窗口）、`ZufyUIWidgets.h`（基础控件）、`ZDataViewer.h`（数据视图）。`ZufyUIWidgets.h` 会包含 `ZufyUI.h`，`ZDataViewer.h` 依赖两者。
 - 三者都是纯头文件；`#pragma comment(lib, ...)` 会自动链接 `d2d1 / dwrite / dwmapi / imm32 / winmm`。
 
 ## 单位
@@ -124,7 +124,7 @@ inline float Snap(float dip);
 
 ## 这一章要解决什么
 
-ZUI 的信号槽不是“连上就完事”，它还要处理**对象销毁时自动断开**这件事。理解下面三者的分工，才能避免悬垂回调与内存泄漏：
+ZufyUI 的信号槽不是“连上就完事”，它还要处理**对象销毁时自动断开**这件事。理解下面三者的分工，才能避免悬垂回调与内存泄漏：
 
 - `ZSignal`：信号的持有者，内部保存若干个槽（`std::function`）。
 - `Connection`：一次连接的句柄，析构时断开。
@@ -762,7 +762,7 @@ class Window {
 };
 ```
 
-`Backdrop`（**背景层**，只有三选一）：`None`（无 —— 背景完全透明）、`Acrylic`（亚克力）、`Mica`（云母）。`SetBackdrop` 第二个参数是**背景叠加层**：一个带 Alpha 的颜色，直接叠在背景层之上（`A` = 透出/覆盖面，`RGB` = 叠加色）。**不再有 `BackdropMode`** —— 背景一律由 ZUI 自己实现（不依赖系统材质），Win10/Win11 效果一致。
+`Backdrop`（**背景层**，只有三选一）：`None`（无 —— 背景完全透明）、`Acrylic`（亚克力）、`Mica`（云母）。`SetBackdrop` 第二个参数是**背景叠加层**：一个带 Alpha 的颜色，直接叠在背景层之上（`A` = 透出/覆盖面，`RGB` = 叠加色）。**不再有 `BackdropMode`** —— 背景一律由 ZufyUI 自己实现（不依赖系统材质），Win10/Win11 效果一致。
 
 **行为与易混点**：
 
@@ -777,7 +777,7 @@ class Window {
 - **`OwnedMinimizePolicy`**：处理 owned 子窗口被“单独最小化”的情况。`None` 不处理（会出现老式小瓷砖）；`Hide` 拦截最小化改为隐藏、父窗口还原/激活时恢复；`DisableMinimize` 置灰最小化按钮并忽略最小化相关消息。
 - **裸引用清理**：窗口销毁时会清除其它窗口对它的引用（`owner_` 与隐藏列表），避免地址被复用后牵连不相干的窗口。
 - **自定义标题栏**：`SetCustomTitleBar(bar)` 安装一个"不参与布局"的标题栏控件（见"窗口工具"章节），Window 把它放在 `(0,0)`、根布局整体下移其高度；传入 `nullptr` 恢复原生标题栏（会发 `SWP_FRAMECHANGED` 全量刷新）。`SetTitleBarVisible(false)` 可隐藏标题栏但保留自定义边框。
-- **背景（`Backdrop` 三选一 + 叠加色）**：背景层只有 `None / Acrylic / Mica`，且**一律由 ZUI 自己实现**——不再分"系统/手动"、不依赖系统材质（Win10/Win11 效果一致）。
+- **背景（`Backdrop` 三选一 + 叠加色）**：背景层只有 `None / Acrylic / Mica`，且**一律由 ZufyUI 自己实现**——不再分"系统/手动"、不依赖系统材质（Win10/Win11 效果一致）。
   - `Acrylic`：我们自己的 DirectComposition 官方亚克力配方（Border 噪点平铺 → Opacity → 高斯模糊 → Luminosity/Color 混合 → 噪点叠乘，另加 Saturation 与 tint 的 `CompositeStep` 让 alpha 生效）；源 = **宿主背景**（窗口后面的内容）。
   - `Mica`：读取桌面壁纸（`SPI_GETDESKWALLPAPER` + WIC 解码）→ 模糊 / 降饱和 / 叠白 / 噪点，一次性烘焙成位图，放进**独立合成器图层**（位于内容层下方）；窗口移动时只改该图层 `Offset`（只是平移变换，不重采样）。
   - 参数走"**4 层模型**"（Blur / Luminosity / Tint / Noise）：`SetBackgroundParams(背景层, BackgroundParams)` 传整套参数，或 `SetBackgroundParams(背景层, AcrylicPreset)` 传官方预设（`Legacy / Luminosity / Base / Thin`）。`AcrylicParams` / `MicaParams` 是默认值（`MicaParams` 为调好的观感）。
@@ -808,7 +808,7 @@ class Application {
 
 ```cpp
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    ZUI::Application app;
+    ZufyUI::Application app;
     auto w1 = app.CreateWindow(1000, 700, L"主窗口");
     auto w2 = app.CreateWindow(640, 480, L"工具窗口");
     // 各自搭 UI：w1->GetRootColumnBox()->AddChild(...)
@@ -829,7 +829,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 - **重绘 / 布局按窗口路由**：每个元素记录所属窗口（`UIElement::GetWindow()`）；`RequestRepaint()` / `InvalidateLayout()` 只作用于所属窗口，窗口之间不会互相触发重绘。
 - **DPI 每窗口**：当前 DPI 缩放是**线程本地**的，渲染每个窗口前会设置该窗口自己的缩放，所以混合 DPI 的多窗口也能正确 `Snap`。
 - **激活 / 失活按窗口**：`Window` 提供实例信号 `Activated` / `Deactivated` / `Closed`，以及 `Closing`（`bool*`，置 `*cancel=true` 可取消关闭）、`BackdropUnsupported` / `DeviceLost` / `RenderingError`；全局 `UIZSignals::WindowDeactivated` 带 `Window*` 参数、`GlobalMouseDown` 带 `Window*`。ComboBox 等控件据此只响应“本窗口”的事件，不会因别的窗口而误收起。
-- **叠加绘制按窗口**：全局 `UIZSignals::DrawOverlay` 现在带 `Window*`（以及渲染目标）参数；订阅者**必须**用 `GetWindow()` 过滤，否则会把 A 窗口的下拉/弹层画到 B 窗口上（这是多窗口下最典型的串扰）。ZUI 自带控件已按此处理。
+- **叠加绘制按窗口**：全局 `UIZSignals::DrawOverlay` 现在带 `Window*`（以及渲染目标）参数；订阅者**必须**用 `GetWindow()` 过滤，否则会把 A 窗口的下拉/弹层画到 B 窗口上（这是多窗口下最典型的串扰）。ZufyUI 自带控件已按此处理。
 - **鼠标捕获**：Win32 `SetCapture` 只用于“按住鼠标”的拖拽，松开立即释放（元素级逻辑捕获不受影响）。修复了“ComboBox 展开后一直持有系统鼠标捕获、导致其它窗口无法使用”的问题。
 - **模态 / 父子窗口**：`Window::SetOwner(owner)` 建立 owned 子窗口（始终在所有者之上、随其最小化）；`Window::RunModal(owner)` 以模态运行（禁用所有者、嵌套消息循环、关闭后恢复）。模态期间点击被禁用的所有者窗口，模态窗口会**闪烁**提示。
 - **窗口句柄与悬垂**：元素内部用**窗口 id** 记录所属窗口（而不是裸指针），窗口销毁后 `GetWindow()` 返回 `nullptr`，从根本上避免“元素持有已销毁窗口指针”导致的崩溃。
@@ -1485,7 +1485,7 @@ class TreeView : public UIElement {
 
 ###chapter: 图像 | Image、ImageManager、ImageDeviceCache
 
-图像系统在 `ZUIImages.h`，用 WIC 解码、Direct2D（GPU）绘制与变换。
+图像系统在 `ZufyUIImages.h`，用 WIC 解码、Direct2D（GPU）绘制与变换。
 
 ## ImageManager / ImageDeviceCache
 
@@ -1561,7 +1561,7 @@ class Image {
 
 ###chapter: 窗口工具 | 自定义标题栏 TitleBar / CaptionButton / DefaultTitleBar
 
-窗口工具控件在 `ZUIWindowTool.h`（窗口级控件集合，后续还会放内置 MessageBox 等）。
+窗口工具控件在 `ZufyUIWindowTool.h`（窗口级控件集合，后续还会放内置 MessageBox 等）。
 
 ```cpp
 class TitleBar : public UIElement {
@@ -1667,7 +1667,7 @@ class MessageBox : public Window {
 ```
 
 ```cpp
-ZUI::MessageBox box(owner, L"标题", L"正文", MessageBox::Icon::Info,
+ZufyUI::MessageBox box(owner, L"标题", L"正文", MessageBox::Icon::Info,
                     FastButton::Yes | FastButton::No | FastButton::Cancel);
 if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }
 ```
@@ -1676,7 +1676,7 @@ if (HasFlag(box.GetResult(), FastButton::Yes)) { /* ... */ }
 - `parent` 可为 `Window*` / `HWND` / 省略（不继承、无父）；是 owned 窗口（不进任务栏）、不可调整大小、只留关闭按钮。
 - 按内容自适应高度；文本被截断的按钮**悬停会自动浮出完整文本**（`SetToolTip` 设置过的优先）。
 - 自定义：`SetUserContent`（之后没有预设按钮）或直接用带 `shared_ptr<UIElement>` 的构造；需要自己控制流程时用 `blocking=false` 建窗后自行 `RunModal`。
-- 注意：`windows.h` 里 `MessageBox` 是 `MessageBoxW` 的宏，本库在 `ZUIWindowTool.h` 中 `#undef` 掉它；要用 Win32 的请显式写 `MessageBoxW/A`。
+- 注意：`windows.h` 里 `MessageBox` 是 `MessageBoxW` 的宏，本库在 `ZufyUIWindowTool.h` 中 `#undef` 掉它；要用 Win32 的请显式写 `MessageBoxW/A`。
 
 ## 窗口级钩子（可重写）
 
@@ -1748,11 +1748,11 @@ void SetInputBlocked(bool on);          // 屏蔽本窗口鼠标/键盘输入
 
 ```cpp
 #include "ZDataViewer.h"
-using namespace ZUI;
+using namespace ZufyUI;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     Window win;
-    if (!win.Create(900, 600, L"ZUI 示例")) return 1;
+    if (!win.Create(900, 600, L"ZufyUI 示例")) return 1;
 
     auto root = win.GetRootColumnBox();
     root->SetSpacing(10);

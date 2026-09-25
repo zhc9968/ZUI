@@ -26,6 +26,6 @@
 ## 构建
 
 ```powershell
-& "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" "C:\project\ZUI\ZUI.vcxproj" /p:Configuration=Release /p:Platform=x64 /m /nologo /v:minimal
+  & "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" "C:\project\ZUI\ZufyUI.vcxproj" /p:Configuration=Release /p:Platform=x64 /m /nologo /v:minimal
 ```
-（构建前先 `Stop-Process -Name ZUI -Force`，否则会因文件占用链接失败。）
+（构建前先 `Stop-Process -Name ZufyUI -Force`，否则会因文件占用链接失败。）

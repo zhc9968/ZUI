@@ -1,8 +1,8 @@
 ﻿#pragma once
-#include "ZUI.h"
-#include "ZUIWidgets.h"
+#include "ZufyUI.h"
+#include "ZufyUIWidgets.h"
 
-namespace ZUI {
+namespace ZufyUI {
     // ==================== 列表视图 ListView ====================
     class ListView : public UIElement {
     public:
@@ -4403,4 +4403,4 @@ namespace ZUI {
         ComPtr<ID2D1SolidColorBrush> alternateBrush_, checkboxBrush_, iconBrush_;
     };
 
-} // namespace ZUI
+} // namespace ZufyUI

@@ -1,6 +1,6 @@
 ﻿#pragma once
 // ============================================================================
-// ZUIWindowTool.h —— 窗口工具控件（自定义标题栏等）
+// ZufyUIWindowTool.h —— 窗口工具控件（自定义标题栏等）
 // ----------------------------------------------------------------------------
 // 这里放“窗口级”的控件，未来还会放内置的 MessageBox 之类。
 // 自定义标题栏 = TitleBar（继承 UIElement），由 Window::SetCustomTitleBar 安装。
@@ -8,7 +8,7 @@
 // 标题栏及按钮默认 UseCache，仅状态变化时重绘；且不参与 Tab 焦点。
 // ============================================================================
 
-#include "ZUIImages.h"
+#include "ZufyUIImages.h"
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -16,13 +16,13 @@
 #include <shlobj.h>
 #pragma comment(lib, "shell32.lib")
 
-// windows.h 里 MessageBox 是 MessageBoxW 的宏，会和 ZUI::MessageBox 撞；这里撤掉宏。
+// windows.h 里 MessageBox 是 MessageBoxW 的宏，会和 ZufyUI::MessageBox 撞；这里撤掉宏。
 // 之后要用 Win32 的请显式写 MessageBoxW / MessageBoxA。
 #ifdef MessageBox
 #undef MessageBox
 #endif
 
-namespace ZUI {
+namespace ZufyUI {
 
     namespace detail_wintool {
         // 系统标题栏图标字体：Win11 = Segoe Fluent Icons；Win10 = Segoe MDL2 Assets
@@ -487,11 +487,11 @@ namespace ZUI {
     // MessageBox —— 预设消息框（快速调用）+ 完全自定义。复用 Window / RunModal，不另起机制。
     //
     // 快速调用（构造即建窗；blocking=true 时构造内直接跑模态循环）：
-    //   ZUI::MessageBox box(parent, L"标题", L"正文", MessageBox::Icon::Info,
+    //   ZufyUI::MessageBox box(parent, L"标题", L"正文", MessageBox::Icon::Info,
     //                       FastButton::Yes | FastButton::No | FastButton::Cancel);
     //   FastButton r = box.GetResult();
     //
-    //   * parent 可为 ZUI::Window* / HWND / 省略（不继承、无父）
+    //   * parent 可为 ZufyUI::Window* / HWND / 省略（不继承、无父）
     //   * content 可为文字，也可直接传控件（Label/TextBox/GridLayout…）
     //   * icon 为内置图标标识符；也可 SetIconImage(图片对象)
     //   * 按钮文本预置中文+英文，默认英文；SetLanguage 切换；SetButtonText 单独改
@@ -739,4 +739,4 @@ namespace ZUI {
         buttonRow_->SetMargin(Thickness(left, 0, 0, 0));
     }
 
-} // namespace ZUI
+} // namespace ZufyUI
