@@ -1,5 +1,5 @@
 ﻿// main.cpp - ZufyUI 综合自动化布局测试（使用 Connect 自动管理连接）
-#define ZufyUI_DEBUG
+#include "pch.h"
 #include "ZDataViewer.h"
 #include "ZufyUIWindowTool.h"
 
