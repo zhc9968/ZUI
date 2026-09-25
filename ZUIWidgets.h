@@ -114,6 +114,7 @@ namespace ZUI {
         }
         std::wstring GetText() const { return text_; }
         void SetTextColor(Color color) { textColor_ = color; textBrush_.Reset(); RequestRepaint(); }
+        Color GetTextColor() const { return textColor_; }
         void SetTextOverflow(TextOverflow mode) { overflow_ = mode; InvalidateLayout(); RequestRepaint(); }
         TextOverflow GetTextOverflow() const { return overflow_; }
         void SetAlignment(HAlign hAlign, VAlign vAlign) {
@@ -458,6 +459,11 @@ namespace ZUI {
             if (label_) label_->SetTextColor(textColor_);
             RequestRepaint();
         }
+        Color GetTextColor() const { return textColor_; }
+        Color GetNormalColor() const { return normalColor_; }
+        Color GetHoverColor() const { return hoverColor_; }
+        Color GetPressedColor() const { return pressedColor_; }
+        float GetCornerRadius() const { return cornerRadius_; }
         void SetCornerRadius(float radius) { cornerRadius_ = radius; RequestRepaint(); }
         void SetHoverAnimationSpeed(float speed) { hoverAnimSpeed_ = speed; }
         void SetCheckable(bool checkable) { checkable_ = checkable; if (!checkable) checked_ = false; RequestRepaint(); }

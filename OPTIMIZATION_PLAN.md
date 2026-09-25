@@ -123,3 +123,22 @@
 | `phase4-done` | 拆 arrangeDirty_ + cacheValid_ 只由尺寸驱动 |
 | `phase5-done` | FontManager 全局 layout 缓存 + Label 二分 + DPI + childrenDirty_ |
 | `phase6-done` | PageHost 释放时机（内存封顶）+ Store 防重 + GetChildren 守卫整理 |
+
+---
+
+## 五、数据视图改造进度
+
+### ✅ 第一项：ListView Label 化（D1/D2）
+- 项 Label 现在**真正走 Window 流程**：`GetChildren()` 返回**可见项** Label（用"滚动位置比对"保证不陈旧，滚动/重排后自动重建）；`ArrangeOverride` 里把每项摆到文本矩形；`GetClipRect()` 返回自身范围；
+- 加项时 `label->SetUseCache(false)`（避免每项一张 GPU 位图）；
+- `Draw` 里**删掉逐项 `DrawTextWithEllipsis`**——文本由 Label 经合成递归画（因此天然在选中/悬停背景**之上**、天然不接收事件）；
+- `SetItemTextColor` / `SetItemDisabled` **转发给 Label**（颜色/禁用由 Label 画）。
+- **收益**：列表项可放**图标 + 内嵌 Label + 单项样式**；文本从"每帧每项重建 layout"变为 Label 正常绘制。
+- **demo 新增测试按钮**（列表视图页）：`批量+50 (BeginUpdate)`、`富项 (图标+内嵌 Label)`。
+
+### ⏳ 待办
+- D2b：ListView 的 `UpdateAnimation`/`HasActiveAnimation` **递归可见项 Label**（富项里的动画子控件需要）；
+- D2：`TableView` 同样 Label 化；
+- D3：数据控件接口收敛（删 `itemTextColors_`/`cellTextColors_`，全走 Label）；
+- D4：`TreeView` 重构（`TreeNode.columns` → `shared_ptr<Label>`）；
+- D5：`Label` 自身的布局缓存（`Label::Draw` 会改 layout，需独立 keyed cache）。

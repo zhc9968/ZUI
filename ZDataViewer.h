@@ -75,8 +75,17 @@ namespace ZUI {
         }
 
         // 数据操作
+        // Label 化：项 Label 的统一初始化（套用 ListView 字体/对齐/内边距，关闭自身缓存）
+        void PrepareItemLabel(std::shared_ptr<Label>& lb) {
+            if (!lb) return;
+            lb->SetUseCache(false);
+            lb->SetFont(GetEffectiveFontSpec());
+            lb->SetAlignment(Label::HAlign::Left, Label::VAlign::Center);
+            lb->SetPadding(0.0f);
+        }
         void AddItem(std::shared_ptr<Label> label) {
             if (!label) return;
+            PrepareItemLabel(label);
             items_.push_back(label);
             label->SetParent(this);
             if (batchUpdate_ == 0) { UpdateScrollInfo(); InvalidateLayout(); RequestRepaint(); }
@@ -88,6 +97,7 @@ namespace ZUI {
         }
         void InsertItem(int index, std::shared_ptr<Label> label) {
             if (index < 0 || index >(int)items_.size() || !label) return;
+            PrepareItemLabel(label);
             items_.insert(items_.begin() + index, label);
             label->SetParent(this);
             if (selectedIndex_ >= index) selectedIndex_++;
@@ -156,6 +166,7 @@ namespace ZUI {
                 if (itt != itemTips_.end()) { itemTips_[newP] = itt->second; itemTips_.erase(itt); }
             }
             items_[index] = label;
+            PrepareItemLabel(label);
             label->SetParent(this);
             InvalidateLayout();
             RequestRepaint();
@@ -181,6 +192,7 @@ namespace ZUI {
             for (int k = 0; k < (int)texts.size(); ++k) {
                 auto label = std::make_shared<Label>(texts[k]);
                 label->SetTextColor(Color(textColor_.r, textColor_.g, textColor_.b, textColor_.a));
+                PrepareItemLabel(label);
                 items_.insert(items_.begin() + index + k, label);
                 label->SetParent(this);
             }
@@ -312,6 +324,7 @@ namespace ZUI {
             if (index < 0 || index >= (int)items_.size()) return;
             Label* p = items_[index].get();
             if (disabled) disabledItems_.insert(p); else disabledItems_.erase(p);
+            if (items_[index]) items_[index]->SetEnabled(!disabled);   // Label 化：禁用态由 Label 画
             RequestRepaint();
         }
         bool IsItemDisabled(int index) const { return index >= 0 && index < (int)items_.size() && disabledItems_.count(items_[index].get()) > 0; }
@@ -324,9 +337,16 @@ namespace ZUI {
         void SetItemTextColor(int index, Color color) {
             if (index < 0 || index >= (int)items_.size()) return;
             itemTextColors_[items_[index].get()] = color.ToD2D();
+            if (items_[index]) items_[index]->SetTextColor(color);   // Label 化：颜色由 Label 画
             RequestRepaint();
         }
-        void ClearItemTextColor(int index) { if (index >= 0 && index < (int)items_.size()) itemTextColors_.erase(items_[index].get()); RequestRepaint(); }
+        void ClearItemTextColor(int index) {
+            if (index >= 0 && index < (int)items_.size()) {
+                itemTextColors_.erase(items_[index].get());
+                if (items_[index]) items_[index]->SetTextColor(Color(textColor_.r, textColor_.g, textColor_.b, textColor_.a));
+            }
+            RequestRepaint();
+        }
 
         void SetItemToolTip(int index, const std::wstring& tip) {
             if (index < 0 || index >= (int)items_.size()) return;
@@ -433,7 +453,49 @@ namespace ZUI {
             UIElement::ArrangeOverride(finalRect);
             UpdateScrollInfo();
             UpdateIndicatorTarget();
+            childrenDirty_ = true;              // 重排过 → 可见子元素列表必须重建（含滚动后的坐标）
         }
+
+        // Label 化：可见项 Label 作为子元素进入 Window 合成/事件/动画流程
+        // 注意：必须在"滚动后"的坐标上 Arrange —— 因为 ComposeImpl 的裁剪剔除读 arrangedRect_，
+        // 若只放变换、arrangedRect_ 停在原位，屏幕外的项会被误判为"裁剪区外"而整棵跳过（新项不出现）。
+        void VisibleRange(int& first, int& last) const {
+            float eff = buttonMode_ ? (itemHeight_ + buttonSpacing_) : itemHeight_;
+            first = 0; last = -1;
+            if (eff <= 0.0f) return;
+            float snapped = Snap(scrollOffsetY_);
+            first = (int)(snapped / eff); if (first < 0) first = 0;
+            last = (int)((snapped + arrangedRect_.height) / eff);
+            if (last > (int)items_.size() - 1) last = (int)items_.size() - 1;
+        }
+        const std::vector<UIElement*>& GetChildren() const override {
+            float snapped = Snap(scrollOffsetY_);
+            if (!childrenDirty_ && snapped == lastChildrenSnap_) return childrenView_;
+            childrenDirty_ = false;
+            lastChildrenSnap_ = snapped;
+            childrenView_.clear();
+            float eff = buttonMode_ ? (itemHeight_ + buttonSpacing_) : itemHeight_;
+            if (eff <= 0.0f) return childrenView_;
+            float left = arrangedRect_.x + (buttonMode_ ? 4.0f : 0.0f) + 8.0f;   // 按钮模式 itemRect 左移 4（与原绘制一致）
+            if (itemsCheckable_) left += 15.0f + 6.0f;
+            float right = arrangedRect_.x + arrangedRect_.width - (showScrollBar_ ? scrollBarWidth_ : 0) - 8.0f;
+            float w = right - left; if (w < 0.0f) w = 0.0f;
+            const float bleedY = 3.0f;
+            int first, last; VisibleRange(first, last);
+            for (int i = first; i <= last; ++i) {
+                if (!items_[i]) continue;
+                float y = arrangedRect_.y + i * eff - snapped;      // 就地摆到滚动后的位置
+                items_[i]->Arrange(Rect(left, y - bleedY, w, itemHeight_ + bleedY * 2.0f));
+                childrenView_.push_back(items_[i].get());
+            }
+            return childrenView_;
+        }
+        // 裁剪只给子元素用；向外扩 2px，避免 ListView 自己的描边/阴影被切
+        std::optional<D2D1_RECT_F> GetClipRect() const override {
+            return D2D1::RectF(arrangedRect_.x - 2.0f, arrangedRect_.y - 2.0f,
+                arrangedRect_.x + arrangedRect_.width + 2.0f, arrangedRect_.y + arrangedRect_.height + 2.0f);
+        }
+        mutable float lastChildrenSnap_ = -1e30f;
 
         void Draw(ID2D1RenderTarget* rt) override {
             if (!visible_) return;
@@ -488,8 +550,7 @@ namespace ZUI {
                     else rt->FillRectangle(itemRect, alternateBrush_.Get());
                 }
 
-                auto label = items_[i];
-                float textLeft = itemRect.left + 8.0f;
+                // Label 化：复选框仍由 ListView 画；文本由该行 Label 自己画（走 Window 合成递归，见 GetChildren）
                 if (itemsCheckable_) {
                     float size = 15.0f;
                     float cy = (itemRect.top + itemRect.bottom) / 2.0f;
@@ -498,18 +559,6 @@ namespace ZUI {
                     CheckBox::DrawBox(rt, cbRect, on ? 1.0f : 0.0f,
                         on ? CheckBox::State::Checked : CheckBox::State::Unchecked,
                         checkBoxColor_, checkMarkColor_, borderColor_, 4.0f, listCheckBrush_);
-                    textLeft = cbRect.right + 6.0f;
-                }
-                if (label && !label->GetText().empty()) {
-                    D2D1_RECT_F textRect = itemRect;
-                    textRect.left = textLeft;
-                    textRect.right -= 8.0f;
-                    D2D1_COLOR_F tcol = textColor_;
-                    auto itc = itemTextColors_.find(label.get());
-                    if (itc != itemTextColors_.end()) tcol = itc->second;
-                    if (disabledItems_.count(label.get())) tcol = D2D1::ColorF(0.65f, 0.65f, 0.65f, 1.0f);
-                    DrawTextWithEllipsis(rt, label->GetText(), textRect, tcol,
-                        GetEffectiveFontSpec(), textBrush_, fmt);
                 }
             }
 

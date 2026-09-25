@@ -3123,6 +3123,7 @@ namespace ZUI {
         }
         bool IsValid() const { return hwnd_ != nullptr; }
         int GetId() const { return id_; }
+        HWND GetHwnd() const { return hwnd_; }
 
         // 便捷：显示 / 隐藏 / 置顶（z 序最上）
         void Show() { if (hwnd_) ShowWindow(hwnd_, SW_SHOW); }
@@ -3220,6 +3221,7 @@ namespace ZUI {
 
         // 原生标题栏文字 / 图标（装了自定义标题栏时，标题请用 TitleBar::SetTitle）
         void SetTitle(const std::wstring& title) { if (hwnd_) SetWindowTextW(hwnd_, title.c_str()); }
+        std::wstring GetTitle() const { wchar_t b[512] = {}; if (hwnd_) GetWindowTextW(hwnd_, b, 512); return b; }
         void SetIcon(HICON bigIcon, HICON smallIcon) {
             if (!hwnd_) return;
             if (bigIcon) SendMessageW(hwnd_, WM_SETICON, ICON_BIG, (LPARAM)bigIcon);

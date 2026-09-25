@@ -523,6 +523,25 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         btnNoneMode->Connect(btnNoneMode->Clicked, [listView]() { listView->SetSelectionMode(ListView::SelectionMode::None); });
         listButtons->AddChild(btnNoneMode);
 
+        // 新 API 测试按钮
+        auto btnBatch = std::make_shared<Button>(L"批量+50 (BeginUpdate)");
+        btnBatch->Connect(btnBatch->Clicked, [listView]() {
+            listView->BeginUpdate();
+            for (int k = 0; k < 50; ++k) listView->AddItem(L"批量项 " + std::to_wstring(k + 1));
+            listView->EndUpdate();
+            });
+        listButtons->AddChild(btnBatch);
+        auto btnRich = std::make_shared<Button>(L"富项 (图标+内嵌 Label)");
+        btnRich->Connect(btnRich->Clicked, [listView]() {
+            auto rich = std::make_shared<Label>(L"富项 ");
+            rich->SetTextColor(Color::FromArgb(255, 0, 90, 160));
+            auto inner = std::make_shared<Label>(L"[内嵌]");
+            inner->SetTextColor(Color::FromArgb(255, 200, 60, 60));
+            rich->AddChild(inner);           // 内嵌 Label → 走 Window 合成递归画出来
+            listView->AddItem(rich);
+            });
+        listButtons->AddChild(btnRich);
+
         grid4->AddChild(listView, 1, 0);
         grid4->AddChild(lblListInfo, 1, 1);
         grid4->AddChild(listButtons, 2, 0, 1, 2);
